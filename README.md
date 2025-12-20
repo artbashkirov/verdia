@@ -1,36 +1,110 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Verdia - Юридический AI-ассистент
 
-## Getting Started
+![Verdia](https://img.shields.io/badge/Verdia-AI%20Legal%20Assistant-black)
+![Next.js](https://img.shields.io/badge/Next.js-15-black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-4-38bdf8)
 
-First, run the development server:
+Сервис для подготовки исковых заявлений, ходатайств с анализом судебной практики и оценкой вероятности удовлетворения иска.
+
+## 🚀 Возможности
+
+- **Анализ проблемы** - AI анализирует вашу юридическую ситуацию
+- **Поиск судебной практики** - поиск релевантных решений на mos-gorsud.ru
+- **Генерация документов** - автоматическое создание исковых заявлений и ходатайств
+- **Оценка вероятности** - приблизительная оценка шансов на успех
+
+## 🛠 Технологии
+
+- **Frontend**: Next.js 15, React 19, TypeScript
+- **Стилизация**: Tailwind CSS 4
+- **База данных**: Supabase (PostgreSQL)
+- **AI**: OpenAI API (ChatGPT)
+- **Источник данных**: mos-gorsud.ru
+
+## 📦 Установка
 
 ```bash
+# Клонирование репозитория
+git clone https://github.com/your-username/verdia.git
+cd verdia
+
+# Установка зависимостей
+npm install
+
+# Настройка переменных окружения
+cp env.example .env.local
+# Заполните .env.local вашими ключами
+
+# Запуск dev-сервера
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🔑 Переменные окружения
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Создайте файл `.env.local` в корне проекта:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
-## Learn More
+# OpenAI (будет добавлено позже)
+OPENAI_API_KEY=your_openai_api_key
+```
 
-To learn more about Next.js, take a look at the following resources:
+## 🗃 База данных
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+SQL-схема для Supabase находится в файле `supabase/schema.sql`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Таблицы:
 
-## Deploy on Vercel
+- **users** - пользователи (id, email, first_name, last_name, plan)
+- **generations** - сгенерированные ответы (id, user_id, query, response)
+- **chat_history** - история чатов (id, user_id, title, generation_id)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 📱 Страницы
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Путь | Описание |
+|------|----------|
+| `/login` | Страница входа |
+| `/register` | Регистрация |
+| `/verify` | Подтверждение email |
+| `/chat` | Главная страница чата |
+| `/chat/[id]` | Страница с ответом |
+
+## 🎨 Структура проекта
+
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── (auth)/            # Страницы авторизации
+│   │   ├── login/
+│   │   ├── register/
+│   │   └── verify/
+│   └── (chat)/            # Страницы чата
+│       └── chat/
+├── components/            # React компоненты
+│   ├── icons/            # SVG иконки
+│   ├── layout/           # Layout компоненты
+│   └── ui/               # UI компоненты
+├── lib/                  # Утилиты и клиенты
+└── types/                # TypeScript типы
+```
+
+## 🔜 Roadmap
+
+- [ ] Подключение OpenAI API
+- [ ] Парсинг mos-gorsud.ru
+- [ ] Генерация документов (DOCX)
+- [ ] Система оплаты
+- [ ] Личный кабинет
+- [ ] История генераций
+
+## 📄 Лицензия
+
+MIT
+
+---
+
+Разработано с ❤️ для тех, кто хочет защитить свои права

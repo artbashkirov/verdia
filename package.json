@@ -3,13 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -H 127.0.0.1",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.8.0",
+    "@supabase/supabase-js": "^2.86.0",
+    "docx": "^9.5.1",
+    "file-saver": "^2.0.5",
+    "lightningcss": "^1.30.2",
     "next": "16.0.5",
+    "openai": "^6.9.1",
+    "puppeteer-core": "^24.31.0",
     "react": "19.2.0",
     "react-dom": "19.2.0"
   },
@@ -22,5 +29,8 @@
     "eslint-config-next": "16.0.5",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "optionalDependencies": {
+    "lightningcss-darwin-arm64": "^1.30.2"
   }
 }
