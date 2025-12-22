@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, KeyboardEvent } from 'react';
-import { AttachmentIcon, MicrophoneIcon, SendIcon } from '@/components/icons';
+import { AttachmentIcon, MicrophoneIcon } from '@/components/icons';
+import { SendHorizontal } from 'lucide-react';
 
 interface ChatInputProps {
   onSubmit: (message: string) => void;
@@ -70,7 +71,7 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
             }`}
             title="Отправить"
           >
-            <SendIcon className="w-5 h-5" strokeWidth="1.5" />
+            <SendHorizontal className="w-5 h-5" strokeWidth={2} />
           </button>
         </div>
       </div>

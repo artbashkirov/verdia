@@ -157,7 +157,7 @@ function ResultContent() {
                         href={c.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="w-[180px] bg-[#f3f3f3] p-3 rounded-2xl hover:bg-[#e8e8e8] transition-colors flex flex-col gap-3"
+                        className="flex-1 bg-[#f3f3f3] p-3 rounded-2xl hover:bg-[#e8e8e8] transition-colors flex flex-col gap-3"
                       >
                         <p className="text-[14px] font-medium text-[#040308] leading-[18px] line-clamp-3 h-12">
                           {c.title}
