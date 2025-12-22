@@ -12,6 +12,30 @@
   --gray-500: gray;
 }
 
+:root.dark {
+  --background: #212121;
+  --foreground: #ffffff;
+  --primary: #212121;
+  --primary-hover: #3a3a3a;
+  --accent: #312ecb;
+  --gray-100: #3a3a3a;
+  --gray-200: #4a4a4a;
+  --gray-400: #727272;
+  --gray-500: #9a9a9a;
+}
+
+:root.light {
+  --background: #ffffff;
+  --foreground: #040308;
+  --primary: #212121;
+  --primary-hover: #3a3a3a;
+  --accent: #312ecb;
+  --gray-100: #f3f3f3;
+  --gray-200: #d9d9d9;
+  --gray-400: #727272;
+  --gray-500: gray;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

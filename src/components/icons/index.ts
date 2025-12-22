@@ -12,5 +12,8 @@ export {
   MicrophoneIcon,
   SendIcon,
   DownloadIcon,
+  SunIcon,
+  MoonIcon,
+  MonitorIcon,
 } from './Icons';
 

@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LogoFull, PlusIcon, MessageIcon, TrashIcon, HelpCircleIcon, ChevronDownIcon, NewMessageIcon } from '@/components/icons';
+import { LogoFull, PlusIcon, MessageIcon, TrashIcon, HelpCircleIcon, ChevronDownIcon, NewMessageIcon, SunIcon, MoonIcon, MonitorIcon } from '@/components/icons';
 import { createClient } from '@/lib/supabase/client';
+import { useTheme } from '@/lib/theme-context';
 import type { User } from '@supabase/supabase-js';
 
 interface ChatHistory {
@@ -26,10 +27,12 @@ export function Sidebar({
   onClearHistory,
 }: SidebarProps) {
   const router = useRouter();
+  const { theme, setTheme } = useTheme();
   const [user, setUser] = useState<User | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatHistory[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -57,6 +60,23 @@ export function Sidebar({
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+
+    if (showDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showDropdown]);
 
   const loadChatHistory = async (userId: string) => {
     setIsLoadingHistory(true);
@@ -94,6 +114,8 @@ export function Sidebar({
     if (!user) return;
     
     if (!confirm('Вы уверены, что хотите удалить всю историю?')) return;
+    
+    setShowDropdown(false);
     
     const supabase = createClient();
     
@@ -167,7 +189,7 @@ export function Sidebar({
         {/* New request button */}
         <button
           onClick={onNewChat || (() => router.push('/chat'))}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white text-black rounded-xl hover:bg-gray-100 transition-colors"
+          className="w-full h-10 flex items-center justify-center gap-2 px-4 bg-white text-black rounded-xl hover:bg-gray-100 transition-colors"
         >
           <PlusIcon className="w-4 h-4" />
           <span className="text-sm font-medium">Новый запрос</span>
@@ -184,7 +206,7 @@ export function Sidebar({
               <div
                 key={chat.id}
                 className={`
-                  group relative flex items-center gap-2 p-3 rounded-xl transition-colors
+                  group relative flex items-center gap-2 h-10 px-3 rounded-xl transition-colors
                   ${currentChatId === chat.id ? 'bg-[#3a3a3a]' : 'hover:bg-[#3a3a3a]'}
                 `}
               >
@@ -192,7 +214,7 @@ export function Sidebar({
                   href={`/chat/${chat.id}`}
                   className="flex items-center gap-2 flex-1 min-w-0"
                 >
-                  <MessageIcon className="w-[18px] h-[18px] text-white shrink-0" />
+                  <MessageIcon className="w-4 h-4 text-white shrink-0" strokeWidth="1.5" />
                   <span className="text-sm font-medium text-white truncate">
                     {chat.title}
                   </span>
@@ -211,27 +233,9 @@ export function Sidebar({
       </div>
 
       {/* Bottom section */}
-      <div className="px-5 pb-5 pt-3 border-t border-white/10 flex flex-col gap-3">
-        {/* Actions */}
-        <div className="flex flex-col">
-          <button
-            onClick={handleClearHistory}
-            className="flex items-center gap-2 p-3 rounded-xl text-white hover:bg-white/5 transition-colors"
-          >
-            <TrashIcon className="w-[18px] h-[18px]" />
-            <span className="text-sm font-medium">Очистить историю</span>
-          </button>
-          <Link
-            href="/faq"
-            className="flex items-center gap-2 p-3 rounded-xl text-white hover:bg-white/5 transition-colors"
-          >
-            <HelpCircleIcon className="w-[18px] h-[18px]" />
-            <span className="text-sm font-medium">Вопросы и ответы</span>
-          </Link>
-        </div>
-
+      <div className="px-5 pb-5 pt-3 border-t border-white/10">
         {/* User profile */}
-        <div className="relative">
+        <div className="relative" ref={dropdownRef}>
           <button 
             onClick={() => setShowDropdown(!showDropdown)}
             className="w-full flex items-center justify-between px-4 py-2.5 bg-[#3a3a3a] rounded-xl hover:bg-[#4a4a4a] transition-colors"
@@ -246,6 +250,73 @@ export function Sidebar({
           {/* Dropdown menu */}
           {showDropdown && (
             <div className="absolute bottom-full left-0 right-0 mb-2 bg-[#3a3a3a] rounded-xl overflow-hidden shadow-lg">
+              <button
+                onClick={handleClearHistory}
+                className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-white hover:bg-[#4a4a4a] transition-colors"
+              >
+                <TrashIcon className="w-[18px] h-[18px]" />
+                <span>Очистить историю</span>
+              </button>
+              <Link
+                href="/faq"
+                onClick={() => setShowDropdown(false)}
+                className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-white hover:bg-[#4a4a4a] transition-colors"
+              >
+                <HelpCircleIcon className="w-[18px] h-[18px]" />
+                <span>Вопросы и ответы</span>
+              </Link>
+              
+              {/* Theme selector */}
+              <div className="border-t border-white/10 my-1"></div>
+              <div className="px-4 py-2">
+                <div className="text-xs font-medium text-gray-400 mb-2">Тема интерфейса</div>
+                <div className="flex flex-col gap-1">
+                  <button
+                    onClick={() => {
+                      setTheme('light');
+                      setShowDropdown(false);
+                    }}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                      theme === 'light' 
+                        ? 'bg-[#4a4a4a] text-white' 
+                        : 'text-gray-300 hover:bg-[#4a4a4a]'
+                    }`}
+                  >
+                    <SunIcon className="w-[18px] h-[18px]" />
+                    <span>Дневная</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setTheme('dark');
+                      setShowDropdown(false);
+                    }}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                      theme === 'dark' 
+                        ? 'bg-[#4a4a4a] text-white' 
+                        : 'text-gray-300 hover:bg-[#4a4a4a]'
+                    }`}
+                  >
+                    <MoonIcon className="w-[18px] h-[18px]" />
+                    <span>Ночная</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setTheme('system');
+                      setShowDropdown(false);
+                    }}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                      theme === 'system' 
+                        ? 'bg-[#4a4a4a] text-white' 
+                        : 'text-gray-300 hover:bg-[#4a4a4a]'
+                    }`}
+                  >
+                    <MonitorIcon className="w-[18px] h-[18px]" />
+                    <span>Системная</span>
+                  </button>
+                </div>
+              </div>
+              
+              <div className="border-t border-white/10 my-1"></div>
               <button
                 onClick={handleSignOut}
                 className="w-full px-4 py-3 text-left text-sm text-white hover:bg-[#4a4a4a] transition-colors"

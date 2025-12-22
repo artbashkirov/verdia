@@ -52,6 +52,11 @@ export default function RegisterPage() {
 
       if (error) {
         console.error('Supabase signup error:', error);
+        console.error('Error details:', {
+          message: error.message,
+          status: error.status,
+          name: error.name,
+        });
         
         if (error.message.includes('already registered') || error.message.includes('already been registered')) {
           setError('Пользователь с таким email уже зарегистрирован');
@@ -69,6 +74,16 @@ export default function RegisterPage() {
       }
 
       console.log('Signup successful:', data);
+      console.log('User data:', {
+        user: data.user,
+        session: data.session,
+        needsEmailConfirmation: !data.session && data.user,
+      });
+      
+      // Если пользователь создан, но сессия не создана - требуется подтверждение email
+      if (data.user && !data.session) {
+        console.log('Email confirmation required. Check your email inbox and spam folder.');
+      }
     } catch (err) {
       console.error('Registration error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Произошла ошибка при регистрации';

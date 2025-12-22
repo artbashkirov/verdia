@@ -39,25 +39,25 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={disabled}
-            className="flex-1 bg-transparent outline-none text-sm font-medium text-black placeholder:text-gray-500"
+            className="flex-1 bg-transparent outline-none text-base font-medium text-[#040308] placeholder:text-[#808080]"
           />
           
           {/* Attachment button */}
           <button
             type="button"
-            className="p-1 text-black/60 hover:text-black transition-colors"
+            className="p-1 text-[#040308] transition-colors"
             title="Прикрепить файл"
           >
-            <AttachmentIcon className="w-[18px] h-[18px]" />
+            <AttachmentIcon className="w-5 h-5" strokeWidth="1.5" />
           </button>
           
           {/* Microphone button */}
           <button
             type="button"
-            className="p-1 text-black/60 hover:text-black transition-colors"
+            className="p-1 text-[#040308] transition-colors"
             title="Голосовой ввод"
           >
-            <MicrophoneIcon className="w-4 h-4" />
+            <MicrophoneIcon className="w-5 h-5" strokeWidth="1.5" />
           </button>
           
           {/* Send button */}
@@ -65,10 +65,12 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
             type="button"
             onClick={handleSubmit}
             disabled={!message.trim() || disabled}
-            className="p-1 text-black/60 hover:text-black disabled:text-black/30 disabled:cursor-not-allowed transition-colors"
+            className={`p-1 transition-colors disabled:cursor-not-allowed ${
+              message.trim() ? 'text-[#040308]' : 'text-[#808080]'
+            }`}
             title="Отправить"
           >
-            <SendIcon className="w-4 h-4" />
+            <SendIcon className="w-5 h-5" strokeWidth="1.5" />
           </button>
         </div>
       </div>

@@ -313,16 +313,16 @@ export default function ChatResultPage() {
         <div className="h-full bg-white rounded-2xl relative overflow-hidden flex flex-col">
           {/* Scrollable content */}
           <div className="flex-1 overflow-y-auto pt-14 pb-36 px-0">
-            <div className="max-w-[660px] mx-auto flex flex-col gap-4">
+            <div className="max-w-[660px] mx-auto flex flex-col gap-8">
               {/* Query */}
-              <h1 className="text-2xl font-medium text-black leading-7 tracking-tight">
+              <h1 className="text-[20px] md:text-[24px] font-medium text-[#040308] leading-[28px] md:leading-[30px] tracking-tight">
                 {query}
               </h1>
 
               {/* Court cases */}
               {response.courtCases && response.courtCases.length > 0 && (
-                <div className="flex flex-col gap-3">
-                  <p className="text-[10px] font-medium text-gray-500 uppercase tracking-tight leading-[18px]">
+                <div className="flex flex-col gap-4">
+                  <p className="text-[12px] font-medium text-[#808080] uppercase tracking-tight leading-[18px]">
                     Судебные решения
                   </p>
                   <div className="flex gap-2">
@@ -334,10 +334,10 @@ export default function ChatResultPage() {
                         rel="noopener noreferrer"
                         className="w-[180px] bg-[#f3f3f3] p-3 rounded-2xl hover:bg-[#e8e8e8] transition-colors flex flex-col gap-3"
                       >
-                        <p className="text-xs font-medium text-black leading-4 line-clamp-3 h-12">
+                        <p className="text-[14px] font-medium text-[#040308] leading-[18px] line-clamp-3 h-12">
                           {c.title}
                         </p>
-                        <p className="text-[10px] font-medium text-[#727272] leading-[14px]">
+                        <p className="text-[12px] font-medium text-[#808080] leading-[14px]">
                           {c.url?.includes('sudact.ru') ? 'sudact.ru' : 
                            c.url?.includes('help.mos-gorsud.ru') ? 'help.mos-gorsud.ru' : 'mos-gorsud.ru'}
                         </p>
@@ -352,12 +352,12 @@ export default function ChatResultPage() {
 
               {/* Short answer */}
               {response.shortAnswer && (
-                <div className="flex flex-col gap-3">
-                  <p className="text-[10px] font-medium text-gray-500 uppercase tracking-tight leading-[18px]">
+                <div className="flex flex-col gap-4">
+                  <p className="text-[12px] font-medium text-[#808080] uppercase tracking-tight leading-[18px]">
                     Краткий ответ
                   </p>
-                  <div className="text-sm text-black leading-[1.3]">
-                    <p className="mb-3 font-semibold">{response.shortAnswer.title}</p>
+                  <div className="text-base text-[#040308] leading-[24px]">
+                    <p className="mb-3 text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold">{response.shortAnswer.title}</p>
                     <p>{response.shortAnswer.content}</p>
                   </div>
                 </div>
@@ -368,12 +368,12 @@ export default function ChatResultPage() {
 
               {/* Legal analysis */}
               {response.legalAnalysis && (
-                <div className="flex flex-col gap-3">
-                  <p className="text-[10px] font-medium text-gray-500 uppercase tracking-tight leading-[18px]">
+                <div className="flex flex-col gap-4">
+                  <p className="text-[12px] font-medium text-[#808080] uppercase tracking-tight leading-[18px]">
                     Правовой анализ
                   </p>
-                  <div className="text-sm text-black leading-[1.3]">
-                    <p className="font-semibold mb-3">{response.legalAnalysis.title}</p>
+                  <div className="text-base text-[#040308] leading-[24px]">
+                    <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3">{response.legalAnalysis.title}</p>
                     <p className="mb-3">{response.legalAnalysis.intro}</p>
                     {response.legalAnalysis.points && (
                       <ul className="list-disc ml-5 mb-3">
@@ -384,7 +384,7 @@ export default function ChatResultPage() {
                     )}
                     {response.legalAnalysis.bases && (
                       <>
-                        <p className="font-semibold mb-3">Основания:</p>
+                        <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3">Основания:</p>
                         <ul className="list-disc ml-5">
                           {response.legalAnalysis.bases.map((base, i) => (
                             <li key={i} className="mb-2 last:mb-0">{base}</li>
@@ -401,16 +401,16 @@ export default function ChatResultPage() {
 
               {/* Practice analysis */}
               {response.practiceAnalysis && (
-                <div className="flex flex-col gap-3">
-                  <p className="text-[10px] font-medium text-gray-500 uppercase tracking-tight leading-[18px]">
+                <div className="flex flex-col gap-4">
+                  <p className="text-[12px] font-medium text-[#808080] uppercase tracking-tight leading-[18px]">
                     Анализ судебной практики
                   </p>
-                  <div className="text-sm text-black leading-[1.3]">
+                  <div className="text-base text-[#040308] leading-[24px]">
                     <p className="mb-3">{response.practiceAnalysis.intro}</p>
                     
                     {response.practiceAnalysis.satisfied && (
                       <>
-                        <p className="font-semibold mb-3">{response.practiceAnalysis.satisfied.title}</p>
+                        <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3">{response.practiceAnalysis.satisfied.title}</p>
                         <ul className="list-disc ml-5 mb-3">
                           {response.practiceAnalysis.satisfied.points.map((point, i) => (
                             <li key={i} className="mb-2 last:mb-0">{point}</li>
@@ -421,7 +421,7 @@ export default function ChatResultPage() {
                     
                     {response.practiceAnalysis.rejected && (
                       <>
-                        <p className="font-semibold mb-3">{response.practiceAnalysis.rejected.title}</p>
+                        <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3">{response.practiceAnalysis.rejected.title}</p>
                         <ul className="list-disc ml-5">
                           {response.practiceAnalysis.rejected.points.map((point, i) => (
                             <li key={i} className="mb-2 last:mb-0">{point}</li>
@@ -438,15 +438,15 @@ export default function ChatResultPage() {
 
               {/* Probability */}
               {response.probability && (
-                <div className="flex flex-col gap-3">
-                  <p className="text-[10px] font-medium text-gray-500 uppercase tracking-tight leading-[18px]">
+                <div className="flex flex-col gap-4">
+                  <p className="text-[12px] font-medium text-[#808080] uppercase tracking-tight leading-[18px]">
                     Оценка вероятности
                   </p>
-                  <div className="text-sm text-black leading-[1.3]">
+                  <div className="text-base text-[#040308] leading-[24px]">
                     <p className="mb-3">Вероятность удовлетворения требований: <strong>{response.probability.level}</strong>.</p>
                     {response.probability.factors && (
                       <>
-                        <p className="font-semibold mb-3">Повышается, если есть:</p>
+                        <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3">Повышается, если есть:</p>
                         <ul className="list-disc ml-5">
                           {response.probability.factors.map((factor, i) => (
                             <li key={i} className="mb-2 last:mb-0">{factor}</li>
@@ -463,11 +463,11 @@ export default function ChatResultPage() {
 
               {/* Recommendations */}
               {response.recommendations && (
-                <div className="flex flex-col gap-3">
-                  <p className="text-[10px] font-medium text-gray-500 uppercase tracking-tight leading-[18px]">
+                <div className="flex flex-col gap-4">
+                  <p className="text-[12px] font-medium text-[#808080] uppercase tracking-tight leading-[18px]">
                     Рекомендованные действия
                   </p>
-                  <ol className="list-decimal ml-5 text-sm text-black leading-[1.3]">
+                  <ol className="list-decimal ml-5 text-base text-[#040308] leading-[24px]">
                     {response.recommendations.map((rec, i) => (
                       <li key={i} className="mb-2 last:mb-0">{rec}</li>
                     ))}
@@ -480,12 +480,12 @@ export default function ChatResultPage() {
 
               {/* Documents */}
               {response.documents && response.documents.length > 0 && (
-                <div className="flex flex-col gap-3">
-                  <p className="text-[10px] font-medium text-gray-500 uppercase tracking-tight leading-[18px]">
+                <div className="flex flex-col gap-4">
+                  <p className="text-[12px] font-medium text-[#808080] uppercase tracking-tight leading-[18px]">
                     Подготовленные документы
                   </p>
                   
-                  <div className="text-sm text-black leading-[1.3] flex flex-col gap-5">
+                  <div className="text-base text-[#040308] leading-[24px] flex flex-col gap-5">
                     {response.documents.map((doc, i) => (
                       <div key={doc.id}>
                         <p className="mb-3">{i + 1}. {doc.title}</p>
@@ -504,17 +504,17 @@ export default function ChatResultPage() {
                         className="w-full flex items-center justify-between px-4 py-3 border border-[#d9d9d9] rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
                       >
                         <div className="flex flex-col items-start min-w-0 flex-1 mr-4">
-                          <p className="text-sm font-medium text-black truncate w-full text-left">
+                          <p className="text-sm font-medium text-[#040308] truncate w-full text-left">
                             {doc.title}
                           </p>
-                          <p className="text-xs text-[#727272] uppercase">
+                          <p className="text-xs text-[#808080] uppercase">
                             {downloadingId === doc.id ? 'Генерация...' : 'docx'}
                           </p>
                         </div>
                         {downloadingId === doc.id ? (
                           <div className="w-[18px] h-[18px] border-2 border-black border-t-transparent rounded-full animate-spin" />
                         ) : (
-                          <DownloadIcon className="w-[18px] h-[18px] text-black shrink-0" />
+                          <DownloadIcon className="w-5 h-5 text-[#040308] shrink-0" strokeWidth="1.75" />
                         )}
                       </button>
                     ))}
@@ -526,7 +526,7 @@ export default function ChatResultPage() {
                     disabled={downloadingId !== null}
                     className="inline-flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-[#3a3a3a] transition-colors self-start disabled:opacity-50"
                   >
-                    <DownloadIcon className="w-[18px] h-[18px]" />
+                    <DownloadIcon className="w-4 h-4" strokeWidth="1.5" />
                     <span className="text-sm font-medium">Скачать все</span>
                   </button>
                 </div>
@@ -536,8 +536,8 @@ export default function ChatResultPage() {
               {chatMessages.length > 0 && (
                 <>
                   <div className="h-px bg-[#d9d9d9]" />
-                  <div className="flex flex-col gap-5">
-                    <p className="text-[10px] font-medium text-gray-500 uppercase tracking-tight leading-[18px]">
+                  <div className="flex flex-col gap-4">
+                    <p className="text-[12px] font-medium text-[#808080] uppercase tracking-tight leading-[18px]">
                       Продолжение диалога
                     </p>
                     
@@ -552,8 +552,8 @@ export default function ChatResultPage() {
                           </div>
                         ) : (
                           // Assistant message - clean text without background
-                          <div className="flex flex-col gap-3">
-                            <div className="text-sm text-black leading-[1.3]">
+                          <div className="flex flex-col gap-4">
+                            <div className="text-base text-[#040308] leading-[24px]">
                               <MarkdownRenderer content={msg.content} />
                             </div>
                             
@@ -567,12 +567,12 @@ export default function ChatResultPage() {
                                     className="w-full flex items-center justify-between px-4 py-3 border border-[#d9d9d9] rounded-xl hover:bg-gray-50 transition-colors"
                                   >
                                     <div className="flex flex-col items-start min-w-0 flex-1 mr-4">
-                                      <p className="text-sm font-medium text-black truncate w-full text-left">
+                                      <p className="text-sm font-medium text-[#040308] truncate w-full text-left">
                                         {doc.title}
                                       </p>
-                                      <p className="text-xs text-[#727272] uppercase">docx</p>
+                                      <p className="text-xs text-[#808080] uppercase">docx</p>
                                     </div>
-                                    <DownloadIcon className="w-[18px] h-[18px] text-black shrink-0" />
+                                    <DownloadIcon className="w-5 h-5 text-[#040308] shrink-0" strokeWidth="1.75" />
                                   </button>
                                 ))}
                               </div>
@@ -583,7 +583,7 @@ export default function ChatResultPage() {
                     ))}
                     
                     {isSending && (
-                      <div className="flex items-center gap-2 text-gray-500">
+                      <div className="flex items-center gap-2 text-[#808080]">
                         <div className="flex gap-1">
                           <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                           <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />

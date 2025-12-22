@@ -20,7 +20,11 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
         if (boldMatch.index > 0) {
           parts.push(remaining.slice(0, boldMatch.index));
         }
-        parts.push(<strong key={`b-${inlineKey++}`}>{boldMatch[1]}</strong>);
+        parts.push(
+          <strong key={`b-${inlineKey++}`} className="font-semibold">
+            {boldMatch[1]}
+          </strong>
+        );
         remaining = remaining.slice(boldMatch.index + boldMatch[0].length);
       } else {
         parts.push(remaining);
@@ -152,7 +156,7 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
   };
 
   return (
-    <div className={`text-sm leading-relaxed ${className}`}>
+    <div className={`text-base leading-[24px] ${className}`}>
       {parseMarkdown(content)}
     </div>
   );
