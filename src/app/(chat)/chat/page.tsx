@@ -61,25 +61,25 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-screen bg-[#212121]">
+    <div className="flex h-screen bg-[#0E0E0E]">
       <Sidebar onNewChat={handleNewChat} />
       
       {/* Main content */}
       <div className="flex-1 p-2 pl-0">
-        <div className="h-full bg-white rounded-2xl relative overflow-hidden flex flex-col items-center justify-center">
+        <div className="h-full bg-background rounded-2xl relative overflow-hidden flex flex-col items-center justify-center">
           {/* Content */}
           <div className="flex flex-col items-center gap-14 max-w-[920px] px-4">
             {/* Logo and tagline */}
             <div className="flex flex-col items-center gap-4">
               <LogoFull variant="dark" />
-              <p className="text-base text-black text-center leading-6">
+              <p className="text-base text-foreground text-center leading-6">
                 Иски, ходатайства и анализ судебной практики — за минуты
               </p>
             </div>
 
             {/* Example queries */}
             <div className="flex flex-col items-center gap-4 w-full">
-              <p className="text-base font-semibold text-black text-center">
+              <p className="text-base font-semibold text-foreground text-center">
                 Примеры запросов
               </p>
               
@@ -90,9 +90,9 @@ export default function ChatPage() {
                     <button
                       key={query.id}
                       onClick={() => handleExampleClick(query.text)}
-                      className="bg-[#f3f3f3] px-4 py-3 rounded-xl text-left hover:bg-[#e8e8e8] transition-colors"
+                      className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 dark:hover:bg-[#4a4a4a] transition-colors"
                     >
-                      <p className="text-sm font-medium text-black leading-[18px]">
+                      <p className="text-sm font-medium text-foreground leading-[18px]">
                         {query.text}
                       </p>
                     </button>
@@ -105,9 +105,9 @@ export default function ChatPage() {
                     <button
                       key={query.id}
                       onClick={() => handleExampleClick(query.text)}
-                      className="bg-[#f3f3f3] px-4 py-3 rounded-xl text-left hover:bg-[#e8e8e8] transition-colors"
+                      className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 dark:hover:bg-[#4a4a4a] transition-colors"
                     >
-                      <p className="text-sm font-medium text-black leading-[18px]">
+                      <p className="text-sm font-medium text-foreground leading-[18px]">
                         {query.text}
                       </p>
                     </button>
@@ -120,9 +120,9 @@ export default function ChatPage() {
                     <button
                       key={query.id}
                       onClick={() => handleExampleClick(query.text)}
-                      className="bg-[#f3f3f3] px-4 py-3 rounded-xl text-left hover:bg-[#e8e8e8] transition-colors"
+                      className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 dark:hover:bg-[#4a4a4a] transition-colors"
                     >
-                      <p className="text-sm font-medium text-black leading-[18px]">
+                      <p className="text-sm font-medium text-foreground leading-[18px]">
                         {query.text}
                       </p>
                     </button>

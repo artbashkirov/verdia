@@ -3,6 +3,7 @@
 :root {
   --background: #ffffff;
   --foreground: #040308;
+  --secondary-text: #808080;
   --primary: #212121;
   --primary-hover: #3a3a3a;
   --accent: #312ecb;
@@ -10,23 +11,29 @@
   --gray-200: #d9d9d9;
   --gray-400: #727272;
   --gray-500: gray;
+  --border-color: rgba(0, 0, 0, 0.2);
+  --input-bg: #ffffff;
 }
 
 :root.dark {
-  --background: #212121;
+  --background: #131314;
   --foreground: #ffffff;
+  --secondary-text: #9a9a9a;
   --primary: #212121;
   --primary-hover: #3a3a3a;
   --accent: #312ecb;
   --gray-100: #3a3a3a;
   --gray-200: #4a4a4a;
-  --gray-400: #727272;
-  --gray-500: #9a9a9a;
+  --gray-400: #9a9a9a;
+  --gray-500: #727272;
+  --border-color: rgba(255, 255, 255, 0.1);
+  --input-bg: #1E1E1F;
 }
 
 :root.light {
   --background: #ffffff;
   --foreground: #040308;
+  --secondary-text: #808080;
   --primary: #212121;
   --primary-hover: #3a3a3a;
   --accent: #312ecb;
@@ -34,11 +41,14 @@
   --gray-200: #d9d9d9;
   --gray-400: #727272;
   --gray-500: gray;
+  --border-color: rgba(0, 0, 0, 0.2);
+  --input-bg: #ffffff;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-secondary-text: var(--secondary-text);
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
   --color-accent: var(--accent);
@@ -46,6 +56,8 @@
   --color-gray-200: var(--gray-200);
   --color-gray-400: var(--gray-400);
   --color-gray-500: var(--gray-500);
+  --color-border: var(--border-color);
+  --color-input-bg: var(--input-bg);
   --font-sans: var(--font-inter);
   --font-display: var(--font-outfit);
 }
@@ -84,6 +96,7 @@ body {
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0px 1000px white inset;
+  -webkit-box-shadow: 0 0 0px 1000px var(--background) inset;
+  -webkit-text-fill-color: var(--foreground);
   transition: background-color 5000s ease-in-out 0s;
 }

@@ -25,7 +25,7 @@ export function AuthLayout({ children, title = "Заголовок", description
       </div>
 
       {/* Right white panel */}
-      <div className="flex-1 min-h-screen bg-white p-[100px] flex flex-col justify-between">
+      <div className="flex-1 min-h-screen bg-background p-[100px] flex flex-col justify-between">
         {children}
       </div>
     </div>

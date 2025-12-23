@@ -17,7 +17,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="w-full">
         {label && (
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">
+          <label className="block text-sm font-medium text-foreground mb-1.5">
             {label}
           </label>
         )}
@@ -27,8 +27,9 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             type={inputType}
             className={`
               w-full px-5 py-[15px] text-base
-              border border-[rgba(4,3,8,0.6)] rounded-xl
-              placeholder:text-[rgba(4,3,8,0.4)]
+              bg-background text-foreground
+              border border-border rounded-xl
+              placeholder:text-gray-400
               focus:outline-none focus:ring-2 focus:ring-[#312ecb] focus:border-transparent
               transition-colors
               ${isPassword ? 'pr-12' : ''}
@@ -41,7 +42,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-5 top-1/2 -translate-y-1/2 text-[rgba(4,3,8,0.6)] hover:text-[rgba(4,3,8,0.8)] transition-colors"
+              className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-foreground transition-colors"
             >
               {showPassword ? (
                 <EyeIcon className="w-5 h-5" />

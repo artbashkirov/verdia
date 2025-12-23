@@ -156,7 +156,7 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
   };
 
   return (
-    <div className={`text-base leading-[24px] ${className}`}>
+    <div className={`text-base leading-[24px] break-words overflow-wrap-anywhere ${className}`}>
       {parseMarkdown(content)}
     </div>
   );

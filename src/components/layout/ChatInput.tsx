@@ -29,9 +29,9 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
   };
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 pb-10 pt-5 bg-gradient-to-t from-white/80 via-white/80 to-transparent backdrop-blur-xl">
+    <div className="absolute bottom-0 left-0 right-0 pb-10 bg-background rounded-b-2xl z-10">
       <div className="flex justify-center">
-        <div className="w-[660px] h-14 bg-white/80 border border-black/20 rounded-2xl flex items-center px-5 gap-2">
+        <div className="w-[660px] h-14 bg-input-bg dark:border-0 border border-border rounded-2xl flex items-center px-5 gap-2">
           <input
             ref={inputRef}
             type="text"
@@ -40,13 +40,13 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={disabled}
-            className="flex-1 bg-transparent outline-none text-base font-medium text-[#040308] placeholder:text-[#808080]"
+            className="flex-1 bg-transparent outline-none text-base font-medium text-foreground placeholder:text-gray-400"
           />
           
           {/* Attachment button */}
           <button
             type="button"
-            className="p-1 text-[#040308] transition-colors"
+            className="p-1 text-foreground transition-colors"
             title="Прикрепить файл"
           >
             <AttachmentIcon className="w-5 h-5" strokeWidth="1.5" />
@@ -55,7 +55,7 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
           {/* Microphone button */}
           <button
             type="button"
-            className="p-1 text-[#040308] transition-colors"
+            className="p-1 text-foreground transition-colors"
             title="Голосовой ввод"
           >
             <MicrophoneIcon className="w-5 h-5" strokeWidth="1.5" />
@@ -67,7 +67,7 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
             onClick={handleSubmit}
             disabled={!message.trim() || disabled}
             className={`p-1 transition-colors disabled:cursor-not-allowed ${
-              message.trim() ? 'text-[#040308]' : 'text-[#808080]'
+              message.trim() ? 'text-foreground' : 'text-gray-400'
             }`}
             title="Отправить"
           >

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { LogoFull, PlusIcon, TrashIcon, HelpCircleIcon, ChevronDownIcon, NewMessageIcon, SunIcon, MoonIcon, MonitorIcon } from '@/components/icons';
+import { PlusIcon, TrashIcon, HelpCircleIcon, ChevronDownIcon, NewMessageIcon, SunIcon, MoonIcon, MonitorIcon } from '@/components/icons';
 import { MessageCircleMore, PanelLeftClose } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useTheme } from '@/lib/theme-context';
@@ -201,36 +201,43 @@ export function Sidebar({
     <div 
       ref={sidebarRef}
       onClick={handleSidebarClick}
-      className={`h-screen bg-[#212121] flex flex-col justify-between border-r border-white/10 shrink-0 transition-all duration-300 ease-in-out ${
+      className={`h-screen bg-[#0E0E0E] flex flex-col justify-between shrink-0 transition-all duration-300 ease-in-out ${
         isCollapsed ? 'w-[52px]' : 'w-[282px]'
       }`}
     >
       {/* Top section */}
-      <div className={`flex flex-col sidebar-content ${isCollapsed ? 'items-center p-5' : 'p-5 gap-3'}`}>
+      <div className={`flex flex-col sidebar-content ${isCollapsed ? 'items-center p-5' : 'p-5'}`}>
         {/* Logo and collapse button */}
         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
           {isCollapsed ? (
-            <Link href="/chat" className="flex items-center justify-center">
-              <Image
+            <Link href="/chat" className="flex items-center justify-center w-6 h-6">
+              <img
                 src="/iconV.svg"
                 alt="Verdia"
                 width={24}
                 height={24}
-                priority
-                className="w-6 h-6 object-contain"
+                style={{ width: '24px', height: '24px', display: 'block' }}
               />
             </Link>
           ) : (
             <>
               <Link href="/chat">
-                <LogoFull variant="light" size="small" />
+                <Image
+                  src="/verdiaLogo.svg"
+                  alt="Verdia"
+                  width={100}
+                  height={20}
+                  priority
+                  className="object-contain"
+                  style={{ height: '20px', width: 'auto' }}
+                />
               </Link>
               <button
                 onClick={() => setIsCollapsed(true)}
                 className="text-white hover:text-white/80 transition-colors"
                 title="Свернуть панель"
               >
-                <PanelLeftClose className="w-6 h-6" />
+                <PanelLeftClose className="w-5 h-5" strokeWidth="1.5" />
               </button>
             </>
           )}
@@ -250,6 +257,7 @@ export function Sidebar({
           <button
             onClick={onNewChat || (() => router.push('/chat'))}
             className="w-full h-10 flex items-center justify-center gap-2 px-4 bg-white text-black rounded-xl hover:bg-gray-100 transition-colors"
+            style={{ marginTop: '16px' }}
           >
             <PlusIcon className="w-4 h-4" />
             <span className="text-sm font-medium">Новый запрос</span>
@@ -258,7 +266,7 @@ export function Sidebar({
 
         {/* Chat history */}
         {!isCollapsed && (
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-2" style={{ marginTop: '12px' }}>
             {isLoadingHistory ? (
               <div className="p-3 text-sm text-gray-500">Загрузка...</div>
             ) : displayHistory.length === 0 ? (
@@ -269,7 +277,7 @@ export function Sidebar({
                   key={chat.id}
                   className={`
                     group relative flex items-center gap-2 h-10 px-3 rounded-xl transition-colors
-                    ${currentChatId === chat.id ? 'bg-[#3a3a3a]' : 'hover:bg-[#3a3a3a]'}
+                    ${currentChatId === chat.id ? 'bg-[#3a3a3a] dark:bg-[#1E1E1F]' : 'hover:bg-[#3a3a3a] dark:hover:bg-[#1E1E1F]'}
                   `}
                 >
                   <Link
@@ -296,7 +304,7 @@ export function Sidebar({
       </div>
 
       {/* Bottom section */}
-      <div className={`border-t border-white/10 sidebar-content ${isCollapsed ? 'flex items-center justify-center px-5 pb-5 pt-3' : 'px-5 pb-5 pt-3'}`}>
+      <div className={`sidebar-content ${isCollapsed ? 'flex items-center justify-center px-5 pb-5 pt-3' : 'px-5 pb-5 pt-3'}`}>
         {/* User profile */}
         <div className="relative" ref={dropdownRef}>
           {isCollapsed ? (
@@ -310,7 +318,7 @@ export function Sidebar({
           ) : (
             <button 
               onClick={() => setShowDropdown(!showDropdown)}
-              className="w-full flex items-center justify-between px-4 py-2.5 bg-[#3a3a3a] rounded-xl hover:bg-[#4a4a4a] transition-colors"
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-[#3a3a3a] dark:bg-[#1E1E1F] rounded-xl hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a] transition-colors"
             >
               <div className="flex flex-col items-start">
                 <span className="text-sm font-semibold text-white">{userName}</span>
@@ -322,10 +330,10 @@ export function Sidebar({
 
           {/* Dropdown menu */}
           {showDropdown && (
-            <div className={`absolute ${isCollapsed ? 'bottom-full mb-2 left-0 right-auto w-[200px]' : 'bottom-full mb-2 left-0 right-0'} bg-[#3a3a3a] rounded-xl overflow-hidden shadow-lg z-50`}>
+            <div className={`absolute ${isCollapsed ? 'bottom-full mb-2 left-0 right-auto w-[200px]' : 'bottom-full mb-2 left-0 right-0'} bg-[#3a3a3a] dark:bg-[#1E1E1F] rounded-xl overflow-hidden shadow-lg z-50`}>
               <button
                 onClick={handleClearHistory}
-                className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-white hover:bg-[#4a4a4a] transition-colors"
+                className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-white hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a] transition-colors"
               >
                 <TrashIcon className="w-[18px] h-[18px]" />
                 <span>Очистить историю</span>
@@ -333,7 +341,7 @@ export function Sidebar({
               <Link
                 href="/faq"
                 onClick={() => setShowDropdown(false)}
-                className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-white hover:bg-[#4a4a4a] transition-colors"
+                className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-white hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a] transition-colors"
               >
                 <HelpCircleIcon className="w-[18px] h-[18px]" />
                 <span>Вопросы и ответы</span>
@@ -351,8 +359,8 @@ export function Sidebar({
                     }}
                     className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
                       theme === 'light' 
-                        ? 'bg-[#4a4a4a] text-white' 
-                        : 'text-gray-300 hover:bg-[#4a4a4a]'
+                        ? 'bg-[#4a4a4a] dark:bg-[#2a2a2a] text-white' 
+                        : 'text-gray-300 hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a]'
                     }`}
                   >
                     <SunIcon className="w-[18px] h-[18px]" />
@@ -365,8 +373,8 @@ export function Sidebar({
                     }}
                     className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
                       theme === 'dark' 
-                        ? 'bg-[#4a4a4a] text-white' 
-                        : 'text-gray-300 hover:bg-[#4a4a4a]'
+                        ? 'bg-[#4a4a4a] dark:bg-[#2a2a2a] text-white' 
+                        : 'text-gray-300 hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a]'
                     }`}
                   >
                     <MoonIcon className="w-[18px] h-[18px]" />
@@ -379,8 +387,8 @@ export function Sidebar({
                     }}
                     className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
                       theme === 'system' 
-                        ? 'bg-[#4a4a4a] text-white' 
-                        : 'text-gray-300 hover:bg-[#4a4a4a]'
+                        ? 'bg-[#4a4a4a] dark:bg-[#2a2a2a] text-white' 
+                        : 'text-gray-300 hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a]'
                     }`}
                   >
                     <MonitorIcon className="w-[18px] h-[18px]" />
@@ -392,7 +400,7 @@ export function Sidebar({
               <div className="border-t border-white/10 my-1"></div>
               <button
                 onClick={handleSignOut}
-                className="w-full px-4 py-3 text-left text-sm text-white hover:bg-[#4a4a4a] transition-colors"
+                className="w-full px-4 py-3 text-left text-sm text-white hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a] transition-colors"
               >
                 Выйти из аккаунта
               </button>

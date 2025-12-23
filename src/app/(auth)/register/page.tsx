@@ -111,10 +111,10 @@ export default function RegisterPage() {
       <div className="flex flex-col gap-[100px] max-w-[554px]">
         {/* Header */}
         <div className="flex flex-col gap-2.5">
-          <h2 className="text-[32px] font-bold text-[#040308]">
+          <h2 className="text-[32px] font-bold text-foreground">
             Регистрация
           </h2>
-          <p className="text-base text-[#040308]">
+          <p className="text-base text-foreground">
             Уже зарегистрированы?{' '}
             <Link href="/login" className="text-[#312ecb] hover:underline">
               Войти

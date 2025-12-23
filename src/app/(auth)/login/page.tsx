@@ -48,10 +48,10 @@ export default function LoginPage() {
       <div className="flex flex-col gap-[100px] max-w-[554px]">
         {/* Header */}
         <div className="flex flex-col gap-2.5">
-          <h2 className="text-[32px] font-bold text-[#040308]">
+          <h2 className="text-[32px] font-bold text-foreground">
             Добро пожаловать
           </h2>
-          <p className="text-base text-[#040308]">
+          <p className="text-base text-foreground">
             Еще не зарегистрированы?{' '}
             <Link href="/register" className="text-[#312ecb] hover:underline">
               Регистрация

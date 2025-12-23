@@ -64,10 +64,10 @@ function VerifyContent() {
       <div className="flex flex-col gap-[100px] max-w-[554px]">
         {/* Header */}
         <div className="flex flex-col gap-2.5">
-          <h2 className="text-[32px] font-bold text-[#040308]">
+          <h2 className="text-[32px] font-bold text-foreground">
             Подтвердите регистрацию
           </h2>
-          <p className="text-base text-[#040308]">
+          <p className="text-base text-foreground">
             Мы отправили письмо на email {maskEmail(email)}.
           </p>
         </div>
@@ -80,7 +80,7 @@ function VerifyContent() {
             </div>
           )}
           
-          <p className="text-base text-[#040308]">
+          <p className="text-base text-foreground">
             Не получили письмо? Проверьте папку Спам
           </p>
 
@@ -106,7 +106,7 @@ export default function VerifyPage() {
       >
         <div className="flex flex-col gap-[100px] max-w-[554px]">
           <div className="flex flex-col gap-2.5">
-            <h2 className="text-[32px] font-bold text-[#040308]">
+            <h2 className="text-[32px] font-bold text-foreground">
               Загрузка...
             </h2>
           </div>

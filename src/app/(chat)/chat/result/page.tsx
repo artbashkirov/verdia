@@ -114,12 +114,12 @@ function ResultContent() {
 
   if (!response) {
     return (
-      <div className="flex h-screen bg-[#212121]">
+      <div className="flex h-screen bg-[#0E0E0E]">
         <Sidebar onNewChat={handleNewChat} />
         <div className="flex-1 p-2 pl-0">
-          <div className="h-full bg-white rounded-2xl flex items-center justify-center">
+          <div className="h-full bg-background rounded-2xl flex items-center justify-center">
             <div className="text-center">
-              <p className="text-lg text-gray-600 mb-4">Результат не найден</p>
+              <p className="text-lg text-gray-400 mb-4">Результат не найден</p>
               <button
                 onClick={handleNewChat}
                 className="px-6 py-2 bg-[#212121] text-white rounded-xl hover:bg-[#3a3a3a] transition-colors"
@@ -134,20 +134,20 @@ function ResultContent() {
   }
 
   return (
-    <div className="flex h-screen bg-[#212121]">
+    <div className="flex h-screen bg-[#0E0E0E]">
       <Sidebar onNewChat={handleNewChat} />
       
       <div className="flex-1 p-2 pl-0">
-        <div className="h-full bg-white rounded-2xl relative overflow-hidden flex flex-col">
+        <div className="h-full bg-background rounded-2xl relative overflow-hidden flex flex-col">
           <div className="flex-1 overflow-y-auto pt-14 pb-36 px-0">
-            <div className="max-w-[660px] mx-auto flex flex-col gap-8">
-              <h1 className="text-[20px] md:text-[24px] font-medium text-[#040308] leading-[28px] md:leading-[30px] tracking-tight">
+            <div className="max-w-[660px] mx-auto flex flex-col gap-8 break-words overflow-x-hidden">
+              <h1 className="text-[20px] md:text-[24px] font-medium text-foreground leading-[28px] md:leading-[30px] tracking-tight break-words">
                 {query}
               </h1>
 
               {response.courtCases && response.courtCases.length > 0 && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[12px] font-medium text-[#808080] uppercase tracking-tight leading-[18px]">
+                  <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
                     Судебные решения
                   </p>
                   <div className="flex gap-2">
@@ -157,12 +157,12 @@ function ResultContent() {
                         href={c.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex-1 bg-[#f3f3f3] p-3 rounded-2xl hover:bg-[#e8e8e8] transition-colors flex flex-col gap-3"
+                        className="flex-1 bg-gray-100 dark:bg-[#1E1E1F] p-3 rounded-2xl hover:bg-gray-200 dark:hover:bg-[#4a4a4a] transition-colors flex flex-col gap-3"
                       >
-                        <p className="text-[14px] font-medium text-[#040308] leading-[18px] line-clamp-3 h-12">
+                        <p className="text-[14px] font-medium text-foreground leading-[18px] line-clamp-3 h-12">
                           {c.title}
                         </p>
-                        <p className="text-[12px] font-medium text-[#808080] leading-[14px]">
+                        <p className="text-[12px] font-medium text-gray-400 leading-[14px]">
                           {c.url?.includes('sudact.ru') ? 'sudact.ru' : 
                            c.url?.includes('help.mos-gorsud.ru') ? 'help.mos-gorsud.ru' : 'mos-gorsud.ru'}
                         </p>
@@ -172,43 +172,43 @@ function ResultContent() {
                 </div>
               )}
 
-              <div className="h-px bg-[#d9d9d9]" />
+              <div className="h-px bg-gray-200" />
 
               {response.shortAnswer && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[12px] font-medium text-[#808080] uppercase tracking-tight leading-[18px]">
+                  <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
                     Краткий ответ
                   </p>
-                  <div className="text-base text-[#040308] leading-[24px]">
-                    <p className="mb-3 text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold">{response.shortAnswer.title}</p>
-                    <p>{response.shortAnswer.content}</p>
+                  <div className="text-base text-foreground leading-[24px] break-words">
+                    <p className="mb-3 text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold break-words">{response.shortAnswer.title}</p>
+                    <p className="break-words">{response.shortAnswer.content}</p>
                   </div>
                 </div>
               )}
 
-              <div className="h-px bg-[#d9d9d9]" />
+              <div className="h-px bg-gray-200" />
 
               {response.legalAnalysis && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[12px] font-medium text-[#808080] uppercase tracking-tight leading-[18px]">
+                  <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
                     Правовой анализ
                   </p>
-                  <div className="text-base text-[#040308] leading-[24px]">
-                    <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3">{response.legalAnalysis.title}</p>
-                    <p className="mb-3">{response.legalAnalysis.intro}</p>
+                  <div className="text-base text-foreground leading-[24px] break-words">
+                    <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3 break-words">{response.legalAnalysis.title}</p>
+                    <p className="mb-3 break-words">{response.legalAnalysis.intro}</p>
                     {response.legalAnalysis.points && (
-                      <ul className="list-disc ml-5 mb-3">
+                      <ul className="list-disc ml-5 mb-3 break-words">
                         {response.legalAnalysis.points.map((point, i) => (
-                          <li key={i} className="mb-2 last:mb-0">{point}</li>
+                          <li key={i} className="mb-2 last:mb-0 break-words">{point}</li>
                         ))}
                       </ul>
                     )}
                     {response.legalAnalysis.bases && (
                       <>
-                        <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3">Основания:</p>
-                        <ul className="list-disc ml-5">
+                        <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3 break-words">Основания:</p>
+                        <ul className="list-disc ml-5 break-words">
                           {response.legalAnalysis.bases.map((base, i) => (
-                            <li key={i} className="mb-2 last:mb-0">{base}</li>
+                            <li key={i} className="mb-2 last:mb-0 break-words">{base}</li>
                           ))}
                         </ul>
                       </>
@@ -217,22 +217,22 @@ function ResultContent() {
                 </div>
               )}
 
-              <div className="h-px bg-[#d9d9d9]" />
+              <div className="h-px bg-gray-200" />
 
               {response.practiceAnalysis && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[12px] font-medium text-[#808080] uppercase tracking-tight leading-[18px]">
+                  <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
                     Анализ судебной практики
                   </p>
-                  <div className="text-base text-[#040308] leading-[24px]">
-                    <p className="mb-3">{response.practiceAnalysis.intro}</p>
+                  <div className="text-base text-foreground leading-[24px] break-words">
+                    <p className="mb-3 break-words">{response.practiceAnalysis.intro}</p>
                     
                     {response.practiceAnalysis.satisfied && (
                       <>
-                        <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3">{response.practiceAnalysis.satisfied.title}</p>
-                        <ul className="list-disc ml-5 mb-3">
+                        <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3 break-words">{response.practiceAnalysis.satisfied.title}</p>
+                        <ul className="list-disc ml-5 mb-3 break-words">
                           {response.practiceAnalysis.satisfied.points.map((point, i) => (
-                            <li key={i} className="mb-2 last:mb-0">{point}</li>
+                            <li key={i} className="mb-2 last:mb-0 break-words">{point}</li>
                           ))}
                         </ul>
                       </>
@@ -240,10 +240,10 @@ function ResultContent() {
                     
                     {response.practiceAnalysis.rejected && (
                       <>
-                        <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3">{response.practiceAnalysis.rejected.title}</p>
-                        <ul className="list-disc ml-5">
+                        <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3 break-words">{response.practiceAnalysis.rejected.title}</p>
+                        <ul className="list-disc ml-5 break-words">
                           {response.practiceAnalysis.rejected.points.map((point, i) => (
-                            <li key={i} className="mb-2 last:mb-0">{point}</li>
+                            <li key={i} className="mb-2 last:mb-0 break-words">{point}</li>
                           ))}
                         </ul>
                       </>
@@ -252,21 +252,21 @@ function ResultContent() {
                 </div>
               )}
 
-              <div className="h-px bg-[#d9d9d9]" />
+              <div className="h-px bg-gray-200" />
 
               {response.probability && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[12px] font-medium text-[#808080] uppercase tracking-tight leading-[18px]">
+                  <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
                     Оценка вероятности
                   </p>
-                  <div className="text-base text-[#040308] leading-[24px]">
-                    <p className="mb-3">Вероятность удовлетворения требований: <strong>{response.probability.level}</strong>.</p>
+                  <div className="text-base text-foreground leading-[24px] break-words">
+                    <p className="mb-3 break-words">Вероятность удовлетворения требований: <strong>{response.probability.level}</strong>.</p>
                     {response.probability.factors && (
                       <>
-                        <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3">Повышается, если есть:</p>
-                        <ul className="list-disc ml-5">
+                        <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3 break-words">Повышается, если есть:</p>
+                        <ul className="list-disc ml-5 break-words">
                           {response.probability.factors.map((factor, i) => (
-                            <li key={i} className="mb-2 last:mb-0">{factor}</li>
+                            <li key={i} className="mb-2 last:mb-0 break-words">{factor}</li>
                           ))}
                         </ul>
                       </>
@@ -275,58 +275,58 @@ function ResultContent() {
                 </div>
               )}
 
-              <div className="h-px bg-[#d9d9d9]" />
+              <div className="h-px bg-gray-200" />
 
               {response.recommendations && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[12px] font-medium text-[#808080] uppercase tracking-tight leading-[18px]">
+                  <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
                     Рекомендованные действия
                   </p>
-                  <ol className="list-decimal ml-5 text-base text-[#040308] leading-[24px]">
+                  <ol className="list-decimal ml-5 text-base text-foreground leading-[24px] break-words">
                     {response.recommendations.map((rec, i) => (
-                      <li key={i} className="mb-2 last:mb-0">{rec}</li>
+                      <li key={i} className="mb-2 last:mb-0 break-words">{rec}</li>
                     ))}
                   </ol>
                 </div>
               )}
 
-              <div className="h-px bg-[#d9d9d9]" />
+              <div className="h-px bg-gray-200" />
 
               {response.documents && response.documents.length > 0 && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[12px] font-medium text-[#808080] uppercase tracking-tight leading-[18px]">
+                  <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
                     Подготовленные документы
                   </p>
                   
-                  <div className="text-base text-[#040308] leading-[24px] flex flex-col gap-5">
+                  <div className="text-base text-foreground leading-[24px] flex flex-col gap-5 break-words">
                     {response.documents.map((doc, i) => (
                       <div key={doc.id}>
-                        <p className="mb-3">{i + 1}. {doc.title}</p>
-                        <p>{doc.description}</p>
+                        <p className="mb-3 break-words">{i + 1}. {doc.title}</p>
+                        <p className="break-words">{doc.description}</p>
                       </div>
                     ))}
                   </div>
                   
-                  <div className="flex flex-col gap-1 mt-2">
+                  <div className="flex flex-col gap-3 mt-2">
                     {response.documents.map((doc) => (
                       <button
                         key={doc.id}
                         onClick={() => handleDownload(doc)}
                         disabled={downloadingId === doc.id}
-                        className="w-full flex items-center justify-between px-4 py-3 border border-[#d9d9d9] rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+                        className="w-full flex items-center justify-between px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
                       >
                         <div className="flex flex-col items-start min-w-0 flex-1 mr-4">
-                          <p className="text-sm font-medium text-[#040308] truncate w-full text-left">
+                          <p className="text-sm font-medium text-foreground truncate w-full text-left">
                             {doc.title}
                           </p>
-                          <p className="text-xs text-[#808080] uppercase">
+                          <p className="text-xs text-gray-400 uppercase">
                             {downloadingId === doc.id ? 'Генерация...' : 'docx'}
                           </p>
                         </div>
                         {downloadingId === doc.id ? (
-                          <div className="w-[18px] h-[18px] border-2 border-black border-t-transparent rounded-full animate-spin" />
+                          <div className="w-[18px] h-[18px] border-2 border-foreground border-t-transparent rounded-full animate-spin" />
                         ) : (
-                          <DownloadIcon className="w-5 h-5 text-[#040308] shrink-0" strokeWidth="1.75" />
+                          <DownloadIcon className="w-5 h-5 text-foreground shrink-0" strokeWidth="1.75" />
                         )}
                       </button>
                     ))}
@@ -335,9 +335,9 @@ function ResultContent() {
                   <button 
                     onClick={handleDownloadAll}
                     disabled={downloadingId !== null}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-[#3a3a3a] transition-colors self-start disabled:opacity-50"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-black text-white dark:bg-white dark:text-black rounded-lg hover:bg-[#3a3a3a] dark:hover:bg-gray-200 transition-colors self-start disabled:opacity-50"
                   >
-                    <DownloadIcon className="w-4 h-4" strokeWidth="1.5" />
+                    <DownloadIcon className="w-4 h-4 dark:text-black" strokeWidth="1.5" />
                     <span className="text-sm font-medium">Скачать все</span>
                   </button>
                 </div>
@@ -355,7 +355,7 @@ function ResultContent() {
 export default function ResultPage() {
   return (
     <Suspense fallback={
-      <div className="flex h-screen bg-[#212121] items-center justify-center">
+      <div className="flex h-screen bg-[#0E0E0E] items-center justify-center">
         <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin" />
       </div>
     }>

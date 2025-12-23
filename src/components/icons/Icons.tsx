@@ -207,8 +207,8 @@ export function SunIcon({ className = "w-[18px] h-[18px]" }: { className?: strin
 
 export function MoonIcon({ className = "w-[18px] h-[18px]" }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M7.5 2.25C7.5 5.56371 10.1863 8.25 13.5 8.25C13.9142 8.25 14.25 8.58579 14.25 9C14.25 9.41421 13.9142 9.75 13.5 9.75C9.35786 9.75 6 6.39214 6 2.25C6 1.83579 6.33579 1.5 6.75 1.5C7.16421 1.5 7.5 1.83579 7.5 2.25Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    <svg className={className} viewBox="0 0 18 18" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <path d="M6.75 1.5C7.16421 1.5 7.5 1.83579 7.5 2.25C7.5 5.56371 10.1863 8.25 13.5 8.25C13.9142 8.25 14.25 8.58579 14.25 9C14.25 9.41421 13.9142 9.75 13.5 9.75C9.35786 9.75 6 6.39214 6 2.25C6 1.83579 6.33579 1.5 6.75 1.5Z" />
     </svg>
   );
 }
