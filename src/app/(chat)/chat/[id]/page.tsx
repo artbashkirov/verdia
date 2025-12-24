@@ -2,11 +2,12 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Sidebar, ChatInput } from '@/components/layout';
+import { Sidebar, ChatInput, MobileHeader, MobileSidebar } from '@/components/layout';
 import { DownloadIcon } from '@/components/icons';
 import { MarkdownRenderer } from '@/components/ui';
 import { createClient } from '@/lib/supabase/client';
 import { generateDocx, downloadBlob } from '@/lib/docx-generator';
+import { useTheme } from '@/lib/theme-context';
 
 interface ChatMessage {
   id: string;
@@ -67,12 +68,14 @@ interface Generation {
 export default function ChatResultPage() {
   const params = useParams();
   const router = useRouter();
+  const { resolvedTheme } = useTheme();
   const [generation, setGeneration] = useState<Generation | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom when new messages arrive
@@ -271,8 +274,19 @@ export default function ChatResultPage() {
   if (isLoading) {
     return (
       <div className="flex h-screen bg-[#0E0E0E]">
-        <Sidebar onNewChat={handleNewChat} />
-        <div className="flex-1 p-2 pl-0">
+        <MobileHeader 
+          onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          isMenuOpen={isMobileMenuOpen}
+          onNewChat={handleNewChat}
+        />
+        <MobileSidebar
+          isOpen={isMobileMenuOpen}
+          onClose={() => setIsMobileMenuOpen(false)}
+          currentChatId={params.id as string}
+          onNewChat={handleNewChat}
+        />
+        <Sidebar currentChatId={params.id as string} onNewChat={handleNewChat} className="hidden md:flex" />
+        <div className="flex-1 p-2 pl-0 md:pl-0 pt-[56px] md:pt-2">
           <div className="h-full bg-background rounded-2xl flex items-center justify-center">
             <div className="w-12 h-12 border-4 border-foreground border-t-transparent rounded-full animate-spin" />
           </div>
@@ -284,8 +298,19 @@ export default function ChatResultPage() {
   if (error || !generation) {
     return (
       <div className="flex h-screen bg-[#0E0E0E]">
-        <Sidebar onNewChat={handleNewChat} />
-        <div className="flex-1 p-2 pl-0">
+        <MobileHeader 
+          onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          isMenuOpen={isMobileMenuOpen}
+          onNewChat={handleNewChat}
+        />
+        <MobileSidebar
+          isOpen={isMobileMenuOpen}
+          onClose={() => setIsMobileMenuOpen(false)}
+          currentChatId={params.id as string}
+          onNewChat={handleNewChat}
+        />
+        <Sidebar currentChatId={params.id as string} onNewChat={handleNewChat} className="hidden md:flex" />
+        <div className="flex-1 p-2 pl-0 md:pl-0 pt-[56px] md:pt-2">
           <div className="h-full bg-background rounded-2xl flex items-center justify-center">
             <div className="text-center">
               <p className="text-lg text-gray-400 mb-4">{error || 'Результат не найден'}</p>
@@ -306,16 +331,27 @@ export default function ChatResultPage() {
 
   return (
     <div className="flex h-screen bg-[#0E0E0E]">
-      <Sidebar currentChatId={params.id as string} onNewChat={handleNewChat} />
+      <MobileHeader 
+        onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        isMenuOpen={isMobileMenuOpen}
+        onNewChat={handleNewChat}
+      />
+      <MobileSidebar
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+        currentChatId={params.id as string}
+        onNewChat={handleNewChat}
+      />
+      <Sidebar currentChatId={params.id as string} onNewChat={handleNewChat} className="hidden md:flex" />
       
       {/* Main content */}
-      <div className="flex-1 p-2 pl-0">
-        <div className="h-full bg-background rounded-2xl relative overflow-hidden flex flex-col">
+      <div className="flex-1 p-2 pl-0 md:pl-0 pt-[56px] md:pt-2">
+        <div className="h-full bg-background rounded-2xl relative flex flex-col" style={{ clipPath: 'inset(0 round 1rem)' }}>
           {/* Scrollable content */}
-          <div className="flex-1 overflow-y-auto pt-14 pb-36 px-0">
-            <div className="max-w-[660px] mx-auto flex flex-col gap-8 break-words overflow-x-hidden">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden pt-14 pb-36 px-0">
+            <div className="max-w-[660px] mx-auto flex flex-col gap-8 break-words overflow-x-hidden" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
               {/* Query */}
-              <h1 className="text-[20px] md:text-[24px] font-medium text-foreground leading-[28px] md:leading-[30px] tracking-tight break-words">
+              <h1 className="text-[24px] font-medium text-foreground leading-[30px] tracking-tight break-words">
                 {query}
               </h1>
 
@@ -332,7 +368,10 @@ export default function ChatResultPage() {
                         href={c.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex-1 bg-gray-100 dark:bg-[#1E1E1F] p-3 rounded-2xl hover:bg-gray-200 dark:hover:bg-[#4a4a4a] transition-colors flex flex-col gap-3"
+                        className="flex-1 p-3 rounded-2xl hover:bg-gray-200 dark:hover:bg-[#4a4a4a] transition-colors flex flex-col gap-3"
+                        style={{ 
+                          backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F'
+                        }}
                       >
                         <p className="text-[14px] font-medium text-foreground leading-[18px] line-clamp-3 h-12">
                           {c.title}
@@ -357,7 +396,7 @@ export default function ChatResultPage() {
                     Краткий ответ
                   </p>
                   <div className="text-base text-foreground leading-[24px] break-words">
-                    <p className="mb-3 text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold break-words">{response.shortAnswer.title}</p>
+                    <p className="mb-3 text-[20px] leading-[28px] font-semibold break-words">{response.shortAnswer.title}</p>
                     <p className="break-words">{response.shortAnswer.content}</p>
                   </div>
                 </div>
@@ -373,7 +412,7 @@ export default function ChatResultPage() {
                     Правовой анализ
                   </p>
                   <div className="text-base text-foreground leading-[24px] break-words">
-                    <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3 break-words">{response.legalAnalysis.title}</p>
+                    <p className="text-[20px] leading-[28px] font-semibold mb-3 break-words">{response.legalAnalysis.title}</p>
                     <p className="mb-3 break-words">{response.legalAnalysis.intro}</p>
                     {response.legalAnalysis.points && (
                       <ul className="list-disc ml-5 mb-3 break-words">
@@ -384,7 +423,7 @@ export default function ChatResultPage() {
                     )}
                     {response.legalAnalysis.bases && (
                       <>
-                        <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3 break-words">Основания:</p>
+                        <p className="text-[20px] leading-[28px] font-semibold mb-3 break-words">Основания:</p>
                         <ul className="list-disc ml-5 break-words">
                           {response.legalAnalysis.bases.map((base, i) => (
                             <li key={i} className="mb-2 last:mb-0 break-words">{base}</li>
@@ -410,7 +449,7 @@ export default function ChatResultPage() {
                     
                     {response.practiceAnalysis.satisfied && (
                       <>
-                            <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3 break-words">{response.practiceAnalysis.satisfied.title}</p>
+                            <p className="text-[20px] leading-[28px] font-semibold mb-3 break-words">{response.practiceAnalysis.satisfied.title}</p>
                         <ul className="list-disc ml-5 mb-3 break-words">
                           {response.practiceAnalysis.satisfied.points.map((point, i) => (
                             <li key={i} className="mb-2 last:mb-0 break-words">{point}</li>
@@ -421,7 +460,7 @@ export default function ChatResultPage() {
                     
                     {response.practiceAnalysis.rejected && (
                       <>
-                            <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3 break-words">{response.practiceAnalysis.rejected.title}</p>
+                            <p className="text-[20px] leading-[28px] font-semibold mb-3 break-words">{response.practiceAnalysis.rejected.title}</p>
                         <ul className="list-disc ml-5 break-words">
                           {response.practiceAnalysis.rejected.points.map((point, i) => (
                             <li key={i} className="mb-2 last:mb-0 break-words">{point}</li>
@@ -446,7 +485,7 @@ export default function ChatResultPage() {
                     <p className="mb-3 break-words">Вероятность удовлетворения требований: <strong>{response.probability.level}</strong>.</p>
                     {response.probability.factors && (
                       <>
-                        <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3 break-words">Повышается, если есть:</p>
+                        <p className="text-[20px] leading-[28px] font-semibold mb-3 break-words">Повышается, если есть:</p>
                         <ul className="list-disc ml-5 break-words">
                           {response.probability.factors.map((factor, i) => (
                             <li key={i} className="mb-2 last:mb-0 break-words">{factor}</li>
@@ -467,7 +506,7 @@ export default function ChatResultPage() {
                   <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
                     Рекомендованные действия
                   </p>
-                  <ol className="list-decimal ml-5 text-base text-foreground leading-[24px] break-words">
+                  <ol className="list-decimal ml-5 text-base text-foreground leading-[24px] break-words" style={{ fontFamily: 'var(--font-inter), Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
                     {response.recommendations.map((rec, i) => (
                       <li key={i} className="mb-2 last:mb-0 break-words">{rec}</li>
                     ))}
@@ -524,9 +563,17 @@ export default function ChatResultPage() {
                   <button 
                     onClick={handleDownloadAll}
                     disabled={downloadingId !== null}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-black text-white dark:bg-white dark:text-black rounded-lg hover:bg-[#3a3a3a] dark:hover:bg-gray-200 transition-colors self-start disabled:opacity-50"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-[#3a3a3a] dark:hover:bg-gray-200 transition-colors self-start disabled:opacity-50"
+                    style={{ 
+                      backgroundColor: resolvedTheme === 'light' ? '#212121' : '#ffffff',
+                      color: resolvedTheme === 'light' ? '#ffffff' : '#000000'
+                    }}
                   >
-                    <DownloadIcon className="w-4 h-4 dark:text-black" strokeWidth="1.5" />
+                    <DownloadIcon 
+                      className="w-4 h-4" 
+                      strokeWidth="1.5"
+                      style={{ color: resolvedTheme === 'light' ? '#ffffff' : '#000000' }}
+                    />
                     <span className="text-sm font-medium">Скачать все</span>
                   </button>
                 </div>

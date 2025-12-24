@@ -3,6 +3,7 @@
 import { useState, useRef, KeyboardEvent } from 'react';
 import { AttachmentIcon, MicrophoneIcon } from '@/components/icons';
 import { SendHorizontal } from 'lucide-react';
+import { useTheme } from '@/lib/theme-context';
 
 interface ChatInputProps {
   onSubmit: (message: string) => void;
@@ -11,6 +12,7 @@ interface ChatInputProps {
 }
 
 export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начните писать запрос...' }: ChatInputProps) {
+  const { resolvedTheme } = useTheme();
   const [message, setMessage] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -31,7 +33,12 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
   return (
     <div className="absolute bottom-0 left-0 right-0 pb-10 bg-background rounded-b-2xl z-10">
       <div className="flex justify-center">
-        <div className="w-[660px] h-14 bg-input-bg dark:border-0 border border-border rounded-2xl flex items-center px-5 gap-2">
+        <div 
+          className="w-[660px] h-14 rounded-2xl flex items-center px-5 gap-2"
+          style={{ 
+            backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F'
+          }}
+        >
           <input
             ref={inputRef}
             type="text"

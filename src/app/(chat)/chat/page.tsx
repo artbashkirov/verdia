@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sidebar, ChatInput } from '@/components/layout';
+import { Sidebar, ChatInput, MobileHeader, MobileSidebar } from '@/components/layout';
 import { LogoFull } from '@/components/icons';
 
 const exampleQueries = [
@@ -45,6 +46,7 @@ const exampleQueries = [
 
 export default function ChatPage() {
   const router = useRouter();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleSubmit = (message: string) => {
     // Store query and redirect immediately
@@ -62,13 +64,28 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-screen bg-[#0E0E0E]">
-      <Sidebar onNewChat={handleNewChat} />
+      {/* Mobile Header */}
+      <MobileHeader 
+        onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        isMenuOpen={isMobileMenuOpen}
+        onNewChat={handleNewChat}
+      />
+
+      {/* Mobile Sidebar */}
+      <MobileSidebar
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+        onNewChat={handleNewChat}
+      />
+
+      {/* Desktop Sidebar */}
+      <Sidebar onNewChat={handleNewChat} className="hidden md:flex" />
       
       {/* Main content */}
-      <div className="flex-1 p-2 pl-0">
-        <div className="h-full bg-background rounded-2xl relative overflow-hidden flex flex-col items-center justify-center">
+      <div className="flex-1 p-2 pl-0 md:pl-0 pt-[56px] md:pt-2">
+        <div className="h-full bg-background rounded-2xl relative flex flex-col items-center justify-center" style={{ clipPath: 'inset(0 round 1rem)' }}>
           {/* Content */}
-          <div className="flex flex-col items-center gap-14 max-w-[920px] px-4">
+          <div className="flex flex-col items-center gap-14 max-w-[920px]" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
             {/* Logo and tagline */}
             <div className="flex flex-col items-center gap-4">
               <LogoFull variant="dark" />

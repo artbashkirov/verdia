@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Sidebar, ChatInput } from '@/components/layout';
 import { DownloadIcon } from '@/components/icons';
 import { generateDocx, downloadBlob } from '@/lib/docx-generator';
+import { useTheme } from '@/lib/theme-context';
 
 interface GenerationResponse {
   courtCases: Array<{
@@ -50,6 +51,7 @@ interface GenerationResponse {
 function ResultContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { resolvedTheme } = useTheme();
   const query = searchParams.get('q') || '';
   const [response, setResponse] = useState<GenerationResponse | null>(null);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
@@ -138,9 +140,9 @@ function ResultContent() {
       <Sidebar onNewChat={handleNewChat} />
       
       <div className="flex-1 p-2 pl-0">
-        <div className="h-full bg-background rounded-2xl relative overflow-hidden flex flex-col">
+        <div className="h-full bg-background rounded-2xl relative flex flex-col" style={{ clipPath: 'inset(0 round 1rem)' }}>
           <div className="flex-1 overflow-y-auto pt-14 pb-36 px-0">
-            <div className="max-w-[660px] mx-auto flex flex-col gap-8 break-words overflow-x-hidden">
+            <div className="max-w-[660px] mx-auto flex flex-col gap-8 break-words overflow-x-hidden px-4">
               <h1 className="text-[20px] md:text-[24px] font-medium text-foreground leading-[28px] md:leading-[30px] tracking-tight break-words">
                 {query}
               </h1>
@@ -157,7 +159,10 @@ function ResultContent() {
                         href={c.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex-1 bg-gray-100 dark:bg-[#1E1E1F] p-3 rounded-2xl hover:bg-gray-200 dark:hover:bg-[#4a4a4a] transition-colors flex flex-col gap-3"
+                        className="flex-1 p-3 rounded-2xl hover:bg-gray-200 dark:hover:bg-[#4a4a4a] transition-colors flex flex-col gap-3"
+                        style={{ 
+                          backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F'
+                        }}
                       >
                         <p className="text-[14px] font-medium text-foreground leading-[18px] line-clamp-3 h-12">
                           {c.title}
@@ -282,7 +287,7 @@ function ResultContent() {
                   <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
                     Рекомендованные действия
                   </p>
-                  <ol className="list-decimal ml-5 text-base text-foreground leading-[24px] break-words">
+                  <ol className="list-decimal ml-5 text-base text-foreground leading-[24px] break-words" style={{ fontFamily: 'var(--font-inter), Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
                     {response.recommendations.map((rec, i) => (
                       <li key={i} className="mb-2 last:mb-0 break-words">{rec}</li>
                     ))}
@@ -335,9 +340,17 @@ function ResultContent() {
                   <button 
                     onClick={handleDownloadAll}
                     disabled={downloadingId !== null}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-black text-white dark:bg-white dark:text-black rounded-lg hover:bg-[#3a3a3a] dark:hover:bg-gray-200 transition-colors self-start disabled:opacity-50"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-[#3a3a3a] dark:hover:bg-gray-200 transition-colors self-start disabled:opacity-50"
+                    style={{ 
+                      backgroundColor: resolvedTheme === 'light' ? '#212121' : '#ffffff',
+                      color: resolvedTheme === 'light' ? '#ffffff' : '#000000'
+                    }}
                   >
-                    <DownloadIcon className="w-4 h-4 dark:text-black" strokeWidth="1.5" />
+                    <DownloadIcon 
+                      className="w-4 h-4" 
+                      strokeWidth="1.5"
+                      style={{ color: resolvedTheme === 'light' ? '#ffffff' : '#000000' }}
+                    />
                     <span className="text-sm font-medium">Скачать все</span>
                   </button>
                 </div>

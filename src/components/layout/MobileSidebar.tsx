@@ -3,9 +3,9 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import { PlusIcon, TrashIcon, HelpCircleIcon, ChevronDownIcon, NewMessageIcon, SunIcon, MonitorIcon } from '@/components/icons';
-import { MessageCircleMore, PanelLeftClose, Moon } from 'lucide-react';
+import { MessageCircleMore } from 'lucide-react';
+import { PlusIcon, TrashIcon, HelpCircleIcon, ChevronDownIcon, SunIcon, MonitorIcon } from '@/components/icons';
+import { Moon } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useTheme } from '@/lib/theme-context';
 import type { User } from '@supabase/supabase-js';
@@ -15,28 +15,29 @@ interface ChatHistory {
   title: string;
 }
 
-interface SidebarProps {
+interface MobileSidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
   chatHistory?: ChatHistory[];
   currentChatId?: string;
   onNewChat?: () => void;
   onClearHistory?: () => void;
-  className?: string;
 }
 
-export function Sidebar({
+export function MobileSidebar({
+  isOpen,
+  onClose,
   chatHistory: propChatHistory,
   currentChatId,
   onNewChat,
   onClearHistory,
-  className = '',
-}: SidebarProps) {
+}: MobileSidebarProps) {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [user, setUser] = useState<User | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatHistory[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
@@ -84,6 +85,23 @@ export function Sidebar({
     };
   }, [showDropdown]);
 
+  // Close sidebar when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isOpen && sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen, onClose]);
+
   const loadChatHistory = async (userId: string) => {
     setIsLoadingHistory(true);
     const supabase = createClient();
@@ -114,6 +132,7 @@ export function Sidebar({
     await supabase.auth.signOut();
     router.push('/login');
     router.refresh();
+    onClose();
   };
 
   const handleClearHistory = async () => {
@@ -138,11 +157,12 @@ export function Sidebar({
       setChatHistory([]);
       if (onClearHistory) onClearHistory();
       router.push('/chat');
+      onClose();
     }
   };
 
   const handleDeleteChat = async (e: React.MouseEvent, chatId: string) => {
-    e.preventDefault(); // Prevent navigation
+    e.preventDefault();
     e.stopPropagation();
     
     if (!user) return;
@@ -163,7 +183,12 @@ export function Sidebar({
       if (currentChatId === chatId) {
         router.push('/chat');
       }
+      onClose();
     }
+  };
+
+  const handleChatClick = () => {
+    onClose();
   };
 
   // Use prop history if provided, otherwise use loaded history
@@ -175,7 +200,7 @@ export function Sidebar({
 
   const userPlan = 'FREE'; // TODO: Get from database
 
-  // Get user initials for collapsed profile
+  // Get user initials for profile
   const getUserInitials = () => {
     if (user?.user_metadata?.first_name && user?.user_metadata?.last_name) {
       return `${user.user_metadata.first_name.charAt(0)}${user.user_metadata.last_name.charAt(0)}`.toUpperCase();
@@ -186,33 +211,26 @@ export function Sidebar({
     return 'П';
   };
 
-  // Handle click on empty space in collapsed sidebar to expand
-  const handleSidebarClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (isCollapsed) {
-      const target = e.target as HTMLElement;
-      // Check if click is on a button, link, or other interactive element
-      const isInteractiveElement = target.closest('button, a, input, select, textarea');
-      // If click is not on an interactive element, expand the sidebar
-      if (!isInteractiveElement) {
-        setIsCollapsed(false);
-      }
-    }
-  };
-
   return (
-    <div 
-      ref={sidebarRef}
-      onClick={handleSidebarClick}
-      className={`h-screen bg-[#0E0E0E] flex flex-col justify-between shrink-0 transition-all duration-300 ease-in-out ${
-        isCollapsed ? 'w-[52px]' : 'w-[282px]'
-      } ${className}`}
-    >
-      {/* Top section */}
-      <div className={`flex flex-col sidebar-content ${isCollapsed ? 'items-center p-5' : 'p-5'}`}>
-        {/* Logo and collapse button */}
-        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
-          {isCollapsed ? (
-            <Link href="/chat" className="flex items-center justify-center w-6 h-6">
+    <>
+      {/* Overlay */}
+      {isOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={onClose} />
+      )}
+
+      {/* Sidebar */}
+      <div
+        ref={sidebarRef}
+        className={`fixed top-0 left-0 h-screen bg-[#0E0E0E] flex flex-col justify-between shrink-0 transition-transform duration-300 ease-in-out z-50 md:hidden ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+        style={{ width: '60vw', paddingLeft: '16px', paddingRight: '16px' }}
+      >
+        {/* Top section */}
+        <div className="flex flex-col p-5">
+          {/* Logo - compact version (just V) */}
+          <div className="flex items-center mb-4">
+            <Link href="/chat" onClick={handleChatClick} className="flex items-center justify-center">
               <img
                 src="/iconV.svg"
                 alt="Verdia"
@@ -221,53 +239,26 @@ export function Sidebar({
                 style={{ width: '24px', height: '24px', display: 'block' }}
               />
             </Link>
-          ) : (
-            <>
-              <Link href="/chat">
-                <Image
-                  src="/verdiaLogo.svg"
-                  alt="Verdia"
-                  width={100}
-                  height={20}
-                  priority
-                  className="object-contain"
-                  style={{ height: '20px', width: 'auto' }}
-                />
-              </Link>
-              <button
-                onClick={() => setIsCollapsed(true)}
-                className="text-white hover:text-white/80 transition-colors"
-                title="Свернуть панель"
-              >
-                <PanelLeftClose className="w-5 h-5" strokeWidth="1.5" />
-              </button>
-            </>
-          )}
-        </div>
+          </div>
 
-        {/* New request button */}
-        {isCollapsed ? (
+          {/* New request button */}
           <button
-            onClick={onNewChat || (() => router.push('/chat'))}
-            className="w-[28px] h-[28px] flex items-center justify-center bg-white text-black rounded-[8px] hover:bg-gray-100 transition-colors"
-            title="Новый запрос"
-            style={{ marginTop: '12px' }}
-          >
-            <PlusIcon className="w-5 h-5" />
-          </button>
-        ) : (
-          <button
-            onClick={onNewChat || (() => router.push('/chat'))}
+            onClick={() => {
+              if (onNewChat) {
+                onNewChat();
+              } else {
+                router.push('/chat');
+              }
+              onClose();
+            }}
             className="w-full h-10 flex items-center justify-center gap-2 px-4 bg-white text-black rounded-xl hover:bg-gray-100 transition-colors"
-            style={{ marginTop: '16px' }}
+            style={{ marginTop: '0' }}
           >
             <PlusIcon className="w-4 h-4" />
             <span className="text-sm font-medium">Новый запрос</span>
           </button>
-        )}
 
-        {/* Chat history */}
-        {!isCollapsed && (
+          {/* Chat history */}
           <div className="flex flex-col gap-2" style={{ marginTop: '12px' }}>
             {isLoadingHistory ? (
               <div className="p-3 text-sm text-gray-500">Загрузка...</div>
@@ -284,6 +275,7 @@ export function Sidebar({
                 >
                   <Link
                     href={`/chat/${chat.id}`}
+                    onClick={handleChatClick}
                     className="flex items-center gap-2 flex-1 min-w-0"
                   >
                     <MessageCircleMore className="w-4 h-4 text-white shrink-0" strokeWidth="1.5" />
@@ -302,22 +294,12 @@ export function Sidebar({
               ))
             )}
           </div>
-        )}
-      </div>
+        </div>
 
-      {/* Bottom section */}
-      <div className={`sidebar-content ${isCollapsed ? 'flex items-center justify-center px-5 pb-5 pt-3' : 'px-5 pb-5 pt-3'}`}>
-        {/* User profile */}
-        <div className="relative" ref={dropdownRef}>
-          {isCollapsed ? (
-            <button 
-              onClick={() => setShowDropdown(!showDropdown)}
-              className="w-[28px] h-[28px] flex items-center justify-center bg-white rounded-full hover:bg-gray-100 transition-colors"
-              title={userName}
-            >
-              <span className="text-xs font-medium text-black">{getUserInitials()}</span>
-            </button>
-          ) : (
+        {/* Bottom section */}
+        <div className="px-5 pb-5 pt-3">
+          {/* User profile */}
+          <div className="relative" ref={dropdownRef}>
             <button 
               onClick={() => setShowDropdown(!showDropdown)}
               className="w-full flex items-center justify-between px-4 py-2.5 bg-[#3a3a3a] dark:bg-[#1E1E1F] rounded-xl hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a] transition-colors"
@@ -328,88 +310,92 @@ export function Sidebar({
               </div>
               <ChevronDownIcon className={`w-[18px] h-[18px] text-white transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
             </button>
-          )}
 
-          {/* Dropdown menu */}
-          {showDropdown && (
-            <div className={`absolute ${isCollapsed ? 'bottom-full mb-2 left-0 right-auto w-[200px]' : 'bottom-full mb-2 left-0 right-0'} bg-[#3a3a3a] dark:bg-[#1E1E1F] rounded-xl overflow-hidden shadow-lg z-50`}>
-              <button
-                onClick={handleClearHistory}
-                className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-white hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a] transition-colors"
-              >
-                <TrashIcon className="w-[18px] h-[18px]" />
-                <span>Очистить историю</span>
-              </button>
-              <Link
-                href="/faq"
-                onClick={() => setShowDropdown(false)}
-                className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-white hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a] transition-colors"
-              >
-                <HelpCircleIcon className="w-[18px] h-[18px]" />
-                <span>Вопросы и ответы</span>
-              </Link>
-              
-              {/* Theme selector */}
-              <div className="border-t border-white/10 my-1"></div>
-              <div className="px-4 py-2">
-                <div className="text-xs font-medium text-gray-400 mb-2">Тема интерфейса</div>
-                <div className="flex flex-col gap-1">
-                  <button
-                    onClick={() => {
-                      setTheme('light');
-                      setShowDropdown(false);
-                    }}
-                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                      theme === 'light' 
-                        ? 'bg-[#4a4a4a] dark:bg-[#2a2a2a] text-white' 
-                        : 'text-gray-300 hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a]'
-                    }`}
-                  >
-                    <SunIcon className="w-[18px] h-[18px]" />
-                    <span>Дневная</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setTheme('dark');
-                      setShowDropdown(false);
-                    }}
-                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                      theme === 'dark' 
-                        ? 'bg-[#4a4a4a] dark:bg-[#2a2a2a] text-white' 
-                        : 'text-gray-300 hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a]'
-                    }`}
-                  >
-                    <Moon className="w-[18px] h-[18px]" />
-                    <span>Ночная</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setTheme('system');
-                      setShowDropdown(false);
-                    }}
-                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                      theme === 'system' 
-                        ? 'bg-[#4a4a4a] dark:bg-[#2a2a2a] text-white' 
-                        : 'text-gray-300 hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a]'
-                    }`}
-                  >
-                    <MonitorIcon className="w-[18px] h-[18px]" />
-                    <span>Системная</span>
-                  </button>
+            {/* Dropdown menu */}
+            {showDropdown && (
+              <div className="absolute bottom-full mb-2 left-0 right-0 bg-[#3a3a3a] dark:bg-[#1E1E1F] rounded-xl overflow-hidden shadow-lg z-50">
+                <button
+                  onClick={handleClearHistory}
+                  className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-white hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a] transition-colors"
+                >
+                  <TrashIcon className="w-[18px] h-[18px]" />
+                  <span>Очистить историю</span>
+                </button>
+                <Link
+                  href="/faq"
+                  onClick={() => {
+                    setShowDropdown(false);
+                    onClose();
+                  }}
+                  className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-white hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a] transition-colors"
+                >
+                  <HelpCircleIcon className="w-[18px] h-[18px]" />
+                  <span>Вопросы и ответы</span>
+                </Link>
+                
+                {/* Theme selector */}
+                <div className="border-t border-white/10 my-1"></div>
+                <div className="px-4 py-2">
+                  <div className="text-xs font-medium text-gray-400 mb-2">Тема интерфейса</div>
+                  <div className="flex flex-col gap-1">
+                    <button
+                      onClick={() => {
+                        setTheme('light');
+                        setShowDropdown(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                        theme === 'light' 
+                          ? 'bg-[#4a4a4a] dark:bg-[#2a2a2a] text-white' 
+                          : 'text-gray-300 hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a]'
+                      }`}
+                    >
+                      <SunIcon className="w-[18px] h-[18px]" />
+                      <span>Дневная</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setTheme('dark');
+                        setShowDropdown(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                        theme === 'dark' 
+                          ? 'bg-[#4a4a4a] dark:bg-[#2a2a2a] text-white' 
+                          : 'text-gray-300 hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a]'
+                      }`}
+                    >
+                      <Moon className="w-[18px] h-[18px]" />
+                      <span>Ночная</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setTheme('system');
+                        setShowDropdown(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                        theme === 'system' 
+                          ? 'bg-[#4a4a4a] dark:bg-[#2a2a2a] text-white' 
+                          : 'text-gray-300 hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a]'
+                      }`}
+                    >
+                      <MonitorIcon className="w-[18px] h-[18px]" />
+                      <span>Системная</span>
+                    </button>
+                  </div>
                 </div>
+                
+                <div className="border-t border-white/10 my-1"></div>
+                <button
+                  onClick={handleSignOut}
+                  className="w-full px-4 py-3 text-left text-sm text-white hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a] transition-colors"
+                >
+                  Выйти из аккаунта
+                </button>
               </div>
-              
-              <div className="border-t border-white/10 my-1"></div>
-              <button
-                onClick={handleSignOut}
-                className="w-full px-4 py-3 text-left text-sm text-white hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a] transition-colors"
-              >
-                Выйти из аккаунта
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
+
