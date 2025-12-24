@@ -11,8 +11,8 @@ interface AuthLayoutProps {
 export function AuthLayout({ children, title = "Заголовок", description = "Краткое описание сервиса" }: AuthLayoutProps) {
   return (
     <div className="min-h-screen w-full flex">
-      {/* Left dark panel */}
-      <div className="w-[686px] min-h-screen bg-[#212121] p-[100px] flex flex-col justify-between shrink-0">
+      {/* Left dark panel - hidden on mobile */}
+      <div className="hidden md:block w-[686px] min-h-screen bg-[#212121] p-[100px] flex flex-col justify-between shrink-0">
         <LogoFull variant="light" />
         <div className="flex flex-col gap-5 text-white">
           <h1 className="text-[40px] font-bold leading-tight max-w-[519px]">
@@ -25,7 +25,7 @@ export function AuthLayout({ children, title = "Заголовок", description
       </div>
 
       {/* Right white panel */}
-      <div className="flex-1 min-h-screen bg-background p-[100px] flex flex-col justify-between">
+      <div className="flex-1 min-h-screen bg-background px-4 py-8 md:p-[100px] flex flex-col md:justify-between justify-center md:justify-between">
         {children}
       </div>
     </div>

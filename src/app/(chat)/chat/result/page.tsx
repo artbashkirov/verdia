@@ -118,8 +118,8 @@ function ResultContent() {
     return (
       <div className="flex h-screen bg-[#0E0E0E]">
         <Sidebar onNewChat={handleNewChat} />
-        <div className="flex-1 p-2 pl-0">
-          <div className="h-full bg-background rounded-2xl flex items-center justify-center">
+        <div className="flex-1 p-0 md:p-2 md:pl-0">
+          <div className="h-full bg-background md:rounded-2xl flex items-center justify-center">
             <div className="text-center">
               <p className="text-lg text-gray-400 mb-4">Результат не найден</p>
               <button
@@ -139,17 +139,37 @@ function ResultContent() {
     <div className="flex h-screen bg-[#0E0E0E]">
       <Sidebar onNewChat={handleNewChat} />
       
-      <div className="flex-1 p-2 pl-0">
-        <div className="h-full bg-background rounded-2xl relative flex flex-col" style={{ clipPath: 'inset(0 round 1rem)' }}>
-          <div className="flex-1 overflow-y-auto pt-14 pb-36 px-0">
-            <div className="max-w-[660px] mx-auto flex flex-col gap-8 break-words overflow-x-hidden px-4">
-              <h1 className="text-[20px] md:text-[24px] font-medium text-foreground leading-[28px] md:leading-[30px] tracking-tight break-words">
+        <div className="flex-1 p-0 md:p-2 md:pl-0">
+          <div className="h-full bg-background md:rounded-2xl relative flex flex-col">
+          <div className="flex-1 overflow-y-auto pt-14 pb-36 px-0 relative">
+            {/* Fade overlay with rounded corners matching input field */}
+            <div
+              className="absolute bottom-0 left-0 right-0 pointer-events-none z-10 flex justify-center"
+              style={{
+                height: '88px',
+                paddingLeft: '16px',
+                paddingRight: '16px',
+                paddingBottom: '16px'
+              }}
+            >
+              <div
+                style={{
+                  width: '100%',
+                  maxWidth: '660px',
+                  height: '56px',
+                  borderRadius: '16px',
+                  background: 'var(--background)'
+                }}
+              />
+            </div>
+            <div className="w-full md:max-w-[660px] md:mx-auto flex flex-col gap-8 break-words overflow-x-hidden" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
+              <h1 className="text-[20px] md:text-[24px] font-medium text-foreground leading-[28px] md:leading-[30px] tracking-tight break-words mt-6 md:mt-0">
                 {query}
               </h1>
 
               {response.courtCases && response.courtCases.length > 0 && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
+                  <p className="text-[11px] md:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
                     Судебные решения
                   </p>
                   <div className="flex gap-2">
@@ -164,10 +184,10 @@ function ResultContent() {
                           backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F'
                         }}
                       >
-                        <p className="text-[14px] font-medium text-foreground leading-[18px] line-clamp-3 h-12">
+                        <p className="text-[13px] md:text-[14px] font-medium text-foreground leading-[18px] line-clamp-3 h-12">
                           {c.title}
                         </p>
-                        <p className="text-[12px] font-medium text-gray-400 leading-[14px]">
+                        <p className="text-[11px] md:text-[12px] font-medium text-gray-400 leading-[14px]">
                           {c.url?.includes('sudact.ru') ? 'sudact.ru' : 
                            c.url?.includes('help.mos-gorsud.ru') ? 'help.mos-gorsud.ru' : 'mos-gorsud.ru'}
                         </p>
@@ -181,7 +201,7 @@ function ResultContent() {
 
               {response.shortAnswer && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
+                  <p className="text-[11px] md:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
                     Краткий ответ
                   </p>
                   <div className="text-base text-foreground leading-[24px] break-words">
@@ -195,7 +215,7 @@ function ResultContent() {
 
               {response.legalAnalysis && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
+                  <p className="text-[11px] md:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
                     Правовой анализ
                   </p>
                   <div className="text-base text-foreground leading-[24px] break-words">
@@ -226,7 +246,7 @@ function ResultContent() {
 
               {response.practiceAnalysis && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
+                  <p className="text-[11px] md:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
                     Анализ судебной практики
                   </p>
                   <div className="text-base text-foreground leading-[24px] break-words">
@@ -261,7 +281,7 @@ function ResultContent() {
 
               {response.probability && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
+                  <p className="text-[11px] md:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
                     Оценка вероятности
                   </p>
                   <div className="text-base text-foreground leading-[24px] break-words">
@@ -284,7 +304,7 @@ function ResultContent() {
 
               {response.recommendations && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
+                  <p className="text-[11px] md:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
                     Рекомендованные действия
                   </p>
                   <ol className="list-decimal ml-5 text-base text-foreground leading-[24px] break-words" style={{ fontFamily: 'var(--font-inter), Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
@@ -299,7 +319,7 @@ function ResultContent() {
 
               {response.documents && response.documents.length > 0 && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
+                  <p className="text-[11px] md:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
                     Подготовленные документы
                   </p>
                   

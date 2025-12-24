@@ -286,8 +286,8 @@ export default function ChatResultPage() {
           onNewChat={handleNewChat}
         />
         <Sidebar currentChatId={params.id as string} onNewChat={handleNewChat} className="hidden md:flex" />
-        <div className="flex-1 p-2 pl-0 md:pl-0 pt-[56px] md:pt-2">
-          <div className="h-full bg-background rounded-2xl flex items-center justify-center">
+        <div className="flex-1 p-0 md:p-2 md:pl-0 pt-[56px] md:pt-2">
+          <div className="h-full bg-background md:rounded-2xl flex items-center justify-center">
             <div className="w-12 h-12 border-4 border-foreground border-t-transparent rounded-full animate-spin" />
           </div>
         </div>
@@ -310,8 +310,8 @@ export default function ChatResultPage() {
           onNewChat={handleNewChat}
         />
         <Sidebar currentChatId={params.id as string} onNewChat={handleNewChat} className="hidden md:flex" />
-        <div className="flex-1 p-2 pl-0 md:pl-0 pt-[56px] md:pt-2">
-          <div className="h-full bg-background rounded-2xl flex items-center justify-center">
+        <div className="flex-1 p-0 md:p-2 md:pl-0 pt-[56px] md:pt-2">
+          <div className="h-full bg-background md:rounded-2xl flex items-center justify-center">
             <div className="text-center">
               <p className="text-lg text-gray-400 mb-4">{error || 'Результат не найден'}</p>
               <button
@@ -345,32 +345,61 @@ export default function ChatResultPage() {
       <Sidebar currentChatId={params.id as string} onNewChat={handleNewChat} className="hidden md:flex" />
       
       {/* Main content */}
-      <div className="flex-1 p-2 pl-0 md:pl-0 pt-[56px] md:pt-2">
-        <div className="h-full bg-background rounded-2xl relative flex flex-col" style={{ clipPath: 'inset(0 round 1rem)' }}>
+      <div className="flex-1 p-0 md:p-2 md:pl-0 pt-[56px] md:pt-2">
+        <div className="h-full bg-background md:rounded-2xl relative flex flex-col">
           {/* Scrollable content */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden pt-14 pb-36 px-0">
-            <div className="max-w-[660px] mx-auto flex flex-col gap-8 break-words overflow-x-hidden" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
+          <div className="flex-1 overflow-y-auto pt-14 pb-36 px-0 relative">
+            {/* Fade overlay with rounded corners matching input field */}
+            <div
+              className="absolute bottom-0 left-0 right-0 pointer-events-none z-10 flex justify-center"
+              style={{
+                height: '88px',
+                paddingLeft: '16px',
+                paddingRight: '16px',
+                paddingBottom: '16px'
+              }}
+            >
+              <div
+                style={{
+                  width: '100%',
+                  maxWidth: '660px',
+                  height: '56px',
+                  borderRadius: '16px',
+                  background: 'var(--background)'
+                }}
+              />
+            </div>
+            <div className="w-full md:max-w-[660px] md:mx-auto flex flex-col gap-8 break-words" style={{ paddingLeft: '16px', paddingRight: '16px', position: 'relative' }}>
               {/* Query */}
-              <h1 className="text-[24px] font-medium text-foreground leading-[30px] tracking-tight break-words">
+              <h1 className="text-[24px] font-medium text-foreground leading-[30px] tracking-tight break-words mt-6 md:mt-0">
                 {query}
               </h1>
 
               {/* Court cases */}
               {response.courtCases && response.courtCases.length > 0 && (
-                <div className="flex flex-col gap-4">
-                  <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
+                <div className="flex flex-col gap-4" style={{ marginLeft: '-16px', marginRight: '-16px', width: 'calc(100% + 32px)' }}>
+                  <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
                     Судебные решения
                   </p>
-                  <div className="flex gap-2">
+                  <div 
+                    className="flex gap-2 overflow-x-auto hide-horizontal-scrollbar"
+                    style={{ 
+                      paddingLeft: '16px',
+                      paddingRight: '16px',
+                      WebkitOverflowScrolling: 'touch'
+                    }}
+                  >
                     {response.courtCases.slice(0, 3).map((c) => (
                       <a
                         key={c.id}
                         href={c.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex-1 p-3 rounded-2xl hover:bg-gray-200 dark:hover:bg-[#4a4a4a] transition-colors flex flex-col gap-3"
+                        className="flex-shrink-0 p-3 rounded-2xl hover:bg-gray-200 dark:hover:bg-[#4a4a4a] transition-colors flex flex-col gap-3"
                         style={{ 
-                          backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F'
+                          backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F',
+                          width: '200px',
+                          minWidth: '200px'
                         }}
                       >
                         <p className="text-[14px] font-medium text-foreground leading-[18px] line-clamp-3 h-12">
@@ -650,7 +679,7 @@ export default function ChatResultPage() {
           {/* Input */}
           <ChatInput 
             onSubmit={handleSubmit} 
-            placeholder="Задайте уточняющий вопрос..."
+            placeholder="Задайте вопрос"
             disabled={isSending}
           />
         </div>

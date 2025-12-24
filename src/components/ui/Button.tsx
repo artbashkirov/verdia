@@ -19,7 +19,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     };
 
     const sizes = {
-      default: 'px-5 py-[15px] text-base gap-2.5',
+      default: 'h-12 px-5 py-[15px] text-base gap-2.5',
       small: 'px-4 py-2 text-sm gap-2',
       icon: 'p-1 min-w-7 min-h-7',
     };

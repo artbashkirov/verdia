@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AuthLayout } from '@/components/layout';
 import { Button, Input, Checkbox } from '@/components/ui';
+import { LogoFull } from '@/components/icons';
 import { createClient } from '@/lib/supabase/client';
 
 export default function RegisterPage() {
@@ -108,13 +109,18 @@ export default function RegisterPage() {
       title="Юридический AI-ассистент"
       description="Иски, ходатайства и анализ судебной практики — за минуты"
     >
-      <div className="flex flex-col gap-[100px] max-w-[554px]">
+      <div className="flex flex-col md:gap-[100px] max-w-[554px] w-full">
+        {/* Mobile Logo - only visible on mobile */}
+        <div className="md:hidden flex justify-center mb-8">
+          <LogoFull variant="dark" size="small" />
+        </div>
+
         {/* Header */}
-        <div className="flex flex-col gap-2.5">
-          <h2 className="text-[32px] font-bold text-foreground">
+        <div className="flex flex-col gap-2.5 items-center md:items-start text-center md:text-left">
+          <h2 className="text-[20px] md:text-[32px] font-medium md:font-bold text-foreground leading-[28px] md:leading-normal tracking-[-0.2px]">
             Регистрация
           </h2>
-          <p className="text-base text-foreground">
+          <p className="text-[13px] md:text-base text-foreground">
             Уже зарегистрированы?{' '}
             <Link href="/login" className="text-[#312ecb] hover:underline">
               Войти
@@ -123,15 +129,15 @@ export default function RegisterPage() {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-[30px]">
-          <div className="flex flex-col gap-5">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-[30px] md:gap-[30px] mt-8 md:mt-0">
+          <div className="flex flex-col gap-3 md:gap-5">
             {error && (
               <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
                 {error}
               </div>
             )}
-            {/* Name fields row */}
-            <div className="flex gap-[30px]">
+            {/* Name fields - stacked on mobile, side by side on desktop */}
+            <div className="flex flex-col md:flex-row gap-3 md:gap-[30px]">
               <Input
                 placeholder="Имя"
                 value={formData.firstName}
@@ -168,7 +174,7 @@ export default function RegisterPage() {
               checked={formData.acceptTerms}
               onChange={(e) => setFormData({ ...formData, acceptTerms: e.target.checked })}
               label={
-                <span className="text-sm">
+                <span>
                   Я согласен с{' '}
                   <Link href="/terms" className="text-[#312ecb] hover:underline">
                     Правилами сервиса

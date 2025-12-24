@@ -25,17 +25,25 @@ export function MobileHeader({ onMenuClick, isMenuOpen, onNewChat }: MobileHeade
   };
 
   return (
-    <header className="md:hidden fixed top-0 left-0 right-0 z-50 bg-[#0E0E0E] h-[56px] flex items-center justify-between px-4">
+    <header 
+      className="md:hidden fixed top-0 left-0 right-0 z-50 bg-[#0E0E0E] flex items-center justify-between"
+      style={{ 
+        height: '56px',
+        paddingLeft: '16px',
+        paddingRight: '16px'
+      }}
+    >
       {/* Menu button */}
       <button
         onClick={onMenuClick}
-        className="text-white hover:text-white/80 transition-colors"
+        className="flex items-center justify-center text-white hover:text-white/80 transition-colors"
+        style={{ width: '36px', height: '36px' }}
         aria-label="Открыть меню"
       >
         {isMenuOpen ? (
-          <X className="w-6 h-6" strokeWidth="1.5" />
+          <X style={{ width: '20px', height: '20px' }} strokeWidth="1.5" />
         ) : (
-          <Menu className="w-6 h-6" strokeWidth="1.5" />
+          <Menu style={{ width: '20px', height: '20px' }} strokeWidth="1.5" />
         )}
       </button>
 
@@ -55,12 +63,18 @@ export function MobileHeader({ onMenuClick, isMenuOpen, onNewChat }: MobileHeade
       {/* New chat button */}
       <button
         onClick={handleNewChat}
-        className="w-9 h-9 flex items-center justify-center bg-white text-black rounded-lg hover:bg-gray-100 transition-colors"
+        className="flex items-center justify-center bg-white text-black hover:bg-gray-100 transition-colors"
+        style={{ 
+          width: '36px', 
+          height: '36px',
+          borderRadius: '12px'
+        }}
         aria-label="Новый чат"
       >
-        <PlusIcon className="w-5 h-5" />
+        <PlusIcon style={{ width: '20px', height: '20px' }} />
       </button>
     </header>
   );
 }
+
 

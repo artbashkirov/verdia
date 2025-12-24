@@ -36,12 +36,13 @@ export function LogoFull({
   variant?: "dark" | "light";
   size?: "default" | "small";
 }) {
-  const logoSrc = variant === "light" ? "/verdLogoWhite.png" : "/verdLogoBlack.png";
-  
-  // Size configurations
+  // Size configurations - сохраняем высоту, вычисляем ширину для нового SVG (128:40)
   const dimensions = size === "small" 
-    ? { width: 100, height: 28 }
-    : { width: 160, height: 45 };
+    ? { width: 68, height: 24 } // Мобильная версия: 24px высота
+    : { width: 144, height: 45 }; // 45 * (128/40) = 144
+  
+  // Используем SVG логотип для обоих вариантов
+  const logoSrc = variant === "light" ? "/verdiaLogo.svg" : "/verdiaLogo.svg";
   
   return (
     <Image

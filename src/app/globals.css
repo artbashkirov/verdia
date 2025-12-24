@@ -64,17 +64,92 @@
 
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent any scaling */
+@media screen {
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow-x: hidden;
+  }
+  
+  /* Force 1:1 pixel ratio on mobile */
+  @media (max-width: 768px) {
+    html {
+      -webkit-text-size-adjust: 100% !important;
+      -moz-text-size-adjust: 100% !important;
+      -ms-text-size-adjust: 100% !important;
+      text-size-adjust: 100% !important;
+    }
+  }
+}
+
+html {
+  font-size: 16px !important;
+  -webkit-text-size-adjust: 100% !important;
+  -moz-text-size-adjust: 100% !important;
+  -ms-text-size-adjust: 100% !important;
+  text-size-adjust: 100% !important;
+  zoom: 1 !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
+  font-size: 16px !important;
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-inter), Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  margin: 0;
-  padding: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transform: scale(1) !important;
+  transform-origin: top left;
+  width: 100% !important;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Prevent text overflow on mobile */
+@media (max-width: 768px) {
+  * {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  
+  p, h1, h2, h3, h4, h5, h6, span, div {
+    word-break: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
 }
 
 /* Scrollbar styling */
+/* Hide horizontal scrollbar completely */
+::-webkit-scrollbar:horizontal {
+  display: none;
+  height: 0;
+}
+
+/* Hide horizontal scrollbar for specific containers */
+.hide-horizontal-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.hide-horizontal-scrollbar::-webkit-scrollbar:horizontal {
+  display: none;
+  height: 0;
+}
+
+.hide-horizontal-scrollbar::-webkit-scrollbar {
+  height: 0;
+}
+
+/* Vertical scrollbar - hidden by default */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -84,12 +159,32 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--gray-200);
+  background: transparent;
   border-radius: 3px;
+  transition: background 0.3s ease;
 }
 
-::-webkit-scrollbar-thumb:hover {
+/* Show scrollbar thumb when scrolling */
+.scrolling ::-webkit-scrollbar-thumb,
+.scrolling::-webkit-scrollbar-thumb {
+  background: var(--gray-200);
+}
+
+.scrolling ::-webkit-scrollbar-thumb:hover,
+.scrolling::-webkit-scrollbar-thumb:hover {
   background: var(--gray-400);
+}
+
+/* For Firefox - hide by default */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+/* Show on scroll for Firefox */
+.scrolling,
+.scrolling * {
+  scrollbar-color: var(--gray-200) transparent;
 }
 
 /* Input autofill styling */

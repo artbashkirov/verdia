@@ -31,12 +31,20 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
   };
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 pb-10 bg-background rounded-b-2xl z-10">
-      <div className="flex justify-center">
+    <div 
+      className="absolute bottom-0 left-0 right-0 bg-background rounded-b-2xl z-10"
+      style={{ paddingBottom: '16px' }}
+    >
+      <div className="flex justify-center" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
         <div 
-          className="w-[660px] h-14 rounded-2xl flex items-center px-5 gap-2"
+          className="w-full md:w-[660px] flex items-center"
           style={{ 
-            backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F'
+            height: '56px',
+            borderRadius: '16px',
+            paddingLeft: '20px',
+            paddingRight: '20px',
+            gap: '8px',
+            backgroundColor: resolvedTheme === 'light' ? '#ffffff' : '#1E1E1F'
           }}
         >
           <input
@@ -45,27 +53,29 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={placeholder}
+            placeholder={placeholder === 'Начните писать запрос...' ? 'Задайте вопрос' : placeholder}
             disabled={disabled}
-            className="flex-1 bg-transparent outline-none text-base font-medium text-foreground placeholder:text-gray-400"
+            className="flex-1 bg-transparent outline-none text-base font-normal text-foreground placeholder:text-[#808080]"
           />
           
           {/* Attachment button */}
           <button
             type="button"
-            className="p-1 text-foreground transition-colors"
+            className="flex items-center justify-center text-foreground transition-colors"
+            style={{ width: '28px', height: '28px' }}
             title="Прикрепить файл"
           >
-            <AttachmentIcon className="w-5 h-5" strokeWidth="1.5" />
+            <AttachmentIcon style={{ width: '20px', height: '20px' }} strokeWidth="1.5" />
           </button>
           
           {/* Microphone button */}
           <button
             type="button"
-            className="p-1 text-foreground transition-colors"
+            className="flex items-center justify-center text-foreground transition-colors"
+            style={{ width: '28px', height: '28px' }}
             title="Голосовой ввод"
           >
-            <MicrophoneIcon className="w-5 h-5" strokeWidth="1.5" />
+            <MicrophoneIcon style={{ width: '20px', height: '20px' }} strokeWidth="1.5" />
           </button>
           
           {/* Send button */}
@@ -73,12 +83,13 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
             type="button"
             onClick={handleSubmit}
             disabled={!message.trim() || disabled}
-            className={`p-1 transition-colors disabled:cursor-not-allowed ${
+            className={`flex items-center justify-center transition-colors disabled:cursor-not-allowed ${
               message.trim() ? 'text-foreground' : 'text-gray-400'
             }`}
+            style={{ width: '28px', height: '28px' }}
             title="Отправить"
           >
-            <SendHorizontal className="w-5 h-5" strokeWidth={2} />
+            <SendHorizontal style={{ width: '20px', height: '20px' }} strokeWidth={2} />
           </button>
         </div>
       </div>

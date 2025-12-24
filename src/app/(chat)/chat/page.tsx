@@ -82,10 +82,10 @@ export default function ChatPage() {
       <Sidebar onNewChat={handleNewChat} className="hidden md:flex" />
       
       {/* Main content */}
-      <div className="flex-1 p-2 pl-0 md:pl-0 pt-[56px] md:pt-2">
-        <div className="h-full bg-background rounded-2xl relative flex flex-col items-center justify-center" style={{ clipPath: 'inset(0 round 1rem)' }}>
+      <div className="flex-1 p-0 md:p-2 md:pl-0 pt-[56px] md:pt-2">
+        <div className="h-full bg-background md:rounded-2xl relative flex flex-col items-center justify-center">
           {/* Content */}
-          <div className="flex flex-col items-center gap-14 max-w-[920px]" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
+          <div className="flex flex-col items-center gap-14 w-full md:max-w-[920px]" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
             {/* Logo and tagline */}
             <div className="flex flex-col items-center gap-4">
               <LogoFull variant="dark" />
