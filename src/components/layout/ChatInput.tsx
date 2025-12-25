@@ -32,12 +32,32 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
 
   return (
     <div 
-      className="absolute bottom-0 left-0 right-0 bg-background rounded-b-2xl z-10"
+      className="absolute bottom-0 left-0 right-0 z-10 overflow-hidden"
       style={{ paddingBottom: '16px' }}
     >
-      <div className="flex justify-center" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
+      {/* Black overlay that hides content behind input field */}
+      <div 
+        className="absolute bottom-0 left-0 right-0 pointer-events-none"
+        style={{ 
+          height: '88px',
+          paddingLeft: '16px',
+          paddingRight: '16px',
+          paddingBottom: '16px'
+        }}
+      >
         <div 
-          className="w-full md:w-[660px] flex items-center"
+          className="w-full md:w-[660px] mx-auto"
+          style={{
+            height: '56px',
+            borderRadius: '16px',
+            background: 'var(--background)'
+          }}
+        />
+      </div>
+      
+      <div className="flex justify-center relative z-10" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
+        <div 
+          className="w-full md:w-[660px] flex items-center overflow-hidden"
           style={{ 
             height: '56px',
             borderRadius: '16px',

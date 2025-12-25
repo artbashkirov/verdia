@@ -57,66 +57,69 @@ function LoginContent() {
       title="Юридический AI-ассистент"
       description="Иски, ходатайства и анализ судебной практики — за минуты"
     >
-      <div className="flex flex-col md:gap-[100px] max-w-[554px] w-full">
+      <div className="flex flex-col w-full md:my-auto">
         {/* Mobile Logo - only visible on mobile */}
         <div className="md:hidden flex justify-center mb-8">
           <LogoFull variant="dark" size="small" />
         </div>
 
-        {/* Header */}
-        <div className="flex flex-col gap-2.5 items-center md:items-start text-center md:text-left">
-          <h2 className="text-[20px] md:text-[32px] font-medium md:font-bold text-foreground leading-[28px] md:leading-normal tracking-[-0.2px]">
-            Добро пожаловать
-          </h2>
-          <p className="text-[13px] md:text-base text-foreground">
-            Еще не зарегистрированы?{' '}
-            <Link href="/register" className="text-[#312ecb] hover:underline">
-              Регистрация
-            </Link>
-          </p>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-[30px] md:gap-[30px] mt-8 md:mt-0">
-          <div className="flex flex-col gap-3 md:gap-5">
-            {successMessage && (
-              <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-green-600 text-sm">
-                {successMessage}
-              </div>
-            )}
-            {error && (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
-                {error}
-              </div>
-            )}
-            <Input
-              type="email"
-              placeholder="Email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              required
-            />
-            <Input
-              type="password"
-              placeholder="Пароль"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              required
-            />
-            <div className="flex justify-end">
-              <Link
-                href="/forgot-password"
-                className="text-[#312ecb] text-[13px] hover:underline"
-              >
-                Забыли пароль?
+        {/* Form container - centered on desktop */}
+        <div className="flex flex-col gap-[100px] items-center w-full">
+          {/* Header */}
+          <div className="flex flex-col gap-[10px] justify-start items-center w-full max-w-[554px]">
+            <h2 className="text-[20px] md:text-[32px] font-medium md:font-bold text-[#040308] leading-[28px] md:leading-[40px] text-center">
+              Добро пожаловать
+            </h2>
+            <p className="text-[13px] md:text-[16px] text-[#040308] text-center">
+              Еще не зарегистрированы?{' '}
+              <Link href="/register" className="text-[#312ecb] hover:underline">
+                Регистрация
               </Link>
-            </div>
+            </p>
           </div>
 
-          <Button type="submit" fullWidth disabled={isLoading}>
-            {isLoading ? 'Загрузка...' : 'Войти'}
-          </Button>
-        </form>
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="flex flex-col gap-[30px] w-full max-w-[554px] items-start">
+            <div className="flex flex-col gap-[20px] w-full">
+              {successMessage && (
+                <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-green-600 text-sm">
+                  {successMessage}
+                </div>
+              )}
+              {error && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+                  {error}
+                </div>
+              )}
+              <Input
+                type="email"
+                placeholder="Email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                required
+              />
+              <Input
+                type="password"
+                placeholder="Пароль"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                required
+              />
+              <div className="flex justify-end">
+                <Link
+                  href="/forgot-password"
+                  className="text-[#312ecb] text-[14px] hover:underline"
+                >
+                  Забыли пароль?
+                </Link>
+              </div>
+            </div>
+
+            <Button type="submit" fullWidth disabled={isLoading}>
+              {isLoading ? 'Загрузка...' : 'Войти'}
+            </Button>
+          </form>
+        </div>
       </div>
     </AuthLayout>
   );
@@ -129,7 +132,7 @@ export default function LoginPage() {
         title="Юридический AI-ассистент"
         description="Иски, ходатайства и анализ судебной практики — за минуты"
       >
-        <div className="flex flex-col md:gap-[100px] max-w-[554px] w-full">
+        <div className="flex flex-col max-w-[554px] w-full md:mx-auto">
           <div className="flex flex-col gap-2.5">
             <h2 className="text-[32px] font-bold text-foreground">
               Загрузка...

@@ -7,6 +7,7 @@
   --primary: #212121;
   --primary-hover: #3a3a3a;
   --accent: #312ecb;
+  --link-color: #312ecb;
   --gray-100: #f3f3f3;
   --gray-200: #d9d9d9;
   --gray-400: #727272;
@@ -22,6 +23,7 @@
   --primary: #212121;
   --primary-hover: #3a3a3a;
   --accent: #312ecb;
+  --link-color: #3B82F6;
   --gray-100: #3a3a3a;
   --gray-200: #4a4a4a;
   --gray-400: #9a9a9a;
@@ -37,6 +39,7 @@
   --primary: #212121;
   --primary-hover: #3a3a3a;
   --accent: #312ecb;
+  --link-color: #312ecb;
   --gray-100: #f3f3f3;
   --gray-200: #d9d9d9;
   --gray-400: #727272;
@@ -52,6 +55,7 @@
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
   --color-accent: var(--accent);
+  --color-link: var(--link-color);
   --color-gray-100: var(--gray-100);
   --color-gray-200: var(--gray-200);
   --color-gray-400: var(--gray-400);
@@ -147,6 +151,15 @@ body {
 
 .hide-horizontal-scrollbar::-webkit-scrollbar {
   height: 0;
+}
+
+/* Safari specific fixes for card scrolling */
+@supports (-webkit-touch-callout: none) {
+  .hide-horizontal-scrollbar {
+    -webkit-overflow-scrolling: touch;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
 }
 
 /* Vertical scrollbar - hidden by default */

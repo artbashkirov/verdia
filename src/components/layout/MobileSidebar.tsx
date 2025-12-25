@@ -224,19 +224,18 @@ export function MobileSidebar({
         className={`fixed top-0 left-0 h-screen bg-[#0E0E0E] flex flex-col justify-between shrink-0 transition-transform duration-300 ease-in-out z-50 md:hidden ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
-        style={{ width: '60vw', paddingLeft: '16px', paddingRight: '16px' }}
+        style={{ width: '60vw' }}
       >
         {/* Top section */}
-        <div className="flex flex-col p-5">
-          {/* Logo - compact version (just V) */}
-          <div className="flex items-center mb-4">
-            <Link href="/chat" onClick={handleChatClick} className="flex items-center justify-center">
+        <div className="flex flex-col pt-5 pb-5">
+          {/* Logo - full version */}
+          <div className="flex items-center mb-4 px-4">
+            <Link href="/chat" onClick={handleChatClick} className="flex items-center">
               <img
-                src="/iconV.svg"
+                src="/verdiaLogo.svg"
                 alt="Verdia"
-                width={24}
                 height={24}
-                style={{ width: '24px', height: '24px', display: 'block' }}
+                style={{ height: '24px', width: 'auto', display: 'block' }}
               />
             </Link>
           </div>
@@ -297,7 +296,7 @@ export function MobileSidebar({
         </div>
 
         {/* Bottom section */}
-        <div className="px-5 pb-5 pt-3">
+        <div className="pb-5 pt-3">
           {/* User profile */}
           <div className="relative" ref={dropdownRef}>
             <button 

@@ -78,6 +78,9 @@ export default function ChatResultPage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Get chat ID safely
+  const chatId = params.id ? (Array.isArray(params.id) ? params.id[0] : params.id) : '';
+
   // Scroll to bottom when new messages arrive
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -92,8 +95,10 @@ export default function ChatResultPage() {
     async function fetchMessages() {
       if (!params.id) return;
       
+      const id = Array.isArray(params.id) ? params.id[0] : params.id;
+      
       try {
-        const response = await fetch(`/api/chat?generationId=${params.id}`);
+        const response = await fetch(`/api/chat?generationId=${id}`);
         if (response.ok) {
           const data = await response.json();
           setChatMessages(data.messages || []);
@@ -108,12 +113,20 @@ export default function ChatResultPage() {
 
   useEffect(() => {
     async function fetchGeneration() {
+      if (!params.id) {
+        setIsLoading(false);
+        setError('ID не найден');
+        return;
+      }
+
+      const id = Array.isArray(params.id) ? params.id[0] : params.id;
+
       // First check sessionStorage
       const stored = sessionStorage.getItem('lastResponse');
       if (stored) {
         try {
           const data = JSON.parse(stored);
-          if (data.id === params.id) {
+          if (data.id === id) {
             setGeneration({
               id: data.id,
               query: data.query,
@@ -131,10 +144,16 @@ export default function ChatResultPage() {
       // Fetch from database
       const supabase = createClient();
       
+      if (!id) {
+        setError('ID не найден');
+        setIsLoading(false);
+        return;
+      }
+      
       const { data, error } = await supabase
         .from('generations')
         .select('*')
-        .eq('id', params.id)
+        .eq('id', id)
         .single();
 
       if (error) {
@@ -148,9 +167,7 @@ export default function ChatResultPage() {
       setIsLoading(false);
     }
 
-    if (params.id) {
-      fetchGeneration();
-    }
+    fetchGeneration();
   }, [params.id]);
 
   const handleNewChat = () => {
@@ -160,6 +177,7 @@ export default function ChatResultPage() {
   const handleSubmit = async (message: string) => {
     if (!message.trim() || isSending || !params.id) return;
 
+    const id = Array.isArray(params.id) ? params.id[0] : params.id;
     setIsSending(true);
 
     // Optimistically add user message
@@ -176,7 +194,7 @@ export default function ChatResultPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          generationId: params.id,
+          generationId: id,
           message,
         }),
       });
@@ -282,10 +300,10 @@ export default function ChatResultPage() {
         <MobileSidebar
           isOpen={isMobileMenuOpen}
           onClose={() => setIsMobileMenuOpen(false)}
-          currentChatId={params.id as string}
+          currentChatId={chatId}
           onNewChat={handleNewChat}
         />
-        <Sidebar currentChatId={params.id as string} onNewChat={handleNewChat} className="hidden md:flex" />
+        <Sidebar currentChatId={chatId} onNewChat={handleNewChat} className="hidden md:flex" />
         <div className="flex-1 p-0 md:p-2 md:pl-0 pt-[56px] md:pt-2">
           <div className="h-full bg-background md:rounded-2xl flex items-center justify-center">
             <div className="w-12 h-12 border-4 border-foreground border-t-transparent rounded-full animate-spin" />
@@ -306,10 +324,10 @@ export default function ChatResultPage() {
         <MobileSidebar
           isOpen={isMobileMenuOpen}
           onClose={() => setIsMobileMenuOpen(false)}
-          currentChatId={params.id as string}
+          currentChatId={chatId}
           onNewChat={handleNewChat}
         />
-        <Sidebar currentChatId={params.id as string} onNewChat={handleNewChat} className="hidden md:flex" />
+        <Sidebar currentChatId={chatId} onNewChat={handleNewChat} className="hidden md:flex" />
         <div className="flex-1 p-0 md:p-2 md:pl-0 pt-[56px] md:pt-2">
           <div className="h-full bg-background md:rounded-2xl flex items-center justify-center">
             <div className="text-center">
@@ -339,45 +357,25 @@ export default function ChatResultPage() {
       <MobileSidebar
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
-        currentChatId={params.id as string}
-        onNewChat={handleNewChat}
-      />
-      <Sidebar currentChatId={params.id as string} onNewChat={handleNewChat} className="hidden md:flex" />
+          currentChatId={chatId}
+          onNewChat={handleNewChat}
+        />
+        <Sidebar currentChatId={chatId} onNewChat={handleNewChat} className="hidden md:flex" />
       
       {/* Main content */}
       <div className="flex-1 p-0 md:p-2 md:pl-0 pt-[56px] md:pt-2">
         <div className="h-full bg-background md:rounded-2xl relative flex flex-col">
           {/* Scrollable content */}
-          <div className="flex-1 overflow-y-auto pt-14 pb-36 px-0 relative">
-            {/* Fade overlay with rounded corners matching input field */}
-            <div
-              className="absolute bottom-0 left-0 right-0 pointer-events-none z-10 flex justify-center"
-              style={{
-                height: '88px',
-                paddingLeft: '16px',
-                paddingRight: '16px',
-                paddingBottom: '16px'
-              }}
-            >
-              <div
-                style={{
-                  width: '100%',
-                  maxWidth: '660px',
-                  height: '56px',
-                  borderRadius: '16px',
-                  background: 'var(--background)'
-                }}
-              />
-            </div>
+          <div className="flex-1 overflow-y-auto pt-6 md:pt-14 pb-36 px-0 relative">
             <div className="w-full md:max-w-[660px] md:mx-auto flex flex-col gap-8 break-words" style={{ paddingLeft: '16px', paddingRight: '16px', position: 'relative' }}>
               {/* Query */}
-              <h1 className="text-[24px] font-medium text-foreground leading-[30px] tracking-tight break-words mt-6 md:mt-0">
+              <h1 className="text-[24px] font-medium text-foreground leading-[30px] tracking-tight break-words md:mt-0">
                 {query}
               </h1>
 
               {/* Court cases */}
               {response.courtCases && response.courtCases.length > 0 && (
-                <div className="flex flex-col gap-4" style={{ marginLeft: '-16px', marginRight: '-16px', width: 'calc(100% + 32px)' }}>
+                <div className="flex flex-col gap-4" style={{ marginLeft: '-16px', marginRight: '-16px' }}>
                   <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
                     Судебные решения
                   </p>
@@ -386,7 +384,10 @@ export default function ChatResultPage() {
                     style={{ 
                       paddingLeft: '16px',
                       paddingRight: '16px',
-                      WebkitOverflowScrolling: 'touch'
+                      WebkitOverflowScrolling: 'touch',
+                      msOverflowStyle: 'none',
+                      scrollbarWidth: 'none',
+                      minWidth: 'max-content'
                     }}
                   >
                     {response.courtCases.slice(0, 3).map((c) => (
@@ -411,6 +412,8 @@ export default function ChatResultPage() {
                         </p>
                       </a>
                     ))}
+                    {/* Spacer to allow last card to scroll fully */}
+                    <div style={{ minWidth: '16px', flexShrink: 0 }} />
                   </div>
                 </div>
               )}
@@ -601,7 +604,6 @@ export default function ChatResultPage() {
                     <DownloadIcon 
                       className="w-4 h-4" 
                       strokeWidth="1.5"
-                      style={{ color: resolvedTheme === 'light' ? '#ffffff' : '#000000' }}
                     />
                     <span className="text-sm font-medium">Скачать все</span>
                   </button>

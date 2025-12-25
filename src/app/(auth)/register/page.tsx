@@ -122,7 +122,7 @@ export default function RegisterPage() {
           </h2>
           <p className="text-[13px] md:text-base text-foreground">
             Уже зарегистрированы?{' '}
-            <Link href="/login" className="text-[#312ecb] hover:underline">
+            <Link href="/login" className="text-link hover:underline">
               Войти
             </Link>
           </p>
@@ -176,11 +176,11 @@ export default function RegisterPage() {
               label={
                 <span>
                   Я согласен с{' '}
-                  <Link href="/terms" className="text-[#312ecb] hover:underline">
+                  <Link href="/terms" className="text-link hover:underline">
                     Правилами сервиса
                   </Link>
                   {' '}и{' '}
-                  <Link href="/privacy" className="text-[#312ecb] hover:underline">
+                  <Link href="/privacy" className="text-link hover:underline">
                     Политикой конфиденциальности
                   </Link>
                 </span>

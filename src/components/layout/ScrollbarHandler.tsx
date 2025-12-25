@@ -7,7 +7,11 @@ export function ScrollbarHandler() {
     let scrollTimeout: NodeJS.Timeout;
 
     const handleScroll = (event?: Event) => {
-      const target = event?.target as HTMLElement || document.documentElement;
+      let target: HTMLElement = document.documentElement;
+      
+      if (event?.target && event.target instanceof HTMLElement) {
+        target = event.target;
+      }
       
       // Add scrolling class to the scrolled element or its closest scrollable parent
       if (target === document.documentElement || target === document.body) {

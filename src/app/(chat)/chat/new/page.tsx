@@ -184,7 +184,7 @@ export default function NewChatPage() {
           {/* Scrollable content */}
           <div 
             ref={contentRef} 
-            className="flex-1 overflow-y-auto pt-14 pb-36 px-0 relative"
+            className="flex-1 overflow-y-auto pt-6 md:pt-14 pb-36 px-0 relative"
             style={{
               maskImage: 'linear-gradient(to bottom, black 0%, black calc(100% - 120px), rgba(0, 0, 0, 0.9) calc(100% - 112px), rgba(0, 0, 0, 0.6) calc(100% - 96px), rgba(0, 0, 0, 0.3) calc(100% - 80px), transparent calc(100% - 72px))',
               WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black calc(100% - 120px), rgba(0, 0, 0, 0.9) calc(100% - 112px), rgba(0, 0, 0, 0.6) calc(100% - 96px), rgba(0, 0, 0, 0.3) calc(100% - 80px), transparent calc(100% - 72px))'
@@ -192,7 +192,7 @@ export default function NewChatPage() {
           >
             <div className="w-full md:max-w-[660px] md:mx-auto flex flex-col gap-8 break-words" style={{ paddingLeft: '16px', paddingRight: '16px', position: 'relative' }}>
               {/* Query */}
-              <h1 className="text-[24px] font-medium text-foreground leading-[30px] tracking-tight break-words mt-6 md:mt-0">
+              <h1 className="text-[24px] font-medium text-foreground leading-[30px] tracking-tight break-words md:mt-0">
                 {query}
               </h1>
 
@@ -226,7 +226,7 @@ export default function NewChatPage() {
                 <>
                   {/* Court cases */}
                   {response.courtCases && response.courtCases.length > 0 && (
-                    <div className="flex flex-col gap-4" style={{ marginLeft: '-16px', marginRight: '-16px', width: 'calc(100% + 32px)' }}>
+                    <div className="flex flex-col gap-4" style={{ marginLeft: '-16px', marginRight: '-16px' }}>
                       <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
                         Судебные решения
                       </p>
@@ -235,7 +235,9 @@ export default function NewChatPage() {
                         style={{ 
                           paddingLeft: '16px',
                           paddingRight: '16px',
-                          WebkitOverflowScrolling: 'touch'
+                          WebkitOverflowScrolling: 'touch',
+                          msOverflowStyle: 'none',
+                          scrollbarWidth: 'none'
                         }}
                       >
                         {response.courtCases.slice(0, 3).map((c) => (
@@ -442,7 +444,6 @@ export default function NewChatPage() {
                         <DownloadIcon 
                           className="w-4 h-4" 
                           strokeWidth="1.5"
-                          style={{ color: resolvedTheme === 'light' ? '#ffffff' : '#000000' }}
                         />
                         <span className="text-sm font-medium">Скачать все</span>
                       </button>

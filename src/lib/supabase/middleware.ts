@@ -14,34 +14,59 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse;
   }
 
-  const supabase = createServerClient(
-    supabaseUrl,
-    supabaseAnonKey,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
+  // Валидация формата URL
+  try {
+    new URL(supabaseUrl);
+  } catch {
+    console.error('Invalid Supabase URL format in middleware:', supabaseUrl);
+    return supabaseResponse;
+  }
+
+  let user = null;
+
+  try {
+    const supabase = createServerClient(
+      supabaseUrl,
+      supabaseAnonKey,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+            supabaseResponse = NextResponse.next({
+              request,
+            });
+            cookiesToSet.forEach(({ name, value, options }) =>
+              supabaseResponse.cookies.set(name, value, options)
+            );
+          },
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          supabaseResponse = NextResponse.next({
-            request,
-          });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
-        },
-      },
+      }
+    );
+
+    // Do not run code between createServerClient and
+    // supabase.auth.getUser(). A simple mistake could make it very hard to debug
+    // issues with users being randomly logged out.
+
+    const {
+      data: { user: authUser },
+      error,
+    } = await supabase.auth.getUser();
+
+    if (error) {
+      console.error('Error getting user in middleware:', error.message);
+      // Продолжаем без пользователя, чтобы не блокировать запрос
+    } else {
+      user = authUser;
     }
-  );
-
-  // Do not run code between createServerClient and
-  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
-  // issues with users being randomly logged out.
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  } catch (error) {
+    console.error('Error in middleware updateSession:', error);
+    // В случае ошибки возвращаем ответ без проверки аутентификации
+    // чтобы приложение могло работать даже при проблемах с Supabase
+    return supabaseResponse;
+  }
 
   // Protected routes - require authentication
   const protectedPaths = ['/chat'];

@@ -10,7 +10,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className = '', variant = 'primary', size = 'default', fullWidth = false, children, ...props }, ref) => {
-    const baseStyles = 'inline-flex items-center justify-center font-semibold transition-colors rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
+    const baseStyles = 'inline-flex items-center justify-center font-semibold transition-colors rounded-[12px] focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
     
     const variants = {
       primary: 'bg-[#212121] text-white hover:bg-[#3a3a3a] focus:ring-[#212121]',
@@ -19,17 +19,20 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     };
 
     const sizes = {
-      default: 'h-12 px-5 py-[15px] text-base gap-2.5',
+      default: 'h-12 text-base gap-2.5',
       small: 'px-4 py-2 text-sm gap-2',
       icon: 'p-1 min-w-7 min-h-7',
     };
 
     const widthClass = fullWidth ? 'w-full' : '';
 
+    const paddingStyle = size === 'default' ? { paddingLeft: '20px', paddingRight: '20px', paddingTop: '15px', paddingBottom: '15px' } : {};
+    
     return (
       <button
         ref={ref}
         className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${widthClass} ${className}`}
+        style={paddingStyle}
         {...props}
       >
         {children}

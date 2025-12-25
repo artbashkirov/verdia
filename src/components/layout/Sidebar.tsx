@@ -208,9 +208,12 @@ export function Sidebar({
       } ${className}`}
     >
       {/* Top section */}
-      <div className={`flex flex-col sidebar-content ${isCollapsed ? 'items-center p-5' : 'p-5'}`}>
+      <div 
+        className={`flex flex-col sidebar-content ${isCollapsed ? 'items-center pt-4' : 'pt-4'}`}
+        style={{ paddingLeft: '16px', paddingRight: '16px', width: '100%', boxSizing: 'border-box' }}
+      >
         {/* Logo and collapse button */}
-        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`} style={{ marginLeft: '0', marginRight: '0' }}>
           {isCollapsed ? (
             <Link href="/chat" className="flex items-center justify-center w-6 h-6">
               <img
@@ -258,7 +261,7 @@ export function Sidebar({
         ) : (
           <button
             onClick={onNewChat || (() => router.push('/chat'))}
-            className="w-full h-10 flex items-center justify-center gap-2 px-4 bg-white text-black rounded-xl hover:bg-gray-100 transition-colors"
+            className="h-10 flex items-center justify-center gap-2 px-4 bg-white text-black rounded-xl hover:bg-gray-100 transition-colors"
             style={{ marginTop: '16px' }}
           >
             <PlusIcon className="w-4 h-4" />
@@ -268,7 +271,7 @@ export function Sidebar({
 
         {/* Chat history */}
         {!isCollapsed && (
-          <div className="flex flex-col gap-2" style={{ marginTop: '12px' }}>
+          <div className="flex flex-col gap-2" style={{ marginTop: '12px', width: '100%' }}>
             {isLoadingHistory ? (
               <div className="p-3 text-sm text-gray-500">Загрузка...</div>
             ) : displayHistory.length === 0 ? (
@@ -306,7 +309,10 @@ export function Sidebar({
       </div>
 
       {/* Bottom section */}
-      <div className={`sidebar-content ${isCollapsed ? 'flex items-center justify-center px-5 pb-5 pt-3' : 'px-5 pb-5 pt-3'}`}>
+      <div 
+        className={`sidebar-content ${isCollapsed ? 'flex items-center justify-center pb-4 pt-3' : 'pb-4 pt-3'}`}
+        style={{ paddingLeft: '16px', paddingRight: '16px', width: '100%', boxSizing: 'border-box' }}
+      >
         {/* User profile */}
         <div className="relative" ref={dropdownRef}>
           {isCollapsed ? (

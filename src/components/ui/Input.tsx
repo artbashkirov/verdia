@@ -26,23 +26,23 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             type={inputType}
             className={`
-              w-full h-12 px-5 py-4 text-base
-              bg-background text-foreground
-              border-[0.5px] border-border rounded-xl
-              placeholder:text-gray-400
-              focus:outline-none focus:ring-2 focus:ring-[#312ecb] focus:border-border
+              w-full h-12 text-base
+              bg-white text-foreground
+              border-[0.5px] rounded-[12px]
+              placeholder:text-[#808080]
+              focus:outline-none focus:ring-2 focus:ring-foreground
               transition-colors
-              ${isPassword ? 'pr-12' : ''}
-              ${error ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''}
+              ${error ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-[#ccc]'}
               ${className}
             `}
+            style={{ paddingLeft: '20px', paddingRight: isPassword ? '48px' : '20px', paddingTop: '16px', paddingBottom: '16px' }}
             {...props}
           />
           {isPassword && (
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-5 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-gray-400 hover:text-foreground transition-colors"
+              className="absolute right-[20px] top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-gray-400 hover:text-foreground transition-colors"
             >
               {showPassword ? (
                 <EyeIcon className="w-4 h-4" />

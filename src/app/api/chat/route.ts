@@ -112,8 +112,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Ensure generation has required fields
+    const gen = generation as { query: string; response: any };
+    if (!gen.query || !gen.response) {
+      return NextResponse.json(
+        { error: 'Неверный формат данных чата' },
+        { status: 400 }
+      );
+    }
+
     // Get previous messages in this chat
-    const { data: previousMessages } = await supabase
+    const { data: previousMessages = [] } = await supabase
       .from('chat_messages')
       .select('role, content')
       .eq('generation_id', generationId)
@@ -124,13 +133,13 @@ export async function POST(request: NextRequest) {
 
     // Build context from original generation
     const contextSummary = `
-Изначальный вопрос: "${generation.query}"
+Изначальный вопрос: "${gen.query}"
 
-Краткий ответ: ${generation.response?.shortAnswer?.title || ''} ${generation.response?.shortAnswer?.content || ''}
+Краткий ответ: ${gen.response?.shortAnswer?.title || ''} ${gen.response?.shortAnswer?.content || ''}
 
-Рекомендации: ${generation.response?.recommendations?.join('; ') || 'см. анализ'}
+Рекомендации: ${gen.response?.recommendations?.join('; ') || 'см. анализ'}
 
-Правовые основания: ${generation.response?.legalAnalysis?.bases?.join('; ') || 'см. анализ'}
+Правовые основания: ${gen.response?.legalAnalysis?.bases?.join('; ') || 'см. анализ'}
 `;
 
     if (isDocumentRequest) {
@@ -143,8 +152,8 @@ export async function POST(request: NextRequest) {
 
       // Add previous chat context if exists
       if (previousMessages && previousMessages.length > 0) {
-        const recentMessages = previousMessages.slice(-4); // Last 4 messages for context
-        recentMessages.forEach(msg => {
+        const recentMessages = (previousMessages as Array<{ role: string; content: string }>).slice(-4); // Last 4 messages for context
+        recentMessages.forEach((msg) => {
           messages.push({
             role: msg.role as 'user' | 'assistant',
             content: msg.content.slice(0, 500), // Truncate long messages
@@ -156,11 +165,11 @@ export async function POST(request: NextRequest) {
 
       // Save user message
       await supabase.from('chat_messages').insert({
-        generation_id: generationId,
+        generation_id: generationId as string,
         user_id: user.id,
         role: 'user',
         content: message,
-      });
+      } as any);
 
       // Generate documents
       const completion = await openai.chat.completions.create({
@@ -185,11 +194,11 @@ export async function POST(request: NextRequest) {
 
       // Save assistant message (without document content to keep it clean)
       await supabase.from('chat_messages').insert({
-        generation_id: generationId,
+        generation_id: generationId as string,
         user_id: user.id,
         role: 'assistant',
         content: assistantMessage,
-      });
+      } as any);
 
       return NextResponse.json({
         message: assistantMessage,
@@ -205,7 +214,7 @@ export async function POST(request: NextRequest) {
       ];
 
       if (previousMessages && previousMessages.length > 0) {
-        previousMessages.forEach(msg => {
+        (previousMessages as Array<{ role: string; content: string }>).forEach(msg => {
           messages.push({
             role: msg.role as 'user' | 'assistant',
             content: msg.content,
@@ -217,11 +226,11 @@ export async function POST(request: NextRequest) {
 
       // Save user message
       await supabase.from('chat_messages').insert({
-        generation_id: generationId,
+        generation_id: generationId as string,
         user_id: user.id,
         role: 'user',
         content: message,
-      });
+      } as any);
 
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
@@ -234,11 +243,11 @@ export async function POST(request: NextRequest) {
 
       // Save assistant message
       await supabase.from('chat_messages').insert({
-        generation_id: generationId,
+        generation_id: generationId as string,
         user_id: user.id,
         role: 'assistant',
         content: assistantMessage,
-      });
+      } as any);
 
       return NextResponse.json({
         message: assistantMessage,

@@ -39,7 +39,7 @@ export function LogoFull({
   // Size configurations - сохраняем высоту, вычисляем ширину для нового SVG (128:40)
   const dimensions = size === "small" 
     ? { width: 68, height: 24 } // Мобильная версия: 24px высота
-    : { width: 144, height: 45 }; // 45 * (128/40) = 144
+    : { width: 141, height: 40 }; // Updated dimensions
   
   // Используем SVG логотип для обоих вариантов
   const logoSrc = variant === "light" ? "/verdiaLogo.svg" : "/verdiaLogo.svg";

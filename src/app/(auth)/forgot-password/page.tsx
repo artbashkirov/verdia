@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AuthLayout } from '@/components/layout';
 import { Button, Input } from '@/components/ui';
@@ -8,16 +9,15 @@ import { LogoFull } from '@/components/icons';
 import { createClient } from '@/lib/supabase/client';
 
 export default function ForgotPasswordPage() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
-    setSuccess(false);
     
     try {
       const supabase = createClient();
@@ -36,8 +36,7 @@ export default function ForgotPasswordPage() {
         return;
       }
 
-      setSuccess(true);
-      setIsLoading(false);
+      router.push(`/forgot-password/success?email=${encodeURIComponent(email)}`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Произошла ошибка';
       setError(errorMessage);
@@ -67,46 +66,35 @@ export default function ForgotPasswordPage() {
         </div>
 
         {/* Form */}
-        {success ? (
-          <div className="flex flex-col gap-6 mt-8 md:mt-0">
-            <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-green-600 text-sm">
-              Письмо с инструкциями по восстановлению пароля отправлено на <strong>{email}</strong>. Проверьте почту.
-            </div>
-            <Link href="/login" className="text-[#312ecb] text-[13px] hover:underline text-center md:text-left">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-[30px] md:gap-[30px] mt-8 md:mt-0">
+          <div className="flex flex-col gap-3 md:gap-5">
+            {error && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+                {error}
+              </div>
+            )}
+            <Input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <Button type="submit" fullWidth disabled={isLoading}>
+              {isLoading ? 'Отправка...' : 'Отправить'}
+            </Button>
+            <Link
+              href="/login"
+              className="text-link text-[13px] hover:underline text-center md:text-left"
+            >
               Вернуться к входу
             </Link>
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="flex flex-col gap-[30px] md:gap-[30px] mt-8 md:mt-0">
-            <div className="flex flex-col gap-3 md:gap-5">
-              {error && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
-                  {error}
-                </div>
-              )}
-              <Input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={isLoading}
-              />
-            </div>
-
-            <div className="flex flex-col gap-4">
-              <Button type="submit" fullWidth disabled={isLoading || success}>
-                {isLoading ? 'Отправка...' : 'Отправить'}
-              </Button>
-              <Link
-                href="/login"
-                className="text-[#312ecb] text-[13px] hover:underline text-center md:text-left"
-              >
-                Вернуться к входу
-              </Link>
-            </div>
-          </form>
-        )}
+        </form>
       </div>
     </AuthLayout>
   );

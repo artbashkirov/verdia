@@ -141,29 +141,9 @@ function ResultContent() {
       
         <div className="flex-1 p-0 md:p-2 md:pl-0">
           <div className="h-full bg-background md:rounded-2xl relative flex flex-col">
-          <div className="flex-1 overflow-y-auto pt-14 pb-36 px-0 relative">
-            {/* Fade overlay with rounded corners matching input field */}
-            <div
-              className="absolute bottom-0 left-0 right-0 pointer-events-none z-10 flex justify-center"
-              style={{
-                height: '88px',
-                paddingLeft: '16px',
-                paddingRight: '16px',
-                paddingBottom: '16px'
-              }}
-            >
-              <div
-                style={{
-                  width: '100%',
-                  maxWidth: '660px',
-                  height: '56px',
-                  borderRadius: '16px',
-                  background: 'var(--background)'
-                }}
-              />
-            </div>
+          <div className="flex-1 overflow-y-auto pt-6 md:pt-14 pb-36 px-0 relative">
             <div className="w-full md:max-w-[660px] md:mx-auto flex flex-col gap-8 break-words overflow-x-hidden" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
-              <h1 className="text-[20px] md:text-[24px] font-medium text-foreground leading-[28px] md:leading-[30px] tracking-tight break-words mt-6 md:mt-0">
+              <h1 className="text-[20px] md:text-[24px] font-medium text-foreground leading-[28px] md:leading-[30px] tracking-tight break-words md:mt-0">
                 {query}
               </h1>
 
@@ -219,16 +199,20 @@ function ResultContent() {
                     Правовой анализ
                   </p>
                   <div className="text-base text-foreground leading-[24px] break-words">
-                    <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3 break-words">{response.legalAnalysis.title}</p>
-                    <p className="mb-3 break-words">{response.legalAnalysis.intro}</p>
-                    {response.legalAnalysis.points && (
+                    {response.legalAnalysis.title && (
+                      <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3 break-words">{response.legalAnalysis.title}</p>
+                    )}
+                    {response.legalAnalysis.intro && (
+                      <p className="mb-3 break-words">{response.legalAnalysis.intro}</p>
+                    )}
+                    {response.legalAnalysis.points && response.legalAnalysis.points.length > 0 && (
                       <ul className="list-disc ml-5 mb-3 break-words">
                         {response.legalAnalysis.points.map((point, i) => (
                           <li key={i} className="mb-2 last:mb-0 break-words">{point}</li>
                         ))}
                       </ul>
                     )}
-                    {response.legalAnalysis.bases && (
+                    {response.legalAnalysis.bases && response.legalAnalysis.bases.length > 0 && (
                       <>
                         <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3 break-words">Основания:</p>
                         <ul className="list-disc ml-5 break-words">
@@ -369,7 +353,6 @@ function ResultContent() {
                     <DownloadIcon 
                       className="w-4 h-4" 
                       strokeWidth="1.5"
-                      style={{ color: resolvedTheme === 'light' ? '#ffffff' : '#000000' }}
                     />
                     <span className="text-sm font-medium">Скачать все</span>
                   </button>

@@ -120,10 +120,10 @@ function ResetPasswordContent() {
           </div>
 
           <div className="flex flex-col gap-4 mt-8 md:mt-0">
-            <Link href="/forgot-password" className="text-[#312ecb] text-[13px] hover:underline text-center md:text-left">
+            <Link href="/forgot-password" className="text-link text-[13px] hover:underline text-center md:text-left">
               Запросить новую ссылку
             </Link>
-            <Link href="/login" className="text-[#312ecb] text-[13px] hover:underline text-center md:text-left">
+            <Link href="/login" className="text-link text-[13px] hover:underline text-center md:text-left">
               Вернуться к входу
             </Link>
           </div>
@@ -194,7 +194,7 @@ function ResetPasswordContent() {
               </Button>
               <Link
                 href="/login"
-                className="text-[#312ecb] text-[13px] hover:underline text-center md:text-left"
+                className="text-link text-[13px] hover:underline text-center md:text-left"
               >
                 Вернуться к входу
               </Link>

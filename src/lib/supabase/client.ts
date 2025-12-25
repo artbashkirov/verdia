@@ -10,9 +10,13 @@ export function createClient() {
     if (!supabaseUrl) missing.push('NEXT_PUBLIC_SUPABASE_URL');
     if (!supabaseAnonKey) missing.push('NEXT_PUBLIC_SUPABASE_ANON_KEY');
     
-    console.error(`Missing Supabase environment variables: ${missing.join(', ')}`);
-    throw new Error(
-      `Отсутствуют переменные окружения: ${missing.join(', ')}. Проверьте файл .env.local и убедитесь, что все переменные установлены.`
+    console.warn(`Missing Supabase environment variables: ${missing.join(', ')}. Using placeholder values.`);
+    // Используем заглушки для запуска приложения
+    const placeholderUrl = 'https://placeholder.supabase.co';
+    const placeholderKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NDUxOTIwMDAsImV4cCI6MTk2MDc2ODAwMH0.placeholder';
+    return createBrowserClient<Database>(
+      supabaseUrl || placeholderUrl,
+      supabaseAnonKey || placeholderKey
     );
   }
 
