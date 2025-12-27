@@ -10,23 +10,24 @@ interface AuthLayoutProps {
 
 export function AuthLayout({ children, title = "Заголовок", description = "Краткое описание сервиса" }: AuthLayoutProps) {
   return (
-    <div className="min-h-screen w-full bg-[#131314] flex items-center justify-center p-4 lg:p-0">
-      <div className="w-full h-screen lg:h-screen bg-[#131314] flex overflow-hidden">
-        {/* Left panel with form - 50% width on desktop */}
-        <div className="w-full lg:w-1/2 flex flex-col relative">
-          {/* Logo for mobile - centered at top */}
-          <div className="lg:hidden mb-8 pt-8 flex justify-center">
+    <div className="h-screen w-full bg-[#131314] flex items-center justify-center lg:p-0 overflow-hidden">
+      <div className="w-full h-full bg-[#131314] flex flex-col lg:flex-row overflow-hidden">
+        {/* Left panel with form - full width on mobile, 50% on desktop */}
+        <div className="w-full lg:w-1/2 flex flex-col relative h-full">
+          {/* Logo for mobile - centered at top, 63px from top */}
+          <div className="lg:hidden absolute top-[63px] left-1/2 -translate-x-1/2 z-10">
             <LogoFull variant="light" size="small" />
           </div>
           
-          {/* Form content centered horizontally and vertically with 70px padding from edges */}
-          <div className="flex-1 flex items-center justify-center p-8 lg:px-[70px] lg:py-0 relative">
-            {/* Logo positioned at top center, 80px from top of screen, centered with form - visible on desktop, 36px height */}
+          {/* Form content - mobile: centered with padding, desktop: centered with 70px padding */}
+          <div className="flex-1 flex items-center justify-center px-[24px] py-8 lg:px-[70px] lg:py-0 relative overflow-y-auto">
+            {/* Logo positioned at top center, 80px from top of screen, centered with form - visible on desktop, 32px height */}
             <div className="hidden lg:block absolute top-[80px] left-1/2 -translate-x-1/2 z-10">
               <LogoFull variant="light" size="default" />
             </div>
             
-            <div className="flex flex-col gap-8 lg:gap-[56px] items-center w-full max-w-[460px]">
+            {/* Form container - max-width 460px, full width on mobile up to 460px */}
+            <div className="flex flex-col gap-[40px] lg:gap-[56px] items-center w-full max-w-[460px] my-auto">
               {children}
             </div>
           </div>

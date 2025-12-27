@@ -131,6 +131,14 @@ body {
   }
 }
 
+/* Auth pages - prevent word breaking */
+.auth-text {
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  hyphens: none !important;
+  -webkit-hyphens: none !important;
+}
+
 /* Scrollbar styling */
 /* Hide horizontal scrollbar completely */
 ::-webkit-scrollbar:horizontal {

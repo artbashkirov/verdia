@@ -83,7 +83,7 @@ function ResetPasswordContent() {
     return (
       <AuthLayout>
         <div className="flex flex-col gap-[10px] items-center text-center w-full">
-          <h2 className="text-[32px] font-normal leading-[normal] text-white">
+          <h2 className="text-[20px] lg:text-[32px] font-normal leading-[28px] lg:leading-[normal] text-white">
             Проверка...
           </h2>
         </div>
@@ -95,20 +95,20 @@ function ResetPasswordContent() {
     return (
       <AuthLayout>
         {/* Header */}
-        <div className="flex flex-col gap-[10px] items-center text-center w-full">
-          <h2 className="text-[32px] font-normal leading-[normal] text-white">
+        <div className="flex flex-col gap-[4px] lg:gap-[10px] items-center text-center w-full">
+          <h2 className="text-[20px] lg:text-[32px] font-normal leading-[28px] lg:leading-[normal] text-white">
             Ошибка
           </h2>
-          <p className="text-[24px] font-normal leading-[30px] text-[#808080] tracking-[-0.24px]">
+          <p className="text-[16px] lg:text-[24px] font-normal leading-[20px] lg:leading-[30px] text-[#808080] lg:tracking-[-0.24px]">
             {error || 'Ссылка для сброса пароля недействительна или истекла'}
           </p>
         </div>
 
         <div className="flex flex-col gap-[16px] items-center w-full">
-          <Link href="/forgot-password" className="text-[#5d89d5] text-[14px] leading-[18px] hover:underline">
+          <Link href="/forgot-password" className="text-[#5d89d5] text-[13px] lg:text-[14px] leading-[16px] lg:leading-[18px] hover:underline">
             Запросить новую ссылку
           </Link>
-          <Link href="/login" className="text-[#5d89d5] text-[14px] leading-[18px] hover:underline">
+          <Link href="/login" className="text-[#5d89d5] text-[13px] lg:text-[14px] leading-[16px] lg:leading-[18px] hover:underline">
             Вернуться к входу
           </Link>
         </div>
@@ -119,11 +119,11 @@ function ResetPasswordContent() {
   return (
     <AuthLayout>
       {/* Header */}
-      <div className="flex flex-col gap-[10px] items-center text-center w-full">
-        <h2 className="text-[32px] font-normal leading-[normal] text-white">
+      <div className="flex flex-col gap-[4px] lg:gap-[10px] items-center text-center w-full">
+        <h2 className="text-[20px] lg:text-[32px] font-normal leading-[28px] lg:leading-[normal] text-white">
           {success ? 'Пароль успешно изменен' : 'Новый пароль'}
         </h2>
-        <p className="text-[24px] font-normal leading-[30px] text-[#808080] tracking-[-0.24px]">
+        <p className="text-[16px] lg:text-[24px] font-normal leading-[20px] lg:leading-[30px] text-[#808080] lg:tracking-[-0.24px]">
           {success 
             ? 'Вы будете перенаправлены на страницу входа...'
             : 'Введите новый пароль для вашего аккаунта'}
@@ -139,7 +139,7 @@ function ResetPasswordContent() {
         </div>
       ) : (
         <div className="flex flex-col gap-[28px] items-start w-full">
-          <form id="reset-password-form" onSubmit={handleSubmit} className="flex flex-col gap-[16px] w-full">
+          <form id="reset-password-form" onSubmit={handleSubmit} className="flex flex-col gap-[12px] lg:gap-[16px] w-full">
             {error && (
               <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
                 {error}
@@ -169,7 +169,7 @@ function ResetPasswordContent() {
             </Button>
             <Link
               href="/login"
-              className="text-[#5d89d5] text-[14px] leading-[18px] hover:underline"
+              className="text-[#5d89d5] text-[13px] lg:text-[14px] leading-[16px] lg:leading-[18px] hover:underline"
             >
               Вернуться к входу
             </Link>

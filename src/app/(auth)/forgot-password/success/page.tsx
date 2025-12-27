@@ -13,11 +13,11 @@ function SuccessContent() {
   return (
     <AuthLayout>
       {/* Header */}
-      <div className="flex flex-col gap-[10px] items-center text-center w-full">
-        <h2 className="text-[32px] font-normal leading-[normal] text-white">
+      <div className="flex flex-col gap-[4px] lg:gap-[10px] items-center text-center w-full">
+        <h2 className="text-[20px] lg:text-[32px] font-normal leading-[28px] lg:leading-[normal] text-white">
           Восстановление пароля
         </h2>
-        <p className="text-[24px] font-normal leading-[30px] text-[#808080] tracking-[-0.24px]">
+        <p className="text-[16px] lg:text-[24px] font-normal leading-[20px] lg:leading-[30px] text-[#808080] lg:tracking-[-0.24px]">
           Письмо отправлено
         </p>
       </div>
@@ -45,7 +45,7 @@ export default function ForgotPasswordSuccessPage() {
     <Suspense fallback={
       <AuthLayout>
         <div className="flex flex-col gap-[10px] items-center text-center">
-          <h2 className="text-[32px] font-normal text-white">
+          <h2 className="text-[20px] lg:text-[32px] font-normal leading-[28px] lg:leading-[normal] text-white">
             Загрузка...
           </h2>
         </div>

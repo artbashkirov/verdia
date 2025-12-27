@@ -54,18 +54,18 @@ function LoginContent() {
   return (
     <AuthLayout>
       {/* Header */}
-      <div className="flex flex-col gap-[10px] items-center text-center w-full">
-        <h2 className="text-[32px] font-normal leading-[normal] text-white">
+      <div className="flex flex-col gap-[4px] lg:gap-[10px] items-center text-center w-full">
+        <h2 className="auth-text text-[20px] lg:text-[32px] font-normal leading-[28px] lg:leading-[normal] text-white">
           Добро пожаловать в Verdia
         </h2>
-        <p className="text-[24px] font-normal leading-[30px] text-[#808080] tracking-[-0.24px]">
+        <p className="auth-text text-[16px] lg:text-[24px] font-normal leading-[20px] lg:leading-[30px] text-[#808080] lg:tracking-[-0.24px]">
           Ваш юридический AI-ассистент
         </p>
       </div>
 
       {/* Form */}
       <div className="flex flex-col gap-[28px] items-start w-full">
-        <form id="login-form" onSubmit={handleSubmit} className="flex flex-col gap-[16px] w-full">
+        <form id="login-form" onSubmit={handleSubmit} className="flex flex-col gap-[12px] lg:gap-[16px] w-full">
           {successMessage && (
             <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-green-600 text-sm">
               {successMessage}
@@ -93,7 +93,7 @@ function LoginContent() {
           <div className="flex items-center justify-center w-full">
             <Link
               href="/forgot-password"
-              className="text-[#5d89d5] text-[14px] leading-[18px] hover:underline"
+              className="text-[#5d89d5] text-[13px] lg:text-[14px] leading-[16px] lg:leading-[18px] hover:underline"
             >
               Забыли пароль?
             </Link>
@@ -104,7 +104,7 @@ function LoginContent() {
           <Button type="submit" form="login-form" fullWidth disabled={isLoading}>
             {isLoading ? 'Загрузка...' : 'Войти'}
           </Button>
-          <p className="text-[14px] font-medium leading-[18px] text-white">
+          <p className="text-[13px] lg:text-[14px] font-medium leading-[16px] lg:leading-[18px] text-white">
             <span>Еще не зарегистрированы?</span>{' '}
             <Link href="/register" className="text-[#5d89d5] hover:underline">
               Регистрация
