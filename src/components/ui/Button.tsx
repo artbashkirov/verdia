@@ -10,16 +10,16 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className = '', variant = 'primary', size = 'default', fullWidth = false, children, ...props }, ref) => {
-    const baseStyles = 'inline-flex items-center justify-center font-semibold transition-colors rounded-[12px] focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
+    const baseStyles = 'inline-flex items-center justify-center font-semibold transition-all rounded-[16px] focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
     
     const variants = {
-      primary: 'bg-[#212121] text-white hover:bg-[#3a3a3a] focus:ring-[#212121]',
+      primary: 'bg-white text-[#040308] hover:opacity-75 focus:ring-white',
       secondary: 'bg-background text-foreground hover:bg-gray-100 dark:hover:bg-[#3a3a3a] focus:ring-gray-300',
       outline: 'border border-gray-200 bg-transparent text-foreground hover:bg-gray-100 dark:hover:bg-[#3a3a3a] focus:ring-gray-300',
     };
 
     const sizes = {
-      default: 'h-12 text-base gap-2.5',
+      default: 'h-[48px] text-[16px] gap-[10px]',
       small: 'px-4 py-2 text-sm gap-2',
       icon: 'p-1 min-w-7 min-h-7',
     };

@@ -36,10 +36,10 @@ export function LogoFull({
   variant?: "dark" | "light";
   size?: "default" | "small";
 }) {
-  // Size configurations - сохраняем высоту, вычисляем ширину для нового SVG (128:40)
+  // Size configurations - размеры для десктопа: высота 32px
   const dimensions = size === "small" 
     ? { width: 68, height: 24 } // Мобильная версия: 24px высота
-    : { width: 141, height: 40 }; // Updated dimensions
+    : { width: 113, height: 32 }; // Desktop version: высота 32px
   
   // Используем SVG логотип для обоих вариантов
   const logoSrc = variant === "light" ? "/verdiaLogo.svg" : "/verdiaLogo.svg";
@@ -51,7 +51,10 @@ export function LogoFull({
       width={dimensions.width}
       height={dimensions.height}
       priority
-      className="object-contain"
+      style={{ 
+        width: size === "default" ? "113px" : `${dimensions.width}px`, 
+        height: size === "default" ? "32px" : `${dimensions.height}px` 
+      }}
     />
   );
 }

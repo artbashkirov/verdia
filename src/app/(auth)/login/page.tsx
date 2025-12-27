@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AuthLayout } from '@/components/layout';
 import { Button, Input } from '@/components/ui';
-import { LogoFull } from '@/components/icons';
 import { createClient } from '@/lib/supabase/client';
 
 function LoginContent() {
@@ -53,72 +52,64 @@ function LoginContent() {
   };
 
   return (
-    <AuthLayout
-      title="Юридический AI-ассистент"
-      description="Иски, ходатайства и анализ судебной практики — за минуты"
-    >
-      <div className="flex flex-col w-full md:my-auto">
-        {/* Mobile Logo - only visible on mobile */}
-        <div className="md:hidden flex justify-center mb-8">
-          <LogoFull variant="dark" size="small" />
-        </div>
+    <AuthLayout>
+      {/* Header */}
+      <div className="flex flex-col gap-[10px] items-center text-center w-full">
+        <h2 className="text-[32px] font-normal leading-[normal] text-white">
+          Добро пожаловать в Verdia
+        </h2>
+        <p className="text-[24px] font-normal leading-[30px] text-[#808080] tracking-[-0.24px]">
+          Ваш юридический AI-ассистент
+        </p>
+      </div>
 
-        {/* Form container - centered on desktop */}
-        <div className="flex flex-col gap-[100px] items-center w-full">
-          {/* Header */}
-          <div className="flex flex-col gap-[10px] justify-start items-center w-full max-w-[554px]">
-            <h2 className="text-[20px] md:text-[32px] font-medium md:font-bold text-[#040308] leading-[28px] md:leading-[40px] text-center">
-              Добро пожаловать
-            </h2>
-            <p className="text-[13px] md:text-[16px] text-[#040308] text-center">
-              Еще не зарегистрированы?{' '}
-              <Link href="/register" className="text-[#312ecb] hover:underline">
-                Регистрация
-              </Link>
-            </p>
-          </div>
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="flex flex-col gap-[30px] w-full max-w-[554px] items-start">
-            <div className="flex flex-col gap-[20px] w-full">
-              {successMessage && (
-                <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-green-600 text-sm">
-                  {successMessage}
-                </div>
-              )}
-              {error && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
-                  {error}
-                </div>
-              )}
-              <Input
-                type="email"
-                placeholder="Email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                required
-              />
-              <Input
-                type="password"
-                placeholder="Пароль"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                required
-              />
-              <div className="flex justify-end">
-                <Link
-                  href="/forgot-password"
-                  className="text-[#312ecb] text-[14px] hover:underline"
-                >
-                  Забыли пароль?
-                </Link>
-              </div>
+      {/* Form */}
+      <div className="flex flex-col gap-[28px] items-start w-full">
+        <form id="login-form" onSubmit={handleSubmit} className="flex flex-col gap-[16px] w-full">
+          {successMessage && (
+            <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-green-600 text-sm">
+              {successMessage}
             </div>
+          )}
+          {error && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+              {error}
+            </div>
+          )}
+          <Input
+            type="email"
+            placeholder="Email"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            required
+          />
+          <Input
+            type="password"
+            placeholder="Пароль"
+            value={formData.password}
+            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            required
+          />
+          <div className="flex items-center justify-center w-full">
+            <Link
+              href="/forgot-password"
+              className="text-[#5d89d5] text-[14px] leading-[18px] hover:underline"
+            >
+              Забыли пароль?
+            </Link>
+          </div>
+        </form>
 
-            <Button type="submit" fullWidth disabled={isLoading}>
-              {isLoading ? 'Загрузка...' : 'Войти'}
-            </Button>
-          </form>
+        <div className="flex flex-col gap-[16px] items-center w-full">
+          <Button type="submit" form="login-form" fullWidth disabled={isLoading}>
+            {isLoading ? 'Загрузка...' : 'Войти'}
+          </Button>
+          <p className="text-[14px] font-medium leading-[18px] text-white">
+            <span>Еще не зарегистрированы?</span>{' '}
+            <Link href="/register" className="text-[#5d89d5] hover:underline">
+              Регистрация
+            </Link>
+          </p>
         </div>
       </div>
     </AuthLayout>
@@ -128,16 +119,11 @@ function LoginContent() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <AuthLayout
-        title="Юридический AI-ассистент"
-        description="Иски, ходатайства и анализ судебной практики — за минуты"
-      >
-        <div className="flex flex-col max-w-[554px] w-full md:mx-auto">
-          <div className="flex flex-col gap-2.5">
-            <h2 className="text-[32px] font-bold text-foreground">
-              Загрузка...
-            </h2>
-          </div>
+      <AuthLayout>
+        <div className="flex flex-col items-center text-center">
+          <h2 className="text-[32px] font-normal text-white">
+            Загрузка...
+          </h2>
         </div>
       </AuthLayout>
     }>

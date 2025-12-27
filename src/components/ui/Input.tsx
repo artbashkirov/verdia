@@ -17,7 +17,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="w-full">
         {label && (
-          <label className="block text-sm font-medium text-foreground mb-1.5">
+          <label className="block text-sm font-medium text-white mb-1.5">
             {label}
           </label>
         )}
@@ -26,13 +26,13 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             type={inputType}
             className={`
-              w-full h-12 text-base
-              bg-white text-foreground
-              border-[0.5px] rounded-[12px]
+              w-full h-[48px] text-base
+              bg-[#202124] text-white
+              border-0 rounded-[16px]
               placeholder:text-[#808080]
-              focus:outline-none focus:ring-2 focus:ring-foreground
+              focus:outline-none
               transition-colors
-              ${error ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-[#ccc]'}
+              ${error ? 'border-red-500' : ''}
               ${className}
             `}
             style={{ paddingLeft: '20px', paddingRight: isPassword ? '48px' : '20px', paddingTop: '16px', paddingBottom: '16px' }}
@@ -42,7 +42,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-[20px] top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-gray-400 hover:text-foreground transition-colors"
+              className="absolute right-[20px] top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-[#808080] hover:text-white transition-colors"
             >
               {showPassword ? (
                 <EyeIcon className="w-4 h-4" />

@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AuthLayout } from '@/components/layout';
 import { Button, Input, Checkbox } from '@/components/ui';
-import { LogoFull } from '@/components/icons';
 import { createClient } from '@/lib/supabase/client';
 
 export default function RegisterPage() {
@@ -105,93 +104,88 @@ export default function RegisterPage() {
   };
 
   return (
-    <AuthLayout
-      title="Юридический AI-ассистент"
-      description="Иски, ходатайства и анализ судебной практики — за минуты"
-    >
-      <div className="flex flex-col md:gap-[100px] max-w-[554px] w-full">
-        {/* Mobile Logo - only visible on mobile */}
-        <div className="md:hidden flex justify-center mb-8">
-          <LogoFull variant="dark" size="small" />
-        </div>
+    <AuthLayout>
+      {/* Header */}
+      <div className="flex flex-col gap-[10px] items-center text-center w-full">
+        <h2 className="text-[32px] font-normal leading-[normal] text-white">
+          Регистрация
+        </h2>
+        <p className="text-[24px] font-normal leading-[30px] text-[#808080] tracking-[-0.24px]">
+          Создайте аккаунт в Verdia
+        </p>
+      </div>
 
-        {/* Header */}
-        <div className="flex flex-col gap-2.5 items-center md:items-start text-center md:text-left">
-          <h2 className="text-[20px] md:text-[32px] font-medium md:font-bold text-foreground leading-[28px] md:leading-normal tracking-[-0.2px]">
-            Регистрация
-          </h2>
-          <p className="text-[13px] md:text-base text-foreground">
-            Уже зарегистрированы?{' '}
-            <Link href="/login" className="text-link hover:underline">
+      {/* Form */}
+      <div className="flex flex-col gap-[28px] items-start w-full">
+        <form id="register-form" onSubmit={handleSubmit} className="flex flex-col gap-[16px] w-full">
+          {error && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+              {error}
+            </div>
+          )}
+          {/* Name fields - stacked on mobile, side by side on desktop */}
+          <div className="flex flex-col lg:flex-row gap-[16px]">
+            <Input
+              placeholder="Имя"
+              value={formData.firstName}
+              onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+              required
+            />
+            <Input
+              placeholder="Фамилия"
+              value={formData.lastName}
+              onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+              required
+            />
+          </div>
+          
+          <Input
+            type="email"
+            placeholder="Email"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            required
+          />
+          
+          <Input
+            type="password"
+            placeholder="Пароль"
+            value={formData.password}
+            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            required
+            minLength={6}
+          />
+          
+          <Checkbox
+            id="acceptTerms"
+            checked={formData.acceptTerms}
+            onChange={(e) => setFormData({ ...formData, acceptTerms: e.target.checked })}
+            label={
+              <span className="text-white">
+                Я согласен с{' '}
+                <Link href="/terms" className="text-[#5d89d5] hover:underline">
+                  Правилами сервиса
+                </Link>
+                {' '}и{' '}
+                <Link href="/privacy" className="text-[#5d89d5] hover:underline">
+                  Политикой конфиденциальности
+                </Link>
+              </span>
+            }
+          />
+        </form>
+
+        <div className="flex flex-col gap-[16px] items-center w-full">
+          <Button type="submit" form="register-form" fullWidth disabled={isLoading}>
+            {isLoading ? 'Создание...' : 'Создать аккаунт'}
+          </Button>
+          <p className="text-[14px] font-medium leading-[18px] text-white">
+            <span>Уже зарегистрированы?</span>{' '}
+            <Link href="/login" className="text-[#5d89d5] hover:underline">
               Войти
             </Link>
           </p>
         </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-[30px] md:gap-[30px] mt-8 md:mt-0">
-          <div className="flex flex-col gap-3 md:gap-5">
-            {error && (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
-                {error}
-              </div>
-            )}
-            {/* Name fields - stacked on mobile, side by side on desktop */}
-            <div className="flex flex-col md:flex-row gap-3 md:gap-[30px]">
-              <Input
-                placeholder="Имя"
-                value={formData.firstName}
-                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                required
-              />
-              <Input
-                placeholder="Фамилия"
-                value={formData.lastName}
-                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                required
-              />
-            </div>
-            
-            <Input
-              type="email"
-              placeholder="Email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              required
-            />
-            
-            <Input
-              type="password"
-              placeholder="Пароль"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              required
-              minLength={6}
-            />
-            
-            <Checkbox
-              id="acceptTerms"
-              checked={formData.acceptTerms}
-              onChange={(e) => setFormData({ ...formData, acceptTerms: e.target.checked })}
-              label={
-                <span>
-                  Я согласен с{' '}
-                  <Link href="/terms" className="text-link hover:underline">
-                    Правилами сервиса
-                  </Link>
-                  {' '}и{' '}
-                  <Link href="/privacy" className="text-link hover:underline">
-                    Политикой конфиденциальности
-                  </Link>
-                </span>
-              }
-            />
-          </div>
-
-          <Button type="submit" fullWidth disabled={isLoading}>
-            {isLoading ? 'Создание...' : 'Создать аккаунт'}
-          </Button>
-        </form>
       </div>
     </AuthLayout>
   );

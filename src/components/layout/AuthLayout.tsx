@@ -10,24 +10,31 @@ interface AuthLayoutProps {
 
 export function AuthLayout({ children, title = "Заголовок", description = "Краткое описание сервиса" }: AuthLayoutProps) {
   return (
-    <div className="min-h-screen w-full flex">
-      {/* Left dark panel - hidden on mobile */}
-      <div className="hidden md:flex w-[686px] min-h-screen bg-[#212121] p-[100px] flex-col justify-between shrink-0">
-        <LogoFull variant="light" />
-        <div className="flex flex-col gap-[20px] text-white">
-          <h1 className="text-[32px] font-bold leading-tight w-fit">
-            {title}
-          </h1>
-          <p className="text-[24px] font-normal w-fit leading-[32px]">
-            {description}
-          </p>
+    <div className="min-h-screen w-full bg-[#131314] flex items-center justify-center p-4 lg:p-0">
+      <div className="w-full h-screen lg:h-screen bg-[#131314] flex overflow-hidden">
+        {/* Left panel with form - 50% width on desktop */}
+        <div className="w-full lg:w-1/2 flex flex-col relative">
+          {/* Logo for mobile - centered at top */}
+          <div className="lg:hidden mb-8 pt-8 flex justify-center">
+            <LogoFull variant="light" size="small" />
+          </div>
+          
+          {/* Form content centered horizontally and vertically with 70px padding from edges */}
+          <div className="flex-1 flex items-center justify-center p-8 lg:px-[70px] lg:py-0 relative">
+            {/* Logo positioned at top center, 80px from top of screen, centered with form - visible on desktop, 36px height */}
+            <div className="hidden lg:block absolute top-[80px] left-1/2 -translate-x-1/2 z-10">
+              <LogoFull variant="light" size="default" />
+            </div>
+            
+            <div className="flex flex-col gap-8 lg:gap-[56px] items-center w-full max-w-[460px]">
+              {children}
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Right white panel */}
-      <div className="flex-1 min-h-screen bg-white px-4 py-8 md:w-[754px] md:px-[32px] md:py-[100px] flex flex-col md:items-center">
-        <div className="flex flex-col md:my-auto w-full">
-          {children}
+        {/* Right empty dark panel - 50% width on desktop, hidden on mobile */}
+        <div className="hidden lg:flex w-1/2 h-full items-center p-[8px]">
+          <div className="w-full h-full bg-[#1e1f20] rounded-[48px]" />
         </div>
       </div>
     </div>
