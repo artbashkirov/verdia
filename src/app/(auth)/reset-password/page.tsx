@@ -83,9 +83,9 @@ function ResetPasswordContent() {
     return (
       <AuthLayout>
         <div className="flex flex-col gap-[10px] items-center text-center w-full">
-          <h2 className="text-[20px] lg:text-[32px] font-normal leading-[28px] lg:leading-[normal] text-white">
+          <h1 className="text-[20px] lg:text-[32px] font-normal leading-[28px] lg:leading-[40px] text-white">
             Проверка...
-          </h2>
+          </h1>
         </div>
       </AuthLayout>
     );
@@ -96,19 +96,19 @@ function ResetPasswordContent() {
       <AuthLayout>
         {/* Header */}
         <div className="flex flex-col gap-[4px] lg:gap-[10px] items-center text-center w-full">
-          <h2 className="text-[20px] lg:text-[32px] font-normal leading-[28px] lg:leading-[normal] text-white">
+          <h1 className="text-[20px] lg:text-[32px] font-normal leading-[28px] lg:leading-[40px] text-white">
             Ошибка
-          </h2>
-          <p className="text-[16px] lg:text-[24px] font-normal leading-[20px] lg:leading-[30px] text-[#808080] lg:tracking-[-0.24px]">
+          </h1>
+          <h2 className="text-[18px] lg:text-[24px] font-normal leading-[24px] lg:leading-[30px] text-[#808080] lg:tracking-[-0.24px]">
             {error || 'Ссылка для сброса пароля недействительна или истекла'}
-          </p>
+          </h2>
         </div>
 
         <div className="flex flex-col gap-[16px] items-center w-full">
-          <Link href="/forgot-password" className="text-[#5d89d5] text-[13px] lg:text-[14px] leading-[16px] lg:leading-[18px] hover:underline">
+          <Link href="/forgot-password" className="text-[#5d89d5] text-[13px] lg:text-[14px] leading-[16px] lg:leading-[16px] hover:underline">
             Запросить новую ссылку
           </Link>
-          <Link href="/login" className="text-[#5d89d5] text-[13px] lg:text-[14px] leading-[16px] lg:leading-[18px] hover:underline">
+          <Link href="/login" className="text-[#5d89d5] text-[13px] lg:text-[14px] leading-[16px] lg:leading-[16px] hover:underline">
             Вернуться к входу
           </Link>
         </div>
@@ -120,20 +120,20 @@ function ResetPasswordContent() {
     <AuthLayout>
       {/* Header */}
       <div className="flex flex-col gap-[4px] lg:gap-[10px] items-center text-center w-full">
-        <h2 className="text-[20px] lg:text-[32px] font-normal leading-[28px] lg:leading-[normal] text-white">
+        <h1 className="text-[20px] lg:text-[32px] font-normal leading-[28px] lg:leading-[40px] text-white">
           {success ? 'Пароль успешно изменен' : 'Новый пароль'}
-        </h2>
-        <p className="text-[16px] lg:text-[24px] font-normal leading-[20px] lg:leading-[30px] text-[#808080] lg:tracking-[-0.24px]">
+        </h1>
+        <h2 className="text-[18px] lg:text-[24px] font-normal leading-[24px] lg:leading-[30px] text-[#808080] lg:tracking-[-0.24px]">
           {success 
             ? 'Вы будете перенаправлены на страницу входа...'
             : 'Введите новый пароль для вашего аккаунта'}
-        </p>
+        </h2>
       </div>
 
       {/* Form */}
       {success ? (
         <div className="flex flex-col gap-[16px] items-center w-full">
-          <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-green-600 text-sm w-full">
+          <div className="p-4 bg-green-900/20 border border-green-700/50 rounded-xl text-green-400 text-sm w-full slide-in-from-top-2">
             Пароль успешно изменен. Вы будете перенаправлены на страницу входа.
           </div>
         </div>
@@ -141,7 +141,7 @@ function ResetPasswordContent() {
         <div className="flex flex-col gap-[28px] items-start w-full">
           <form id="reset-password-form" onSubmit={handleSubmit} className="flex flex-col gap-[12px] lg:gap-[16px] w-full">
             {error && (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+              <div className="p-4 bg-red-900/20 border border-red-700/50 rounded-xl text-red-400 text-sm slide-in-from-top-2">
                 {error}
               </div>
             )}
@@ -169,7 +169,7 @@ function ResetPasswordContent() {
             </Button>
             <Link
               href="/login"
-              className="text-[#5d89d5] text-[13px] lg:text-[14px] leading-[16px] lg:leading-[18px] hover:underline"
+              className="text-[#5d89d5] text-[13px] lg:text-[14px] leading-[16px] lg:leading-[16px] hover:underline"
             >
               Вернуться к входу
             </Link>
@@ -185,9 +185,9 @@ export default function ResetPasswordPage() {
     <Suspense fallback={
       <AuthLayout>
         <div className="flex flex-col gap-[10px] items-center text-center">
-          <h2 className="text-[32px] font-normal text-white">
+          <h1 className="text-[20px] lg:text-[32px] font-normal leading-[28px] lg:leading-[40px] text-white">
             Загрузка...
-          </h2>
+          </h1>
         </div>
       </AuthLayout>
     }>

@@ -8,17 +8,17 @@ export default function PrivacyPage() {
     <AuthLayout>
       <div className="flex flex-col gap-[28px] items-start w-full max-w-[800px]">
         <div className="flex flex-col gap-[4px] lg:gap-[10px] items-start w-full">
-          <h1 className="text-[20px] lg:text-[32px] font-normal leading-[28px] lg:leading-[normal] text-white">
+          <h1 className="text-[20px] lg:text-[32px] font-normal leading-[28px] lg:leading-[40px] text-white">
             Политика конфиденциальности
           </h1>
-          <p className="text-[16px] lg:text-[24px] font-normal leading-[20px] lg:leading-[30px] text-[#808080] lg:tracking-[-0.24px]">
+          <p className="text-[16px] lg:text-[16px] font-normal leading-[24px] lg:leading-[24px] text-[#808080] lg:tracking-[-0.24px]">
             Как мы собираем, используем и защищаем ваши данные
           </p>
         </div>
 
         <div className="flex flex-col gap-6 text-white">
           <section className="flex flex-col gap-4">
-            <h2 className="text-[24px] font-semibold">1. Сбор информации</h2>
+            <h2 className="text-[18px] lg:text-[24px] font-semibold leading-[24px] lg:leading-[30px]">1. Сбор информации</h2>
             <p className="text-[16px] leading-[24px] text-[#808080]">
               Мы собираем информацию, которую вы предоставляете при регистрации и использовании Сервиса, 
               включая имя, email и данные, которые вы вводите при работе с документами.
@@ -61,7 +61,7 @@ export default function PrivacyPage() {
         <div className="flex flex-col gap-4 w-full mt-8">
           <Link 
             href="/register" 
-            className="text-[#5d89d5] text-[13px] lg:text-[14px] leading-[16px] lg:leading-[18px] hover:underline"
+            className="text-[#5d89d5] text-[13px] lg:text-[14px] leading-[16px] lg:leading-[16px] hover:underline"
           >
             ← Вернуться к регистрации
           </Link>

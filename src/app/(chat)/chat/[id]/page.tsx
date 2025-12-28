@@ -369,14 +369,14 @@ export default function ChatResultPage() {
           <div className="flex-1 overflow-y-auto pt-6 md:pt-14 pb-36 px-0 relative">
             <div className="w-full md:max-w-[660px] md:mx-auto flex flex-col gap-8 break-words" style={{ paddingLeft: '16px', paddingRight: '16px', position: 'relative' }}>
               {/* Query */}
-              <h1 className="text-[24px] font-medium text-foreground leading-[30px] tracking-tight break-words md:mt-0">
+              <h1 className="text-[20px] lg:text-[32px] font-medium text-foreground leading-[28px] lg:leading-[40px] tracking-tight break-words md:mt-0">
                 {query}
               </h1>
 
               {/* Court cases */}
               {response.courtCases && response.courtCases.length > 0 && (
                 <div className="flex flex-col gap-4" style={{ marginLeft: '-16px', marginRight: '-16px' }}>
-                  <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
+                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
                     Судебные решения
                   </p>
                   <div 
@@ -403,10 +403,10 @@ export default function ChatResultPage() {
                           minWidth: '200px'
                         }}
                       >
-                        <p className="text-[14px] font-medium text-foreground leading-[18px] line-clamp-3 h-12">
+                        <p className="text-[16px] lg:text-[16px] font-medium text-foreground leading-[24px] lg:leading-[24px] line-clamp-3 h-12">
                           {c.title}
                         </p>
-                        <p className="text-[12px] font-medium text-gray-400 leading-[14px]">
+                        <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 leading-[14px] lg:leading-[14px]">
                           {c.url?.includes('sudact.ru') ? 'sudact.ru' : 
                            c.url?.includes('help.mos-gorsud.ru') ? 'help.mos-gorsud.ru' : 'mos-gorsud.ru'}
                         </p>
@@ -424,11 +424,11 @@ export default function ChatResultPage() {
               {/* Short answer */}
               {response.shortAnswer && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
+                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                     Краткий ответ
                   </p>
                   <div className="text-base text-foreground leading-[24px] break-words">
-                    <p className="mb-3 text-[20px] leading-[28px] font-semibold break-words">{response.shortAnswer.title}</p>
+                    <p className="mb-3 text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold break-words">{response.shortAnswer.title}</p>
                     <p className="break-words">{response.shortAnswer.content}</p>
                   </div>
                 </div>
@@ -440,11 +440,11 @@ export default function ChatResultPage() {
               {/* Legal analysis */}
               {response.legalAnalysis && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
+                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                     Правовой анализ
                   </p>
                   <div className="text-base text-foreground leading-[24px] break-words">
-                    <p className="text-[20px] leading-[28px] font-semibold mb-3 break-words">{response.legalAnalysis.title}</p>
+                    <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 break-words">{response.legalAnalysis.title}</p>
                     <p className="mb-3 break-words">{response.legalAnalysis.intro}</p>
                     {response.legalAnalysis.points && (
                       <ul className="list-disc ml-5 mb-3 break-words">
@@ -455,7 +455,7 @@ export default function ChatResultPage() {
                     )}
                     {response.legalAnalysis.bases && (
                       <>
-                        <p className="text-[20px] leading-[28px] font-semibold mb-3 break-words">Основания:</p>
+                        <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 break-words">Основания:</p>
                         <ul className="list-disc ml-5 break-words">
                           {response.legalAnalysis.bases.map((base, i) => (
                             <li key={i} className="mb-2 last:mb-0 break-words">{base}</li>
@@ -473,7 +473,7 @@ export default function ChatResultPage() {
               {/* Practice analysis */}
               {response.practiceAnalysis && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
+                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                     Анализ судебной практики
                   </p>
                   <div className="text-base text-foreground leading-[24px] break-words">
@@ -481,7 +481,7 @@ export default function ChatResultPage() {
                     
                     {response.practiceAnalysis.satisfied && (
                       <>
-                            <p className="text-[20px] leading-[28px] font-semibold mb-3 break-words">{response.practiceAnalysis.satisfied.title}</p>
+                            <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 break-words">{response.practiceAnalysis.satisfied.title}</p>
                         <ul className="list-disc ml-5 mb-3 break-words">
                           {response.practiceAnalysis.satisfied.points.map((point, i) => (
                             <li key={i} className="mb-2 last:mb-0 break-words">{point}</li>
@@ -492,7 +492,7 @@ export default function ChatResultPage() {
                     
                     {response.practiceAnalysis.rejected && (
                       <>
-                            <p className="text-[20px] leading-[28px] font-semibold mb-3 break-words">{response.practiceAnalysis.rejected.title}</p>
+                            <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 break-words">{response.practiceAnalysis.rejected.title}</p>
                         <ul className="list-disc ml-5 break-words">
                           {response.practiceAnalysis.rejected.points.map((point, i) => (
                             <li key={i} className="mb-2 last:mb-0 break-words">{point}</li>
@@ -510,14 +510,14 @@ export default function ChatResultPage() {
               {/* Probability */}
               {response.probability && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
+                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                     Оценка вероятности
                   </p>
                   <div className="text-base text-foreground leading-[24px] break-words">
                     <p className="mb-3 break-words">Вероятность удовлетворения требований: <strong>{response.probability.level}</strong>.</p>
                     {response.probability.factors && (
                       <>
-                        <p className="text-[20px] leading-[28px] font-semibold mb-3 break-words">Повышается, если есть:</p>
+                        <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 break-words">Повышается, если есть:</p>
                         <ul className="list-disc ml-5 break-words">
                           {response.probability.factors.map((factor, i) => (
                             <li key={i} className="mb-2 last:mb-0 break-words">{factor}</li>
@@ -535,7 +535,7 @@ export default function ChatResultPage() {
               {/* Recommendations */}
               {response.recommendations && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
+                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                     Рекомендованные действия
                   </p>
                   <ol className="list-decimal ml-5 text-base text-foreground leading-[24px] break-words" style={{ fontFamily: 'var(--font-inter), Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
@@ -552,7 +552,7 @@ export default function ChatResultPage() {
               {/* Documents */}
               {response.documents && response.documents.length > 0 && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
+                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                     Подготовленные документы
                   </p>
                   
@@ -615,7 +615,7 @@ export default function ChatResultPage() {
                 <>
                   <div className="h-px bg-gray-200" />
                   <div className="flex flex-col gap-4">
-                    <p className="text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
+                    <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                       Продолжение диалога
                     </p>
                     

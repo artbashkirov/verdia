@@ -89,14 +89,14 @@ export default function ChatPage() {
             {/* Logo and tagline */}
             <div className="flex flex-col items-center gap-4">
               <LogoFull variant="dark" />
-              <p className="text-base text-foreground text-center leading-6">
+              <p className="text-[16px] lg:text-[16px] text-foreground text-center leading-[24px] lg:leading-[24px]">
                 Иски, ходатайства и анализ судебной практики — за минуты
               </p>
             </div>
 
             {/* Example queries */}
             <div className="flex flex-col items-center gap-4 w-full">
-              <p className="text-base font-semibold text-foreground text-center">
+              <p className="text-[16px] lg:text-[16px] font-semibold text-foreground text-center leading-[24px] lg:leading-[24px]">
                 Примеры запросов
               </p>
               
@@ -109,7 +109,7 @@ export default function ChatPage() {
                       onClick={() => handleExampleClick(query.text)}
                       className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 dark:hover:bg-[#4a4a4a] transition-colors"
                     >
-                      <p className="text-sm font-medium text-foreground leading-[18px]">
+                      <p className="text-[16px] lg:text-[16px] font-medium text-foreground leading-[24px] lg:leading-[24px]">
                         {query.text}
                       </p>
                     </button>
@@ -124,7 +124,7 @@ export default function ChatPage() {
                       onClick={() => handleExampleClick(query.text)}
                       className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 dark:hover:bg-[#4a4a4a] transition-colors"
                     >
-                      <p className="text-sm font-medium text-foreground leading-[18px]">
+                      <p className="text-[16px] lg:text-[16px] font-medium text-foreground leading-[24px] lg:leading-[24px]">
                         {query.text}
                       </p>
                     </button>
@@ -139,7 +139,7 @@ export default function ChatPage() {
                       onClick={() => handleExampleClick(query.text)}
                       className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 dark:hover:bg-[#4a4a4a] transition-colors"
                     >
-                      <p className="text-sm font-medium text-foreground leading-[18px]">
+                      <p className="text-[16px] lg:text-[16px] font-medium text-foreground leading-[24px] lg:leading-[24px]">
                         {query.text}
                       </p>
                     </button>

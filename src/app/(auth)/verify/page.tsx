@@ -64,9 +64,9 @@ function VerifyContent() {
       <div className="flex flex-col gap-[100px] max-w-[554px]">
         {/* Header */}
         <div className="flex flex-col gap-2.5">
-          <h2 className="text-[32px] font-bold text-foreground">
+          <h1 className="text-[20px] lg:text-[32px] font-bold leading-[28px] lg:leading-[40px] text-foreground">
             Подтвердите регистрацию
-          </h2>
+          </h1>
           <p className="text-base text-foreground">
             Мы отправили письмо на email {maskEmail(email)}.
           </p>
@@ -75,7 +75,7 @@ function VerifyContent() {
         {/* Actions */}
         <div className="flex flex-col gap-[30px]">
           {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+            <div className="p-4 bg-red-900/20 border border-red-700/50 rounded-xl text-red-400 text-sm slide-in-from-top-2">
               {error}
             </div>
           )}
@@ -106,9 +106,9 @@ export default function VerifyPage() {
       >
         <div className="flex flex-col gap-[100px] max-w-[554px]">
           <div className="flex flex-col gap-2.5">
-            <h2 className="text-[32px] font-bold text-foreground">
+            <h1 className="text-[20px] lg:text-[32px] font-bold leading-[28px] lg:leading-[40px] text-foreground">
               Загрузка...
-            </h2>
+            </h1>
           </div>
         </div>
       </AuthLayout>

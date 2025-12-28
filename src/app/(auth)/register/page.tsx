@@ -107,19 +107,19 @@ export default function RegisterPage() {
     <AuthLayout>
       {/* Header */}
       <div className="flex flex-col gap-[4px] lg:gap-[10px] items-center text-center w-full">
-        <h2 className="auth-text text-[20px] lg:text-[32px] font-normal leading-[28px] lg:leading-[normal] text-white">
+        <h1 className="auth-text text-[20px] lg:text-[32px] font-normal leading-[28px] lg:leading-[40px] text-white">
           Регистрация
-        </h2>
-        <p className="auth-text text-[16px] lg:text-[24px] font-normal leading-[20px] lg:leading-[30px] text-[#808080] lg:tracking-[-0.24px]">
+        </h1>
+        <h2 className="auth-text text-[18px] lg:text-[24px] font-normal leading-[24px] lg:leading-[30px] text-[#808080] lg:tracking-[-0.24px]">
           Создайте аккаунт в Verdia
-        </p>
+        </h2>
       </div>
 
       {/* Form */}
       <div className="flex flex-col gap-[28px] items-start w-full">
         <form id="register-form" onSubmit={handleSubmit} className="flex flex-col gap-[12px] lg:gap-[16px] w-full">
           {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+            <div className="p-4 bg-red-900/20 border border-red-700/50 rounded-xl text-red-400 text-sm slide-in-from-top-2">
               {error}
             </div>
           )}
@@ -179,7 +179,7 @@ export default function RegisterPage() {
           <Button type="submit" form="register-form" fullWidth disabled={isLoading}>
             {isLoading ? 'Создание...' : 'Создать аккаунт'}
           </Button>
-          <p className="text-[13px] lg:text-[14px] font-medium leading-[16px] lg:leading-[18px] text-white">
+          <p className="text-[13px] lg:text-[14px] font-medium leading-[16px] lg:leading-[16px] text-white">
             <span>Уже зарегистрированы?</span>{' '}
             <Link href="/login" className="text-[#5d89d5] hover:underline">
               Войти

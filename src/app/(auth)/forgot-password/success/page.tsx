@@ -14,17 +14,17 @@ function SuccessContent() {
     <AuthLayout>
       {/* Header */}
       <div className="flex flex-col gap-[4px] lg:gap-[10px] items-center text-center w-full">
-        <h2 className="text-[20px] lg:text-[32px] font-normal leading-[28px] lg:leading-[normal] text-white">
+        <h1 className="text-[20px] lg:text-[32px] font-normal leading-[28px] lg:leading-[40px] text-white">
           Восстановление пароля
-        </h2>
-        <p className="text-[16px] lg:text-[24px] font-normal leading-[20px] lg:leading-[30px] text-[#808080] lg:tracking-[-0.24px]">
+        </h1>
+        <h2 className="text-[18px] lg:text-[24px] font-normal leading-[24px] lg:leading-[30px] text-[#808080] lg:tracking-[-0.24px]">
           Письмо отправлено
-        </p>
+        </h2>
       </div>
 
       {/* Success Message */}
       <div className="flex flex-col gap-[28px] items-start w-full">
-        <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-green-600 text-sm w-full">
+        <div className="p-4 bg-green-900/20 border border-green-700/50 rounded-xl text-green-400 text-sm w-full slide-in-from-top-2">
           Письмо с инструкциями по восстановлению пароля отправлено на <strong>{email}</strong>. Проверьте почту.
         </div>
         <div className="flex flex-col gap-[16px] items-center w-full">
@@ -45,9 +45,9 @@ export default function ForgotPasswordSuccessPage() {
     <Suspense fallback={
       <AuthLayout>
         <div className="flex flex-col gap-[10px] items-center text-center">
-          <h2 className="text-[20px] lg:text-[32px] font-normal leading-[28px] lg:leading-[normal] text-white">
+          <h1 className="text-[20px] lg:text-[32px] font-normal leading-[28px] lg:leading-[40px] text-white">
             Загрузка...
-          </h2>
+          </h1>
         </div>
       </AuthLayout>
     }>

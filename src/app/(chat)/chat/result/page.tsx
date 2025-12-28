@@ -143,13 +143,13 @@ function ResultContent() {
           <div className="h-full bg-background md:rounded-2xl relative flex flex-col">
           <div className="flex-1 overflow-y-auto pt-6 md:pt-14 pb-36 px-0 relative">
             <div className="w-full md:max-w-[660px] md:mx-auto flex flex-col gap-8 break-words overflow-x-hidden" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
-              <h1 className="text-[20px] md:text-[24px] font-medium text-foreground leading-[28px] md:leading-[30px] tracking-tight break-words md:mt-0">
+              <h1 className="text-[20px] lg:text-[32px] font-medium text-foreground leading-[28px] lg:leading-[40px] tracking-tight break-words md:mt-0">
                 {query}
               </h1>
 
               {response.courtCases && response.courtCases.length > 0 && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[11px] md:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
+                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                     Судебные решения
                   </p>
                   <div className="flex gap-2">
@@ -164,7 +164,7 @@ function ResultContent() {
                           backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F'
                         }}
                       >
-                        <p className="text-[13px] md:text-[14px] font-medium text-foreground leading-[18px] line-clamp-3 h-12">
+                        <p className="text-[16px] lg:text-[16px] font-medium text-foreground leading-[24px] lg:leading-[24px] line-clamp-3 h-12">
                           {c.title}
                         </p>
                         <p className="text-[11px] md:text-[12px] font-medium text-gray-400 leading-[14px]">
@@ -181,11 +181,11 @@ function ResultContent() {
 
               {response.shortAnswer && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[11px] md:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
+                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                     Краткий ответ
                   </p>
                   <div className="text-base text-foreground leading-[24px] break-words">
-                    <p className="mb-3 text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold break-words">{response.shortAnswer.title}</p>
+                    <p className="mb-3 text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold break-words">{response.shortAnswer.title}</p>
                     <p className="break-words">{response.shortAnswer.content}</p>
                   </div>
                 </div>
@@ -195,12 +195,12 @@ function ResultContent() {
 
               {response.legalAnalysis && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[11px] md:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
+                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                     Правовой анализ
                   </p>
                   <div className="text-base text-foreground leading-[24px] break-words">
                     {response.legalAnalysis.title && (
-                      <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3 break-words">{response.legalAnalysis.title}</p>
+                      <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 break-words">{response.legalAnalysis.title}</p>
                     )}
                     {response.legalAnalysis.intro && (
                       <p className="mb-3 break-words">{response.legalAnalysis.intro}</p>
@@ -214,7 +214,7 @@ function ResultContent() {
                     )}
                     {response.legalAnalysis.bases && response.legalAnalysis.bases.length > 0 && (
                       <>
-                        <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3 break-words">Основания:</p>
+                        <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 break-words">Основания:</p>
                         <ul className="list-disc ml-5 break-words">
                           {response.legalAnalysis.bases.map((base, i) => (
                             <li key={i} className="mb-2 last:mb-0 break-words">{base}</li>
@@ -230,7 +230,7 @@ function ResultContent() {
 
               {response.practiceAnalysis && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[11px] md:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
+                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                     Анализ судебной практики
                   </p>
                   <div className="text-base text-foreground leading-[24px] break-words">
@@ -238,7 +238,7 @@ function ResultContent() {
                     
                     {response.practiceAnalysis.satisfied && (
                       <>
-                        <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3 break-words">{response.practiceAnalysis.satisfied.title}</p>
+                        <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 break-words">{response.practiceAnalysis.satisfied.title}</p>
                         <ul className="list-disc ml-5 mb-3 break-words">
                           {response.practiceAnalysis.satisfied.points.map((point, i) => (
                             <li key={i} className="mb-2 last:mb-0 break-words">{point}</li>
@@ -249,7 +249,7 @@ function ResultContent() {
                     
                     {response.practiceAnalysis.rejected && (
                       <>
-                        <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3 break-words">{response.practiceAnalysis.rejected.title}</p>
+                        <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 break-words">{response.practiceAnalysis.rejected.title}</p>
                         <ul className="list-disc ml-5 break-words">
                           {response.practiceAnalysis.rejected.points.map((point, i) => (
                             <li key={i} className="mb-2 last:mb-0 break-words">{point}</li>
@@ -265,14 +265,14 @@ function ResultContent() {
 
               {response.probability && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[11px] md:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
+                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                     Оценка вероятности
                   </p>
                   <div className="text-base text-foreground leading-[24px] break-words">
                     <p className="mb-3 break-words">Вероятность удовлетворения требований: <strong>{response.probability.level}</strong>.</p>
                     {response.probability.factors && (
                       <>
-                        <p className="text-[18px] md:text-[20px] leading-[24px] md:leading-[28px] font-semibold mb-3 break-words">Повышается, если есть:</p>
+                        <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 break-words">Повышается, если есть:</p>
                         <ul className="list-disc ml-5 break-words">
                           {response.probability.factors.map((factor, i) => (
                             <li key={i} className="mb-2 last:mb-0 break-words">{factor}</li>
@@ -288,7 +288,7 @@ function ResultContent() {
 
               {response.recommendations && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[11px] md:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
+                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                     Рекомендованные действия
                   </p>
                   <ol className="list-decimal ml-5 text-base text-foreground leading-[24px] break-words" style={{ fontFamily: 'var(--font-inter), Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
@@ -303,7 +303,7 @@ function ResultContent() {
 
               {response.documents && response.documents.length > 0 && (
                 <div className="flex flex-col gap-4">
-                  <p className="text-[11px] md:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[18px]">
+                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                     Подготовленные документы
                   </p>
                   
