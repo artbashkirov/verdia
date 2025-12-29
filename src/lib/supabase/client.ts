@@ -5,19 +5,20 @@ export function createClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    const missing = [];
-    if (!supabaseUrl) missing.push('NEXT_PUBLIC_SUPABASE_URL');
-    if (!supabaseAnonKey) missing.push('NEXT_PUBLIC_SUPABASE_ANON_KEY');
-    
-    console.warn(`Missing Supabase environment variables: ${missing.join(', ')}. Using placeholder values.`);
+  // Проверяем на placeholder значения
+  const isPlaceholder = !supabaseUrl || 
+                        !supabaseAnonKey || 
+                        supabaseUrl.includes('placeholder') || 
+                        supabaseUrl.includes('your_supabase') ||
+                        supabaseAnonKey.includes('placeholder') ||
+                        supabaseAnonKey.includes('your_supabase');
+
+  if (isPlaceholder) {
+    console.warn('Supabase environment variables are using placeholder values. Using placeholder client.');
     // Используем заглушки для запуска приложения
     const placeholderUrl = 'https://placeholder.supabase.co';
     const placeholderKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NDUxOTIwMDAsImV4cCI6MTk2MDc2ODAwMH0.placeholder';
-    return createBrowserClient<Database>(
-      supabaseUrl || placeholderUrl,
-      supabaseAnonKey || placeholderKey
-    );
+    return createBrowserClient<Database>(placeholderUrl, placeholderKey);
   }
 
   // Валидация формата URL

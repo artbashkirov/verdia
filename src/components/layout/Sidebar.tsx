@@ -203,7 +203,7 @@ export function Sidebar({
     <div 
       ref={sidebarRef}
       onClick={handleSidebarClick}
-      className={`h-screen bg-[#0E0E0E] flex flex-col justify-between shrink-0 transition-all duration-300 ease-in-out ${
+      className={`h-screen bg-[#17181A] flex flex-col justify-between shrink-0 transition-all duration-300 ease-in-out ${
         isCollapsed ? 'w-[52px]' : 'w-[282px]'
       } ${className}`}
     >
@@ -226,7 +226,7 @@ export function Sidebar({
             </Link>
           ) : (
             <>
-              <Link href="/chat">
+              <Link href="/chat" className="flex items-center justify-center" style={{ lineHeight: 0 }}>
                 <Image
                   src="/verdiaLogo.svg"
                   alt="Verdia"
@@ -234,7 +234,7 @@ export function Sidebar({
                   height={20}
                   priority
                   className="object-contain"
-                  style={{ height: '20px', width: 'auto' }}
+                  style={{ height: '20px', width: 'auto', display: 'block' }}
                 />
               </Link>
               <button

@@ -26,7 +26,7 @@ export function MobileHeader({ onMenuClick, isMenuOpen, onNewChat }: MobileHeade
 
   return (
     <header 
-      className="md:hidden fixed top-0 left-0 right-0 z-50 bg-[#0E0E0E] flex items-center justify-between"
+      className="md:hidden fixed top-0 left-0 right-0 z-50 bg-[#17181A] flex items-center justify-between"
       style={{ 
         height: '56px',
         paddingLeft: '16px',
@@ -48,7 +48,7 @@ export function MobileHeader({ onMenuClick, isMenuOpen, onNewChat }: MobileHeade
       </button>
 
       {/* Logo */}
-      <Link href="/chat" className="flex items-center">
+      <Link href="/chat" className="flex items-center justify-center" style={{ lineHeight: 0 }}>
         <Image
           src="/verdiaLogo.svg"
           alt="Verdia"
@@ -56,7 +56,7 @@ export function MobileHeader({ onMenuClick, isMenuOpen, onNewChat }: MobileHeade
           height={20}
           priority
           className="object-contain"
-          style={{ height: '20px', width: 'auto' }}
+          style={{ height: '20px', width: 'auto', display: 'block' }}
         />
       </Link>
 

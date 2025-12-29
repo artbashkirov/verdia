@@ -97,10 +97,23 @@ export default function NewChatPage() {
         body: JSON.stringify({ query: queryText }),
       });
 
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch (jsonError) {
+        console.error('Failed to parse JSON response:', jsonError);
+        throw new Error('Ошибка при обработке ответа сервера');
+      }
 
       if (!res.ok) {
-        throw new Error(data.error || 'Ошибка генерации');
+        const errorMessage = data?.error || `Ошибка ${res.status}: ${res.statusText}`;
+        console.error('API error:', errorMessage, data);
+        throw new Error(errorMessage);
+      }
+
+      if (!data || !data.response) {
+        console.error('Invalid response data:', data);
+        throw new Error('Некорректный ответ от сервера');
       }
 
       setResponse(data.response);
@@ -116,7 +129,10 @@ export default function NewChatPage() {
 
     } catch (err) {
       console.error('Generation error:', err);
-      setError(err instanceof Error ? err.message : 'Произошла ошибка');
+      const errorMessage = err instanceof Error 
+        ? err.message 
+        : 'Произошла ошибка при генерации ответа. Попробуйте еще раз.';
+      setError(errorMessage);
     } finally {
       setIsGenerating(false);
     }

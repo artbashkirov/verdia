@@ -10,9 +10,19 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
+      console.error('Auth error:', authError);
       return NextResponse.json(
         { error: 'Необходима авторизация' },
         { status: 401 }
+      );
+    }
+
+    // Check OpenAI API key
+    if (!process.env.OPENAI_API_KEY) {
+      console.error('OPENAI_API_KEY is not set');
+      return NextResponse.json(
+        { error: 'Конфигурация сервера не завершена. Обратитесь к администратору.' },
+        { status: 500 }
       );
     }
 
@@ -93,8 +103,24 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Generation error:', error);
+    
+    // Provide more specific error messages
+    let errorMessage = 'Произошла ошибка при генерации ответа';
+    
+    if (error instanceof Error) {
+      if (error.message.includes('API key')) {
+        errorMessage = 'Ошибка конфигурации API. Обратитесь к администратору.';
+      } else if (error.message.includes('rate limit') || error.message.includes('429')) {
+        errorMessage = 'Превышен лимит запросов. Попробуйте позже.';
+      } else if (error.message.includes('network') || error.message.includes('fetch')) {
+        errorMessage = 'Ошибка сети. Проверьте подключение к интернету.';
+      } else {
+        errorMessage = error.message || errorMessage;
+      }
+    }
+    
     return NextResponse.json(
-      { error: 'Произошла ошибка при генерации ответа' },
+      { error: errorMessage },
       { status: 500 }
     );
   }

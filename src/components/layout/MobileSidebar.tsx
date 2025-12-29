@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { MessageCircleMore } from 'lucide-react';
 import { PlusIcon, TrashIcon, HelpCircleIcon, ChevronDownIcon, SunIcon, MonitorIcon } from '@/components/icons';
@@ -221,21 +222,24 @@ export function MobileSidebar({
       {/* Sidebar */}
       <div
         ref={sidebarRef}
-        className={`fixed top-0 left-0 h-screen bg-[#0E0E0E] flex flex-col justify-between shrink-0 transition-transform duration-300 ease-in-out z-50 md:hidden ${
+        className={`fixed top-0 left-0 h-screen bg-[#17181A] flex flex-col justify-between shrink-0 transition-transform duration-300 ease-in-out z-50 md:hidden ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
         style={{ width: '60vw' }}
       >
         {/* Top section */}
-        <div className="flex flex-col pt-5 pb-5">
+        <div className="flex flex-col pt-5 pb-5 px-4">
           {/* Logo - full version */}
-          <div className="flex items-center mb-4 px-4">
-            <Link href="/chat" onClick={handleChatClick} className="flex items-center">
-              <img
+          <div className="flex items-center mb-5">
+            <Link href="/chat" onClick={handleChatClick} className="flex items-center justify-center" style={{ lineHeight: 0 }}>
+              <Image
                 src="/verdiaLogo.svg"
                 alt="Verdia"
-                height={24}
-                style={{ height: '24px', width: 'auto', display: 'block' }}
+                width={100}
+                height={20}
+                priority
+                className="object-contain"
+                style={{ height: '20px', width: 'auto', display: 'block' }}
               />
             </Link>
           </div>
@@ -250,7 +254,7 @@ export function MobileSidebar({
               }
               onClose();
             }}
-            className="w-full h-10 flex items-center justify-center gap-2 px-4 bg-white text-black rounded-xl hover:bg-gray-100 transition-colors"
+            className="w-full h-10 flex items-center justify-center gap-2 bg-white text-black rounded-xl hover:bg-gray-100 transition-colors"
             style={{ marginTop: '0' }}
           >
             <PlusIcon className="w-4 h-4" />
@@ -296,7 +300,7 @@ export function MobileSidebar({
         </div>
 
         {/* Bottom section */}
-        <div className="pb-5 pt-3">
+        <div className="pb-5 pt-3 px-4">
           {/* User profile */}
           <div className="relative" ref={dropdownRef}>
             <button 

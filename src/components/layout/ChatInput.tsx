@@ -3,7 +3,6 @@
 import { useState, useRef, KeyboardEvent } from 'react';
 import { AttachmentIcon, MicrophoneIcon } from '@/components/icons';
 import { SendHorizontal } from 'lucide-react';
-import { useTheme } from '@/lib/theme-context';
 
 interface ChatInputProps {
   onSubmit: (message: string) => void;
@@ -12,7 +11,6 @@ interface ChatInputProps {
 }
 
 export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начните писать запрос...' }: ChatInputProps) {
-  const { resolvedTheme } = useTheme();
   const [message, setMessage] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -32,8 +30,11 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
 
   return (
     <div 
-      className="absolute bottom-0 left-0 right-0 z-10 overflow-hidden"
-      style={{ paddingBottom: '16px' }}
+      className="fixed md:absolute bottom-0 left-0 right-0 z-10 overflow-hidden"
+      style={{ 
+        paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
+        backgroundColor: 'var(--background)'
+      }}
     >
       {/* Black overlay that hides content behind input field */}
       <div 
@@ -49,22 +50,24 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
           className="w-full md:w-[660px] mx-auto"
           style={{
             height: '56px',
-            borderRadius: '16px',
+            borderRadius: '20px',
             background: 'var(--background)'
           }}
         />
       </div>
       
-      <div className="flex justify-center relative z-10" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
+      <div className="flex justify-center relative z-10" style={{ paddingLeft: '16px', paddingRight: '16px', paddingBottom: '0' }}>
         <div 
           className="w-full md:w-[660px] flex items-center overflow-hidden"
           style={{ 
             height: '56px',
-            borderRadius: '16px',
+            borderRadius: '20px',
             paddingLeft: '20px',
             paddingRight: '20px',
             gap: '8px',
-            backgroundColor: resolvedTheme === 'light' ? '#ffffff' : '#1E1E1F'
+            backgroundColor: 'var(--input-bg)',
+            border: '1px solid #CCCCCC',
+            boxSizing: 'border-box'
           }}
         >
           <input

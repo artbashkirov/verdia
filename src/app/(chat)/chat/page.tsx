@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar, ChatInput, MobileHeader, MobileSidebar } from '@/components/layout';
 import { LogoFull } from '@/components/icons';
@@ -47,6 +47,11 @@ const exampleQueries = [
 export default function ChatPage() {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsLoaded(true);
+  }, []);
 
   const handleSubmit = (message: string) => {
     // Store query and redirect immediately
@@ -82,34 +87,37 @@ export default function ChatPage() {
       <Sidebar onNewChat={handleNewChat} className="hidden md:flex" />
       
       {/* Main content */}
-      <div className="flex-1 p-0 md:p-2 md:pl-0 pt-[56px] md:pt-2">
-        <div className="h-full bg-background md:rounded-2xl relative flex flex-col items-center justify-center">
+      <div className="flex-1 p-0 md:p-2 md:pl-0 pt-[56px] md:pt-2 overflow-hidden">
+        <div className="h-full bg-background md:rounded-2xl relative flex flex-col items-center justify-center md:justify-center min-h-0 px-4 md:px-0 pb-[88px] md:pb-0">
           {/* Content */}
-          <div className="flex flex-col items-center gap-14 w-full md:max-w-[920px]" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
+          <div className="flex flex-col items-center w-full md:max-w-[920px]">
             {/* Logo and tagline */}
-            <div className="flex flex-col items-center gap-4">
-              <LogoFull variant="dark" />
-              <p className="text-[16px] lg:text-[16px] text-foreground text-center leading-[24px] lg:leading-[24px]">
+            <div className={`flex flex-col items-center transition-all duration-700 ease-out ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+              <h1 className="text-[20px] lg:text-[32px] font-normal text-[#040308] leading-[28px] lg:leading-[40px] text-center">
+                Как я могу помочь?
+              </h1>
+              <h2 className="text-[18px] lg:text-[24px] font-normal text-[#808080] leading-[24px] lg:leading-[30px] text-center" style={{ marginTop: '8px' }}>
                 Иски, ходатайства и анализ судебной практики — за минуты
-              </p>
+              </h2>
             </div>
 
             {/* Example queries */}
-            <div className="flex flex-col items-center gap-4 w-full">
-              <p className="text-[16px] lg:text-[16px] font-semibold text-foreground text-center leading-[24px] lg:leading-[24px]">
-                Примеры запросов
+            <div className={`flex flex-col items-center w-full transition-all duration-700 ease-out md:mt-14 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`} style={{ marginTop: '32px' }}>
+              <p className="text-[14px] lg:text-[14px] font-medium text-[#808080] text-center leading-[18px] lg:leading-[18px]" style={{ marginBottom: '12px' }}>
+                Примеры вопросов
               </p>
               
-              <div className="flex gap-3 w-full">
+              {/* Desktop: 3 columns */}
+              <div className="hidden md:flex gap-3 w-full" style={{ marginTop: '0' }}>
                 {/* Column 1 */}
                 <div className="flex flex-col gap-3 flex-1">
                   {exampleQueries.filter((_, i) => i % 3 === 0).map((query) => (
                     <button
                       key={query.id}
                       onClick={() => handleExampleClick(query.text)}
-                      className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 dark:hover:bg-[#4a4a4a] transition-colors"
+                      className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors"
                     >
-                      <p className="text-[16px] lg:text-[16px] font-medium text-foreground leading-[24px] lg:leading-[24px]">
+                      <p className="text-[16px] lg:text-[16px] font-normal text-foreground leading-[24px] lg:leading-[24px]">
                         {query.text}
                       </p>
                     </button>
@@ -122,9 +130,9 @@ export default function ChatPage() {
                     <button
                       key={query.id}
                       onClick={() => handleExampleClick(query.text)}
-                      className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 dark:hover:bg-[#4a4a4a] transition-colors"
+                      className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors"
                     >
-                      <p className="text-[16px] lg:text-[16px] font-medium text-foreground leading-[24px] lg:leading-[24px]">
+                      <p className="text-[16px] lg:text-[16px] font-normal text-foreground leading-[24px] lg:leading-[24px]">
                         {query.text}
                       </p>
                     </button>
@@ -137,14 +145,30 @@ export default function ChatPage() {
                     <button
                       key={query.id}
                       onClick={() => handleExampleClick(query.text)}
-                      className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 dark:hover:bg-[#4a4a4a] transition-colors"
+                      className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors"
                     >
-                      <p className="text-[16px] lg:text-[16px] font-medium text-foreground leading-[24px] lg:leading-[24px]">
+                      <p className="text-[16px] lg:text-[16px] font-normal text-foreground leading-[24px] lg:leading-[24px]">
                         {query.text}
                       </p>
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Mobile: 3 cards, full width, max 400px */}
+              <div className="flex flex-col gap-3 w-full md:hidden">
+                {exampleQueries.slice(0, 3).map((query) => (
+                  <button
+                    key={query.id}
+                    onClick={() => handleExampleClick(query.text)}
+                    className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors w-full"
+                    style={{ maxWidth: '400px', margin: '0 auto' }}
+                  >
+                    <p className="text-[16px] font-normal text-foreground leading-[24px]">
+                      {query.text}
+                    </p>
+                  </button>
+                ))}
               </div>
             </div>
           </div>
