@@ -24,6 +24,10 @@ export interface GenerationResponse {
   shortAnswer: {
     title: string;
     content: string;
+    probability?: {
+      percentage: number;
+      level: string;
+    };
   };
   legalAnalysis: {
     title: string;
@@ -43,8 +47,11 @@ export interface GenerationResponse {
     };
   };
   probability: {
+    percentage?: number;
     level: string;
-    factors: string[];
+    factors?: string[];
+    positiveFactors?: string[];
+    negativeFactors?: string[];
   };
   recommendations: string[];
   documents: Document[];

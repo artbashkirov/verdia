@@ -3,6 +3,51 @@ import { createClient } from '@/lib/supabase/server';
 import { generateLegalResponse } from '@/lib/openai';
 import { searchCourtCases } from '@/lib/court-search';
 
+// Extract defendant and plaintiff info from query
+function extractParties(query: string): { defendantName?: string; plaintiffLocation?: string; defendantLocation?: string } {
+  const result: { defendantName?: string; plaintiffLocation?: string; defendantLocation?: string } = {};
+  
+  // Try to extract defendant name (company or person)
+  // Patterns: "против ООО/ИП/АО X", "ответчик X", "компания X"
+  const defendantPatterns = [
+    /(?:против|ответчик|к)\s+(?:ООО|ИП|АО|ПАО|ЗАО|ФГУП|МУП)\s*[«"]?([^»".,]+)[»"]?/i,
+    /(?:против|ответчик|к)\s+(?:компани[яи]|организаци[яи]|банк[аеу]?)\s*[«"]?([^»".,]+)[»"]?/i,
+    /(?:ООО|ИП|АО|ПАО|ЗАО)\s*[«"]?([^»".,]+)[»"]?/i,
+  ];
+  
+  for (const pattern of defendantPatterns) {
+    const match = query.match(pattern);
+    if (match) {
+      result.defendantName = match[0].trim();
+      break;
+    }
+  }
+  
+  // Try to extract locations
+  const locationPatterns = [
+    /(?:зарегистрирован|находится|адрес[еу]?|г\.|город)\s*([А-Яа-яЁё\s]+?)(?:[,.]|$)/i,
+    /(?:москв|питер|санкт-петербург|екатеринбург|новосибирск)/i,
+  ];
+  
+  for (const pattern of locationPatterns) {
+    const match = query.match(pattern);
+    if (match) {
+      const location = match[1] || match[0];
+      if (!result.defendantLocation) {
+        result.defendantLocation = location.trim();
+      }
+      break;
+    }
+  }
+  
+  // Default to Moscow if no location specified
+  if (!result.defendantLocation) {
+    result.defendantLocation = 'Москва';
+  }
+  
+  return result;
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Check authentication
@@ -17,9 +62,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check OpenAI API key
-    if (!process.env.OPENAI_API_KEY) {
-      console.error('OPENAI_API_KEY is not set');
+    // Check API key
+    if (!process.env.OPENAI_API_KEY && !process.env.REPLICATE_API_TOKEN) {
+      console.error('API keys not configured');
       return NextResponse.json(
         { error: 'Конфигурация сервера не завершена. Обратитесь к администратору.' },
         { status: 500 }
@@ -36,20 +81,60 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Step 1: Search court cases (real cases from sudact.ru or fallback search links)
-    console.log('Searching court cases for:', query);
-    const courtCases = await searchCourtCases(query);
-    const hasRealCases = courtCases.some(c => !c.isSearchLink);
-    console.log(`Found ${courtCases.length} cases (real: ${hasRealCases})`);
+    // Extract parties information from query
+    const parties = extractParties(query);
+    console.log('Extracted parties:', parties);
 
-    // Step 2: Generate legal response with AI
-    console.log('Generating legal response...');
-    const responseJson = await generateLegalResponse(query, courtCases);
+    // Step 1: Comprehensive court search (5-10 cases from sudact.ru and mos-gorsud.ru)
+    console.log('Starting comprehensive court search for:', query);
+    
+    const searchResults = await searchCourtCases(query, {
+      maxResults: 10,
+      defendantName: parties.defendantName,
+      plaintiffLocation: parties.plaintiffLocation,
+      defendantLocation: parties.defendantLocation,
+    });
+    
+    const { cases, stats, courtInfo, defendantHistory, searchTerms, category } = searchResults;
+    
+    console.log(`Search complete: ${cases.length} cases found`);
+    console.log(`Stats: ${stats.percentage}% satisfaction rate (${stats.satisfied} satisfied, ${stats.partial} partial, ${stats.rejected} rejected)`);
+    if (courtInfo) {
+      console.log(`Court: ${courtInfo.name}`);
+    }
+    if (defendantHistory) {
+      console.log(`Defendant history: ${defendantHistory.totalCases} total cases`);
+    }
+
+    // Step 2: Generate legal response with AI using all collected data
+    console.log('Generating comprehensive legal response...');
+    const responseJson = await generateLegalResponse(query, searchResults);
     
     // Parse JSON response
     let response;
     try {
       response = JSON.parse(responseJson);
+      
+      // Ensure probability has a percentage
+      if (response.probability && typeof response.probability.percentage !== 'number') {
+        response.probability.percentage = stats.percentage;
+      }
+      
+      // Ensure nextSteps is present
+      if (!response.nextSteps) {
+        response.nextSteps = {
+          documentOffer: {
+            text: 'Хотите, чтобы я составил для вас необходимые документы (исковое заявление, претензию или ходатайство)?',
+            documentTypes: ['исковое заявление', 'претензия'],
+            estimatedCost: 'от 500 ₽',
+          },
+          representativeOffer: {
+            text: 'Также могу помочь найти представителя для участия в судебном заседании.',
+            note: 'Услуга доступна после оплаты подготовки документов',
+          },
+        };
+      }
+      
     } catch (parseError) {
       console.error('Failed to parse AI response:', parseError);
       return NextResponse.json(
@@ -59,7 +144,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 3: Save generation to database
-    // First, try to insert - if fails due to user not existing, that's OK
     const { data: generation, error: dbError } = await supabase
       .from('generations')
       .insert({
@@ -77,6 +161,11 @@ export async function POST(request: NextRequest) {
         id: null,
         query,
         response,
+        searchStats: {
+          casesFound: cases.length,
+          satisfactionRate: stats.percentage,
+          courtInfo: courtInfo?.name,
+        },
       });
     }
 
@@ -99,6 +188,12 @@ export async function POST(request: NextRequest) {
       id: generation?.id,
       query,
       response,
+      searchStats: {
+        casesFound: cases.length,
+        satisfactionRate: stats.percentage,
+        courtInfo: courtInfo?.name,
+        category,
+      },
     });
 
   } catch (error) {

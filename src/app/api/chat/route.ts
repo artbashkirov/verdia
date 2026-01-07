@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { openai } from '@/lib/openai';
+import { geminiChatCompletion } from '@/lib/openai';
+import { DOCUMENT_GENERATION_PROMPT, CHAT_CONTINUATION_PROMPT } from '@/lib/prompts';
 
 const CHAT_SYSTEM_PROMPT = `Ты - Verdia, юридический AI-ассистент для граждан России. 
-Ты уже предоставил пользователю юридическую консультацию по его запросу.
-Теперь пользователь хочет уточнить детали или задать дополнительные вопросы.
+Ты уже предоставил пользователю юридическую консультацию с анализом судебной практики и прогнозом успеха.
+Теперь пользователь может уточнить детали, согласиться на подготовку документов или запросить помощь представителя.
 
 ПРАВИЛА:
-1. Отвечай кратко и по существу
-2. Ссылайся на предыдущий анализ, если это уместно
-3. Если вопрос выходит за рамки гражданского процесса РФ, вежливо сообщи об этом
-4. Используй простой и понятный язык
-5. При необходимости указывай конкретные статьи законов
+1. Если пользователь соглашается на документы ("да", "согласен", "хочу", "давай", "составь", "подготовь") - переходи к генерации документов
+2. Отвечай кратко и по существу
+3. Ссылайся на предыдущий анализ, если это уместно
+4. Если вопрос выходит за рамки гражданского процесса РФ, вежливо сообщи об этом
+5. После создания документов - ОБЯЗАТЕЛЬНО предложи помощь представителя в суде
 
 ФОРМАТИРОВАНИЕ:
 - Используй **жирный текст** для важных терминов
@@ -20,61 +21,51 @@ const CHAT_SYSTEM_PROMPT = `Ты - Verdia, юридический AI-ассис�
 
 Стиль: профессиональный, но дружелюбный и доступный.`;
 
-const DOCUMENT_GENERATION_PROMPT = `Ты - Verdia, юридический AI-ассистент. 
-Пользователь просит создать юридический документ. Ты ДОЛЖЕН вернуть JSON с документами.
-
-КОНТЕКСТ:
-- Изначальный запрос пользователя и твой анализ предоставлены ниже
-- Используй информацию из анализа для создания релевантных документов
-
-ФОРМАТ ОТВЕТА (строго JSON):
-{
-  "message": "Краткое сообщение пользователю (1-2 предложения)",
-  "documents": [
-    {
-      "title": "Название документа",
-      "content": "ПОЛНЫЙ текст документа"
-    }
-  ]
+// Check if message is a document generation request
+function isDocumentRequest(message: string): boolean {
+  const docPatterns = [
+    /документ/i,
+    /заявлени/i,
+    /иск(?:овое)?/i,
+    /претензи/i,
+    /ходатайств/i,
+    /возражени/i,
+    /создай/i,
+    /сгенерируй/i,
+    /напиши/i,
+    /составь/i,
+    /подготов/i,
+  ];
+  return docPatterns.some(p => p.test(message));
 }
 
-ТРЕБОВАНИЯ К ДОКУМЕНТАМ:
-1. Создавай ПОЛНЫЕ документы с правильной структурой
-2. Используй плейсхолдеры: [ФИО], [АДРЕС], [ДАТА], [СУММА] и т.д.
-3. Включай все необходимые разделы
+// Check if message is agreeing to document creation
+function isAgreement(message: string): boolean {
+  const agreementPatterns = [
+    /^да\b/i,
+    /^согласен/i,
+    /^хочу\b/i,
+    /^давай/i,
+    /^конечно/i,
+    /^да,?\s*пожалуйста/i,
+    /^ok\b/i,
+    /^ок\b/i,
+    /^хорошо/i,
+  ];
+  return agreementPatterns.some(p => p.test(message.trim()));
+}
 
-Структура искового заявления:
-"""
-В [НАИМЕНОВАНИЕ СУДА]
-
-Истец: [ФИО]
-Адрес: [АДРЕС]
-Телефон: [ТЕЛЕФОН]
-
-Ответчик: [ФИО/НАИМЕНОВАНИЕ]
-Адрес: [АДРЕС]
-
-ИСКОВОЕ ЗАЯВЛЕНИЕ
-о [предмет иска]
-
-[Обстоятельства дела - 3-5 абзацев]
-
-На основании изложенного, руководствуясь ст. [статьи],
-
-ПРОШУ:
-1. [Требование 1]
-2. [Требование 2]
-
-Приложения:
-1. Копия искового заявления
-2. Квитанция об уплате госпошлины
-3. [Другие документы]
-
-Дата: _______________
-Подпись: _____________ / [ФИО] /
-"""
-
-ВАЖНО: Возвращай ТОЛЬКО валидный JSON без дополнительного текста!`;
+// Check if asking about representative
+function isRepresentativeRequest(message: string): boolean {
+  const repPatterns = [
+    /представител/i,
+    /адвокат/i,
+    /юрист/i,
+    /помо[щг].*суд/i,
+    /участ.*заседан/i,
+  ];
+  return repPatterns.some(p => p.test(message));
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -112,7 +103,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Ensure generation has required fields
     const gen = generation as { query: string; response: any };
     if (!gen.query || !gen.response) {
       return NextResponse.json(
@@ -128,8 +118,9 @@ export async function POST(request: NextRequest) {
       .eq('generation_id', generationId)
       .order('created_at', { ascending: true });
 
-    // Check if this is a document generation request
-    const isDocumentRequest = /документ|заявлени|иск|претензи|ходатайств|создай|сгенерируй|напиши|составь/i.test(message);
+    // Determine message type
+    const shouldGenerateDocuments = isDocumentRequest(message) || isAgreement(message);
+    const isRepRequest = isRepresentativeRequest(message);
 
     // Build context from original generation
     const contextSummary = `
@@ -137,26 +128,71 @@ export async function POST(request: NextRequest) {
 
 Краткий ответ: ${gen.response?.shortAnswer?.title || ''} ${gen.response?.shortAnswer?.content || ''}
 
+Прогноз успеха: ${gen.response?.probability?.percentage || '?'}% (${gen.response?.probability?.level || 'неизвестно'})
+
 Рекомендации: ${gen.response?.recommendations?.join('; ') || 'см. анализ'}
 
 Правовые основания: ${gen.response?.legalAnalysis?.bases?.join('; ') || 'см. анализ'}
+
+Предполагаемый суд: ${gen.response?.courtPrediction?.predictedCourt?.name || 'определяется по месту регистрации ответчика'}
 `;
 
-    if (isDocumentRequest) {
-      // Document generation flow
+    // Handle representative request
+    if (isRepRequest) {
+      await supabase.from('chat_messages').insert({
+        generation_id: generationId as string,
+        user_id: user.id,
+        role: 'user',
+        content: message,
+      } as any);
+
+      const repResponse = `**Помощь представителя в суде**
+
+Я могу помочь подобрать квалифицированного юриста для представительства ваших интересов в суде.
+
+**Что включает услуга:**
+1. Подбор юриста по вашей категории дела
+2. Подготовка к судебному заседанию
+3. Представительство в суде
+4. Подготовка апелляции при необходимости
+
+**Стоимость:** от 15 000 ₽ (зависит от сложности дела)
+
+Для подбора представителя, пожалуйста, укажите:
+- Ваш город
+- Желаемую дату первого заседания (если известна)
+
+_Услуга станет доступна после оплаты подготовки документов._`;
+
+      await supabase.from('chat_messages').insert({
+        generation_id: generationId as string,
+        user_id: user.id,
+        role: 'assistant',
+        content: repResponse,
+      } as any);
+
+      return NextResponse.json({
+        message: repResponse,
+        documents: [],
+        showRepresentativeOffer: true,
+      });
+    }
+
+    // Handle document generation
+    if (shouldGenerateDocuments) {
       const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
         { role: 'system', content: DOCUMENT_GENERATION_PROMPT },
         { role: 'user', content: contextSummary },
         { role: 'assistant', content: 'Понял контекст. Готов создать документы.' },
       ];
 
-      // Add previous chat context if exists
+      // Add previous chat context
       if (previousMessages && previousMessages.length > 0) {
-        const recentMessages = (previousMessages as Array<{ role: string; content: string }>).slice(-4); // Last 4 messages for context
+        const recentMessages = (previousMessages as Array<{ role: string; content: string }>).slice(-4);
         recentMessages.forEach((msg) => {
           messages.push({
             role: msg.role as 'user' | 'assistant',
-            content: msg.content.slice(0, 500), // Truncate long messages
+            content: msg.content.slice(0, 500),
           });
         });
       }
@@ -171,38 +207,48 @@ export async function POST(request: NextRequest) {
         content: message,
       } as any);
 
-      // Generate documents
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages,
-        temperature: 0.7,
-        max_tokens: 4000,
-        response_format: { type: 'json_object' },
-      });
-
-      const responseText = completion.choices[0]?.message?.content || '{}';
+      // Generate documents using Gemini
+      const responseText = await geminiChatCompletion(messages, { maxTokens: 5000, jsonMode: true });
       
       let parsed;
       try {
-        parsed = JSON.parse(responseText);
-      } catch {
-        parsed = { message: 'Произошла ошибка при генерации документов. Попробуйте еще раз.', documents: [] };
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          parsed = JSON.parse(jsonMatch[0]);
+        } else {
+          parsed = { message: responseText.trim(), documents: [] };
+        }
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError, 'Response:', responseText.slice(0, 500));
+        parsed = { message: responseText.trim() || 'Документы готовы.', documents: [] };
       }
 
       const assistantMessage = parsed.message || 'Документы готовы для скачивания.';
       const documents = parsed.documents || [];
 
-      // Save assistant message (without document content to keep it clean)
+      // Add representative offer to the message
+      const fullMessage = `${assistantMessage}
+
+---
+
+**Нужна помощь представителя в суде?**
+
+После подготовки документов я могу помочь найти квалифицированного юриста для представительства ваших интересов в судебном заседании. Напишите "нужен представитель" или "помощь в суде", чтобы узнать подробнее.`;
+
+      // Save assistant message
       await supabase.from('chat_messages').insert({
         generation_id: generationId as string,
         user_id: user.id,
         role: 'assistant',
-        content: assistantMessage,
+        content: fullMessage,
       } as any);
 
       return NextResponse.json({
-        message: assistantMessage,
+        message: fullMessage,
         documents: documents,
+        paymentRequired: true,
+        price: parsed.price || 500,
+        showRepresentativeOffer: true,
       });
 
     } else {
@@ -232,14 +278,13 @@ export async function POST(request: NextRequest) {
         content: message,
       } as any);
 
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages,
-        temperature: 0.7,
-        max_tokens: 1000,
-      });
+      // Generate response
+      let assistantMessage = await geminiChatCompletion(messages, { maxTokens: 1500 }) || 'Извините, произошла ошибка.';
 
-      const assistantMessage = completion.choices[0]?.message?.content || 'Извините, произошла ошибка.';
+      // Check if this looks like a question about documents and add offer
+      if (/что дальше|как подать|следующ|документ|куда обращ/i.test(message)) {
+        assistantMessage += `\n\n---\n\n**Хотите, чтобы я подготовил необходимые документы?**\n\nМогу составить исковое заявление, претензию или ходатайство на основе вашей ситуации. Напишите "да" или "составь документы", чтобы начать.`;
+      }
 
       // Save assistant message
       await supabase.from('chat_messages').insert({

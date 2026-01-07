@@ -47,3 +47,6 @@ OPENAI_API_KEY=ваш_openai_ключ
 npm run check-supabase
 ```
 
+
+
+

@@ -99,6 +99,7 @@ html {
   zoom: 1 !important;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: var(--background);
 }
 
 body {

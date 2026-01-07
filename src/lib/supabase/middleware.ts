@@ -50,19 +50,33 @@ export async function updateSession(request: NextRequest) {
     // supabase.auth.getUser(). A simple mistake could make it very hard to debug
     // issues with users being randomly logged out.
 
+    // Добавляем таймаут для запроса к Supabase, чтобы не ждать слишком долго
+    const getUserPromise = supabase.auth.getUser();
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Supabase request timeout')), 3000)
+    );
+
     const {
       data: { user: authUser },
       error,
-    } = await supabase.auth.getUser();
+    } = await Promise.race([getUserPromise, timeoutPromise]) as any;
 
     if (error) {
-      console.error('Error getting user in middleware:', error.message);
+      // Логируем только если это не таймаут
+      if (error.message !== 'Supabase request timeout') {
+        console.error('Error getting user in middleware:', error.message);
+      }
       // Продолжаем без пользователя, чтобы не блокировать запрос
     } else {
       user = authUser;
     }
-  } catch (error) {
-    console.error('Error in middleware updateSession:', error);
+  } catch (error: any) {
+    // Игнорируем таймауты и сетевые ошибки, чтобы не блокировать приложение
+    if (error?.message?.includes('timeout') || error?.message?.includes('fetch failed') || error?.code === 'ENOTFOUND') {
+      // Тихо продолжаем без аутентификации
+    } else {
+      console.error('Error in middleware updateSession:', error?.message || error);
+    }
     // В случае ошибки возвращаем ответ без проверки аутентификации
     // чтобы приложение могло работать даже при проблемах с Supabase
     return supabaseResponse;

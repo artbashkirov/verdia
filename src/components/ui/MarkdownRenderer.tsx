@@ -44,32 +44,51 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
     while (i < lines.length) {
       const line = lines[i];
       
-      // Check for numbered list start
-      const numberedMatch = line.match(/^(\d+)\.\s+(.+)$/);
+      // Check for numbered list start (matches "1.", "2.", etc. at the beginning)
+      const numberedMatch = line.match(/^(\d+)[\.\)]\s+(.+)$/);
       if (numberedMatch) {
         // Collect the entire numbered list with nested items
         const listItems: Array<{ content: string; subItems: string[] }> = [];
         
         while (i < lines.length) {
           const currentLine = lines[i];
-          const numMatch = currentLine.match(/^(\d+)\.\s+(.+)$/);
+          const numMatch = currentLine.match(/^(\d+)[\.\)]\s+(.+)$/);
           
           if (numMatch) {
             // New numbered item
             listItems.push({ content: numMatch[2], subItems: [] });
             i++;
             
-            // Check for sub-items (bullet points)
+            // Check for sub-items (bullet points with *, -, or \*)
             while (i < lines.length) {
               const subLine = lines[i];
-              const bulletMatch = subLine.match(/^[-*]\s+(.+)$/);
+              // Match bullet points: "* text", "- text", "\* text"
+              const bulletMatch = subLine.match(/^(?:\\?\*|-)\s+(.+)$/);
               
               if (bulletMatch) {
                 listItems[listItems.length - 1].subItems.push(bulletMatch[1]);
                 i++;
               } else if (subLine.trim() === '') {
-                // Empty line - might continue or end
-                i++;
+                // Empty line - check if next non-empty is bullet or numbered
+                let nextIndex = i + 1;
+                while (nextIndex < lines.length && lines[nextIndex].trim() === '') {
+                  nextIndex++;
+                }
+                if (nextIndex < lines.length) {
+                  const nextLine = lines[nextIndex];
+                  // If next is bullet, it's a sub-item of current numbered item
+                  if (nextLine.match(/^(?:\\?\*|-)\s+/)) {
+                    i++;
+                    continue;
+                  }
+                  // If next is numbered, we'll continue the main numbered list
+                  if (nextLine.match(/^\d+[\.\)]\s+/)) {
+                    i = nextIndex;
+                    break;
+                  }
+                }
+                // Otherwise, exit sub-items loop
+                break;
               } else {
                 break;
               }
@@ -80,7 +99,7 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
             while (nextIndex < lines.length && lines[nextIndex].trim() === '') {
               nextIndex++;
             }
-            if (nextIndex < lines.length && lines[nextIndex].match(/^\d+\.\s+/)) {
+            if (nextIndex < lines.length && lines[nextIndex].match(/^\d+[\.\)]\s+/)) {
               i = nextIndex;
               continue;
             }
@@ -90,19 +109,22 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
           }
         }
         
-        // Render the numbered list
+        // Render the numbered list with sequential numbering
         elements.push(
-          <ol key={key++} className="list-decimal ml-5 my-3 space-y-3">
+          <ol key={key++} className="list-none ml-0 my-3 space-y-3">
             {listItems.map((item, idx) => (
-              <li key={idx}>
-                <span>{parseInline(item.content)}</span>
-                {item.subItems.length > 0 && (
-                  <ul className="list-disc ml-5 mt-2 space-y-1">
-                    {item.subItems.map((sub, subIdx) => (
-                      <li key={subIdx}>{parseInline(sub)}</li>
-                    ))}
-                  </ul>
-                )}
+              <li key={idx} className="flex">
+                <span className="mr-2 flex-shrink-0 font-medium">{idx + 1}.</span>
+                <div className="flex-1">
+                  <span>{parseInline(item.content)}</span>
+                  {item.subItems.length > 0 && (
+                    <ul className="list-disc ml-5 mt-2 space-y-1">
+                      {item.subItems.map((sub, subIdx) => (
+                        <li key={subIdx}>{parseInline(sub)}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </li>
             ))}
           </ol>
@@ -110,18 +132,29 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
         continue;
       }
 
-      // Check for standalone bullet list
-      const bulletMatch = line.match(/^[-*]\s+(.+)$/);
+      // Check for standalone bullet list (*, -, or \*)
+      const bulletMatch = line.match(/^(?:\\?\*|-)\s+(.+)$/);
       if (bulletMatch) {
         const bulletItems: string[] = [];
         
         while (i < lines.length) {
           const currentLine = lines[i];
-          const bMatch = currentLine.match(/^[-*]\s+(.+)$/);
+          const bMatch = currentLine.match(/^(?:\\?\*|-)\s+(.+)$/);
           
           if (bMatch) {
             bulletItems.push(bMatch[1]);
             i++;
+          } else if (currentLine.trim() === '') {
+            // Check if next non-empty is also a bullet
+            let nextIndex = i + 1;
+            while (nextIndex < lines.length && lines[nextIndex].trim() === '') {
+              nextIndex++;
+            }
+            if (nextIndex < lines.length && lines[nextIndex].match(/^(?:\\?\*|-)\s+/)) {
+              i = nextIndex;
+              continue;
+            }
+            break;
           } else {
             break;
           }

@@ -80,9 +80,19 @@ export default function RegisterPage() {
         needsEmailConfirmation: !data.session && data.user,
       });
       
+      // Если сессия создана (подтверждение email отключено) - сразу перенаправляем в чат
+      if (data.session) {
+        console.log('Registration successful, redirecting to chat');
+        router.push('/chat');
+        return;
+      }
+      
       // Если пользователь создан, но сессия не создана - требуется подтверждение email
       if (data.user && !data.session) {
         console.log('Email confirmation required. Check your email inbox and spam folder.');
+        // Redirect to verify page with email
+        router.push(`/verify?email=${encodeURIComponent(formData.email)}`);
+        return;
       }
     } catch (err) {
       console.error('Registration error:', err);
@@ -98,9 +108,6 @@ export default function RegisterPage() {
       setIsLoading(false);
       return;
     }
-    
-    // Redirect to verify page with email
-    router.push(`/verify?email=${encodeURIComponent(formData.email)}`);
   };
 
   return (

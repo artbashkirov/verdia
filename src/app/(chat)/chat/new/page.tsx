@@ -16,6 +16,10 @@ interface GenerationResponse {
   shortAnswer?: {
     title: string;
     content: string;
+    probability?: {
+      percentage: number;
+      level: string;
+    };
   };
   legalAnalysis?: {
     title: string;
@@ -35,8 +39,11 @@ interface GenerationResponse {
     };
   };
   probability?: {
+    percentage?: number;
     level: string;
-    factors: string[];
+    factors?: string[];
+    positiveFactors?: string[];
+    negativeFactors?: string[];
   };
   recommendations?: string[];
   documents?: Array<{
@@ -119,13 +126,13 @@ export default function NewChatPage() {
       setResponse(data.response);
       setChatId(data.id);
       
-      // Update URL without reload
-      if (data.id) {
-        window.history.replaceState({}, '', `/chat/${data.id}`);
-      }
-
-      // Store in sessionStorage for page reload
+      // Store in sessionStorage for the chat page to pick up
       sessionStorage.setItem('lastResponse', JSON.stringify(data));
+      
+      // Redirect to the chat page for full functionality (including chat continuation)
+      if (data.id) {
+        router.replace(`/chat/${data.id}`);
+      }
 
     } catch (err) {
       console.error('Generation error:', err);
@@ -293,6 +300,30 @@ export default function NewChatPage() {
                       <div className="text-base text-foreground leading-[24px] break-words">
                         <p className="mb-3 text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold break-words">{response.shortAnswer.title}</p>
                         <p className="break-words">{response.shortAnswer.content}</p>
+                        {(response.shortAnswer.probability || response.probability) && (() => {
+                          const percentage = response.shortAnswer.probability?.percentage 
+                            || response.probability?.percentage
+                            || (response.probability?.level === 'высокая' ? 75 
+                              : response.probability?.level === 'выше средней' ? 65 
+                              : response.probability?.level === 'средняя' ? 45 
+                              : response.probability?.level === 'низкая' ? 25 
+                              : 60);
+                          const level = response.shortAnswer.probability?.level || response.probability?.level || 'оценивается';
+                          
+                          return (
+                            <div className="mt-4 p-4 rounded-xl" style={{ backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F' }}>
+                              <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] mb-2">
+                                Оценка вероятности успеха
+                              </p>
+                              <p className="text-[24px] lg:text-[32px] font-bold text-foreground">
+                                {percentage}%
+                                <span className="text-[16px] lg:text-[18px] font-medium text-gray-500 ml-2">
+                                  ({level})
+                                </span>
+                              </p>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   )}
