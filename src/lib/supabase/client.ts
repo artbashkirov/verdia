@@ -5,10 +5,20 @@ export function createClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+  // Проверяем на placeholder значения (но только если они явно содержат placeholder)
+  // Если переменные undefined, это значит они не загружены - выбросим ошибку
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('Supabase environment variables are not set:', {
+      url: supabaseUrl ? 'set' : 'missing',
+      key: supabaseAnonKey ? 'set' : 'missing'
+    });
+    throw new Error(
+      'Переменные окружения Supabase не настроены. Убедитесь, что NEXT_PUBLIC_SUPABASE_URL и NEXT_PUBLIC_SUPABASE_ANON_KEY установлены в .env.local и перезапустите dev-сервер.'
+    );
+  }
+
   // Проверяем на placeholder значения
-  const isPlaceholder = !supabaseUrl || 
-                        !supabaseAnonKey || 
-                        supabaseUrl.includes('placeholder') || 
+  const isPlaceholder = supabaseUrl.includes('placeholder') || 
                         supabaseUrl.includes('your_supabase') ||
                         supabaseAnonKey.includes('placeholder') ||
                         supabaseAnonKey.includes('your_supabase');
