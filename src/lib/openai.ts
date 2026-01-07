@@ -2,26 +2,74 @@ import Replicate from 'replicate';
 import OpenAI from 'openai';
 import type { CourtCase, DefendantHistory, CourtStats } from './court-search';
 
-// Initialize Replicate client for Gemini
-const replicate = new Replicate({
-  auth: process.env.REPLICATE_API_TOKEN,
+// Lazy initialization for Replicate client to avoid build-time errors
+let replicateInstance: Replicate | null = null;
+function getReplicate(): Replicate {
+  if (!replicateInstance) {
+    const token = process.env.REPLICATE_API_TOKEN;
+    if (!token) {
+      throw new Error('REPLICATE_API_TOKEN is not set');
+    }
+    replicateInstance = new Replicate({
+      auth: token,
+    });
+  }
+  return replicateInstance;
+}
+
+// Lazy initialization for OpenAI client to avoid build-time errors
+// OpenAI client is created only when needed
+let openaiInstance: OpenAI | null = null;
+function getOpenAI(): OpenAI {
+  if (!openaiInstance) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    // During build on Vercel, env vars may not be available yet
+    // Use a dummy key with valid format to allow build to complete
+    // At runtime, this will fail when actually calling OpenAI API
+    const buildApiKey = apiKey || 'sk-000000000000000000000000000000000000000000000000';
+    openaiInstance = new OpenAI({
+      apiKey: buildApiKey,
+    });
+  }
+  return openaiInstance;
+}
+
+// Export instances with lazy initialization using Proxy
+export const replicate = new Proxy({} as Replicate, {
+  get(_target, prop) {
+    const instance = getReplicate();
+    const value = instance[prop as keyof Replicate];
+    // If it's a function, bind it to the instance
+    if (typeof value === 'function') {
+      return value.bind(instance);
+    }
+    return value;
+  }
 });
 
-// Keep OpenAI as fallback
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+export const openai = new Proxy({} as OpenAI, {
+  get(_target, prop) {
+    const instance = getOpenAI();
+    const value = instance[prop as keyof OpenAI];
+    // If it's a function, bind it to the instance
+    if (typeof value === 'function') {
+      return value.bind(instance);
+    }
+    return value;
+  }
 });
-
-export { openai, replicate };
 
 // Helper function to call Gemini via Replicate
 async function callGemini(prompt: string, systemPrompt?: string, maxTokens: number = 4000): Promise<string> {
   try {
+    // Get replicate instance at runtime (not at module load time)
+    const replicateClient = getReplicate();
+    
     const fullPrompt = systemPrompt 
       ? `${systemPrompt}\n\n---\n\nUser: ${prompt}`
       : prompt;
     
-    const output = await replicate.run(
+    const output = await replicateClient.run(
       "google/gemini-2.5-flash",
       {
         input: {
