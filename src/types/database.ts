@@ -76,7 +76,81 @@ export interface ChatHistoryItem {
   id: string;
   title: string;
   user_id: string;
+  generation_id?: string | null;
   created_at: string;
+}
+
+// User profile (plaintiff data)
+export type PersonType = 'individual' | 'entrepreneur' | 'legal_entity';
+
+export interface UserProfile {
+  id: string;
+  user_id: string;
+  person_type: PersonType;
+  // Для физлица
+  full_name?: string;
+  passport_series?: string;
+  passport_number?: string;
+  passport_issued_by?: string;
+  passport_issue_date?: string;
+  birth_date?: string;
+  // Для ИП
+  ogrnip?: string;
+  inn_individual?: string;
+  // Для юрлица
+  company_name?: string;
+  company_form?: string;
+  ogrn?: string;
+  inn_legal?: string;
+  kpp?: string;
+  // Адреса
+  registration_address?: string;
+  registration_city?: string;
+  registration_region?: string;
+  actual_address?: string;
+  // Контакты
+  phone?: string;
+  email_contact?: string;
+  // Банковские реквизиты
+  bank_name?: string;
+  bank_bik?: string;
+  bank_account?: string;
+  bank_corr_account?: string;
+  // Метаданные
+  created_at: string;
+  updated_at: string;
+}
+
+// Saved defendant
+export interface SavedDefendant {
+  id: string;
+  user_id: string;
+  defendant_type: PersonType;
+  name: string;
+  inn?: string;
+  ogrn?: string;
+  registration_address?: string;
+  registration_city?: string;
+  registration_region?: string;
+  court_cases_count?: number;
+  cases_lost_count?: number;
+  last_search_at?: string;
+  search_results?: DefendantSearchResults;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DefendantSearchResults {
+  cases: Array<{
+    title: string;
+    url: string;
+    court?: string;
+    date?: string;
+    result?: string;
+  }>;
+  total_cases: number;
+  satisfaction_rate: number;
+  last_updated: string;
 }
 
 // Database schema for Supabase
@@ -95,8 +169,18 @@ export type Database = {
       };
       chat_history: {
         Row: ChatHistoryItem;
-        Insert: Omit<ChatHistoryItem, 'id' | 'created_at'>;
+        Insert: Omit<ChatHistoryItem, 'id' | 'created_at'> & { generation_id?: string | null };
         Update: Partial<Omit<ChatHistoryItem, 'id'>>;
+      };
+      user_profiles: {
+        Row: UserProfile;
+        Insert: Omit<UserProfile, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<UserProfile, 'id'>>;
+      };
+      saved_defendants: {
+        Row: SavedDefendant;
+        Insert: Omit<SavedDefendant, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<SavedDefendant, 'id'>>;
       };
     };
   };

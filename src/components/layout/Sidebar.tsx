@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { PlusIcon, TrashIcon, HelpCircleIcon, ChevronDownIcon, NewMessageIcon, SunIcon, MonitorIcon } from '@/components/icons';
-import { MessageCircleMore, PanelLeftClose, Moon } from 'lucide-react';
+import { MessageCircleMore, PanelLeftClose, Moon, User as UserIcon } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useTheme } from '@/lib/theme-context';
 import type { User } from '@supabase/supabase-js';
@@ -88,8 +88,8 @@ export function Sidebar({
     setIsLoadingHistory(true);
     const supabase = createClient();
     
-    const { data, error } = await supabase
-      .from('generations')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from('generations') as any)
       .select('id, query, created_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
@@ -100,7 +100,7 @@ export function Sidebar({
       setChatHistory([]);
     } else {
       setChatHistory(
-        (data || []).map(item => ({
+        (data || []).map((item: { id: string; query: string }) => ({
           id: item.id,
           title: item.query.slice(0, 50) + (item.query.length > 50 ? '...' : ''),
         }))
@@ -339,6 +339,14 @@ export function Sidebar({
           {/* Dropdown menu */}
           {showDropdown && (
             <div className={`absolute ${isCollapsed ? 'bottom-full mb-2 left-0 right-auto w-[200px]' : 'bottom-full mb-2 left-0 right-0'} bg-[#3a3a3a] dark:bg-[#1E1E1F] rounded-xl overflow-hidden shadow-lg z-50`}>
+              <Link
+                href="/profile"
+                onClick={() => setShowDropdown(false)}
+                className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-white hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a] transition-colors"
+              >
+                <UserIcon className="w-[18px] h-[18px]" />
+                <span>Профиль истца</span>
+              </Link>
               <button
                 onClick={handleClearHistory}
                 className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-white hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a] transition-colors"

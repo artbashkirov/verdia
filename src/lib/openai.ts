@@ -110,95 +110,35 @@ export async function generateLegalResponse(
   
   const { cases, stats, courtInfo, defendantHistory, searchTerms, category } = searchResults;
   
-  // Format court cases with all available info
-  const courtCasesFormatted = cases.map((c, i) => ({
+  // Format court cases - compact version for speed
+  const courtCasesFormatted = cases.slice(0, 5).map((c, i) => ({
     id: i + 1,
-    title: c.title,
+    title: c.title.slice(0, 100),
     url: c.url,
-    description: c.snippet,
     court: c.court || '',
-    judge: c.judge || '',
-    date: c.date || '',
     result: c.result || 'неизвестно',
-    caseNumber: c.caseNumber || '',
-    plaintiff: c.plaintiff || '',
-    defendant: c.defendant || '',
     isSearchLink: c.isSearchLink ?? true,
   }));
   
   const hasRealCases = cases.some(c => !c.isSearchLink);
   
-  // Build comprehensive context
-  const context = `
-ЗАПРОС ПОЛЬЗОВАТЕЛЯ: "${userQuery}"
+  // Build compact context for faster generation
+  const context = `ЗАПРОС: "${userQuery}"
+КАТЕГОРИЯ: ${category}
+СТАТИСТИКА: ${stats.percentage}% успешных исков (из ${stats.total} дел)
+${courtInfo ? `СУД: ${courtInfo.name}` : ''}
 
-КАТЕГОРИЯ ДЕЛА: ${category}
-ПОИСКОВЫЕ ТЕРМИНЫ: ${searchTerms}
+ДЕЛА: ${JSON.stringify(courtCasesFormatted)}
 
-${hasRealCases ? `
-═══════════════════════════════════════════════════════════════
-НАЙДЕННЫЕ СУДЕБНЫЕ РЕШЕНИЯ (${cases.length} дел):
-═══════════════════════════════════════════════════════════════
-
-${JSON.stringify(courtCasesFormatted, null, 2)}
-
-СТАТИСТИКА ПО НАЙДЕННЫМ ДЕЛАМ:
-- Всего проанализировано: ${stats.total} дел
-- Удовлетворено полностью: ${stats.satisfied}
-- Удовлетворено частично: ${stats.partial}
-- Отказано: ${stats.rejected}
-- ПРОЦЕНТ УСПЕШНЫХ ИСКОВ: ${stats.percentage}%
-
-Используй эту статистику для расчета probability.percentage!
-` : `
-РЕАЛЬНЫЕ ДЕЛА НЕ НАЙДЕНЫ
-Используй среднюю статистику (65%) и ссылки для самостоятельного поиска:
-${JSON.stringify(courtCasesFormatted, null, 2)}
-`}
-
-${courtInfo ? `
-═══════════════════════════════════════════════════════════════
-ИНФОРМАЦИЯ О СУДЕ:
-═══════════════════════════════════════════════════════════════
-Предполагаемый суд: ${courtInfo.name}
-${courtInfo.address ? `Адрес: ${courtInfo.address}` : ''}
-${courtInfo.satisfactionRate ? `Средний % удовлетворения исков: ${Math.round(courtInfo.satisfactionRate * 100)}%` : ''}
-${courtInfo.judges ? `
-Судьи:
-${courtInfo.judges.map(j => `- ${j.name}: ${j.satisfactionRate ? Math.round(j.satisfactionRate * 100) + '% удовлетворений' : ''} (${j.casesCount || '?'} дел)`).join('\n')}
-` : ''}
-` : ''}
-
-${defendantHistory ? `
-═══════════════════════════════════════════════════════════════
-ИСТОРИЯ ОТВЕТЧИКА В СУДАХ:
-═══════════════════════════════════════════════════════════════
-Наименование: ${defendantHistory.name}
-Всего дел с участием: ${defendantHistory.totalCases}
-Как ответчик: ${defendantHistory.asDefendant} дел
-Как истец: ${defendantHistory.asPlaintiff} дел
-Проиграно (как ответчик): ${defendantHistory.casesLost} дел
-Выиграно (как истец): ${defendantHistory.casesWon} дел
-${defendantHistory.commonCategories.length > 0 ? `Частые категории дел: ${defendantHistory.commonCategories.join(', ')}` : ''}
-
-Используй эти данные для defendantAnalysis в ответе!
-` : `
-ИСТОРИЯ ОТВЕТЧИКА: Для анализа истории ответчика в судах укажите его наименование
-`}
-
-═══════════════════════════════════════════════════════════════
-ВАЖНЫЕ УКАЗАНИЯ:
-═══════════════════════════════════════════════════════════════
-1. В probability.percentage укажи КОНКРЕТНОЕ ЧИСЛО на основе статистики (${stats.percentage}% как базовая)
-2. Корректируй процент в зависимости от факторов дела
-3. ОБЯЗАТЕЛЬНО заполни nextSteps с предложением составить документы
-4. В courtCases используй найденные дела
-5. Верни ответ ТОЛЬКО в формате JSON
-
-ОТВЕТЬ ВАЛИДНЫМ JSON:`;
+ВАЖНО:
+- probability.percentage = ${stats.percentage} (корректируй по факторам)
+- shortAnswer.probability тоже заполни
+- Добавь nextSteps с предложением документов
+- Ответ ТОЛЬКО JSON`;
 
   try {
-    const result = await callGemini(context, SYSTEM_PROMPT, 5000);
+    // Reduced max tokens for faster generation
+    const result = await callGemini(context, SYSTEM_PROMPT, 2500);
     
     // Try to extract JSON from response
     const jsonMatch = result.match(/\{[\s\S]*\}/);

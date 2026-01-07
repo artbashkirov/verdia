@@ -120,12 +120,7 @@ body {
 
 /* Prevent text overflow on mobile */
 @media (max-width: 768px) {
-  * {
-    max-width: 100%;
-    box-sizing: border-box;
-  }
-  
-  p, h1, h2, h3, h4, h5, h6, span, div {
+  p, h1, h2, h3, h4, h5, h6, span {
     word-break: break-word;
     overflow-wrap: break-word;
     hyphens: auto;
@@ -169,6 +164,16 @@ body {
     overflow-x: auto;
     overflow-y: hidden;
   }
+}
+
+/* Allow horizontal scroll containers to overflow */
+.hide-horizontal-scrollbar {
+  overflow-x: auto !important;
+  max-width: none !important;
+}
+
+.hide-horizontal-scrollbar > * {
+  flex-shrink: 0;
 }
 
 /* Vertical scrollbar - hidden by default */
@@ -321,4 +326,10 @@ input:-webkit-autofill:focus {
 .auth-fade-in-delay-8 {
   opacity: 0;
   animation: fadeInUp 0.4s ease-out 0.4s forwards;
+}
+
+/* Streaming response animations */
+.animate-fadeIn {
+  opacity: 0;
+  animation: fadeInUp 0.35s ease-out forwards;
 }

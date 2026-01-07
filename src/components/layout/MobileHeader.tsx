@@ -71,7 +71,7 @@ export function MobileHeader({ onMenuClick, isMenuOpen, onNewChat }: MobileHeade
         }}
         aria-label="Новый чат"
       >
-        <PlusIcon style={{ width: '20px', height: '20px' }} />
+        <PlusIcon className="w-5 h-5" />
       </button>
     </header>
   );

@@ -19,7 +19,7 @@
     "lucide-react": "^0.562.0",
     "next": "16.0.5",
     "openai": "^6.9.1",
-    "puppeteer-core": "^24.31.0",
+    "puppeteer": "^24.34.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "replicate": "^1.4.0"

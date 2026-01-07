@@ -107,8 +107,8 @@ export function MobileSidebar({
     setIsLoadingHistory(true);
     const supabase = createClient();
     
-    const { data, error } = await supabase
-      .from('generations')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.from('generations') as any)
       .select('id, query, created_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
@@ -119,7 +119,7 @@ export function MobileSidebar({
       setChatHistory([]);
     } else {
       setChatHistory(
-        (data || []).map(item => ({
+        (data || []).map((item: { id: string; query: string }) => ({
           id: item.id,
           title: item.query.slice(0, 50) + (item.query.length > 50 ? '...' : ''),
         }))

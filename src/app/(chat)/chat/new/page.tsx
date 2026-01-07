@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, Suspense } from 'react';
+import { Suspense, useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Sidebar, ChatInput, MobileHeader, MobileSidebar } from '@/components/layout';
 import { DownloadIcon } from '@/components/icons';
@@ -53,32 +53,79 @@ interface GenerationResponse {
     format: string;
     content?: string;
   }>;
+  clarificationRequest?: {
+    type: string;
+    message: string;
+    fields: Array<{ key: string; label: string; placeholder: string }>;
+    hint: string;
+  };
+  defendantHistory?: {
+    name: string;
+    totalCases: number;
+    casesLost: number;
+  };
+  // Court prediction with judges
+  courtPrediction?: {
+    predictedCourt?: {
+      name: string;
+      address?: string;
+      reason?: string;
+    };
+    judges?: Array<{
+      name: string;
+      satisfactionRate?: number;
+      casesCount?: number;
+    }>;
+  };
+  // Defendant analysis
+  defendantAnalysis?: {
+    hasHistory: boolean;
+    summary?: string;
+    riskFactors?: string[];
+    opportunities?: string[];
+  };
 }
 
-export default function NewChatPage() {
+// Court cases stats from stream
+interface CourtCasesData {
+  cases: Array<{ id: number; title: string; url: string; court?: string; isSearchLink?: boolean }>;
+  stats: { total: number; percentage: number };
+  courtInfo?: string;
+  defendantHistory?: { name: string; totalCases: number; casesLost: number };
+}
+
+interface ClarificationData {
+  question: string;
+  options: string[];
+}
+
+function NewChatPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { resolvedTheme } = useTheme();
   const [query, setQuery] = useState('');
-  const [response, setResponse] = useState<GenerationResponse | null>(null);
+  const [response, setResponse] = useState<GenerationResponse>({});
   const [isGenerating, setIsGenerating] = useState(true);
+  const [statusMessage, setStatusMessage] = useState('Ищу судебные дела...');
   const [error, setError] = useState('');
   const [chatId, setChatId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [clarification, setClarification] = useState<ClarificationData | null>(null);
+  const [isComplete, setIsComplete] = useState(false);
+  const [clarificationRequest, setClarificationRequest] = useState<GenerationResponse['clarificationRequest'] | null>(null);
+  const [defendantForm, setDefendantForm] = useState({ defendantName: '', defendantLocation: '' });
+  const [isRefining, setIsRefining] = useState(false);
+  const [refinedData, setRefinedData] = useState<any>(null);
+  const [courtCasesData, setCourtCasesData] = useState<CourtCasesData | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const hasStartedGeneration = useRef(false);
 
   useEffect(() => {
-    // Only run once - if generation already started, don't do anything
-    if (hasStartedGeneration.current) {
-      return;
-    }
+    if (hasStartedGeneration.current) return;
 
-    // Get query from URL params or sessionStorage
     const urlQuery = searchParams.get('q');
     const storedQuery = sessionStorage.getItem('pendingQuery');
-    
     const queryToUse = urlQuery || storedQuery;
     
     if (!queryToUse) {
@@ -86,60 +133,102 @@ export default function NewChatPage() {
       return;
     }
 
-    // Mark as started immediately to prevent re-runs
     hasStartedGeneration.current = true;
-    
     setQuery(queryToUse);
     sessionStorage.removeItem('pendingQuery');
+    generateResponseStream(queryToUse);
+  }, []);
 
-    // Generate response
-    generateResponse(queryToUse);
-  }, []); // Empty deps - only run on mount
-
-  const generateResponse = async (queryText: string) => {
+  // Streaming generation - shows results as they arrive
+  const generateResponseStream = async (queryText: string) => {
     try {
-      const res = await fetch('/api/generate', {
+      const res = await fetch('/api/generate-stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: queryText }),
       });
 
-      let data;
-      try {
-        data = await res.json();
-      } catch (jsonError) {
-        console.error('Failed to parse JSON response:', jsonError);
-        throw new Error('Ошибка при обработке ответа сервера');
-      }
-
       if (!res.ok) {
-        const errorMessage = data?.error || `Ошибка ${res.status}: ${res.statusText}`;
-        console.error('API error:', errorMessage, data);
-        throw new Error(errorMessage);
+        throw new Error('Ошибка запроса');
       }
 
-      if (!data || !data.response) {
-        console.error('Invalid response data:', data);
-        throw new Error('Некорректный ответ от сервера');
+      const reader = res.body?.getReader();
+      if (!reader) {
+        throw new Error('Нет данных');
       }
 
-      setResponse(data.response);
-      setChatId(data.id);
-      
-      // Store in sessionStorage for the chat page to pick up
-      sessionStorage.setItem('lastResponse', JSON.stringify(data));
-      
-      // Redirect to the chat page for full functionality (including chat continuation)
-      if (data.id) {
-        router.replace(`/chat/${data.id}`);
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        let currentEvent = '';
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            currentEvent = line.slice(7);
+          } else if (line.startsWith('data: ') && currentEvent) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              switch (currentEvent) {
+                case 'status':
+                  setStatusMessage(data.message);
+                  break;
+                case 'courtCases':
+                  setResponse(prev => ({ ...prev, courtCases: data.cases }));
+                  setCourtCasesData(data);
+                  break;
+                case 'shortAnswer':
+                  setResponse(prev => ({ ...prev, shortAnswer: data }));
+                  break;
+                case 'legalAnalysis':
+                  setResponse(prev => ({ ...prev, legalAnalysis: data }));
+                  break;
+                case 'practiceAnalysis':
+                  setResponse(prev => ({ ...prev, practiceAnalysis: data }));
+                  break;
+                case 'probability':
+                  setResponse(prev => ({ ...prev, probability: data }));
+                  break;
+                case 'courtPrediction':
+                  setResponse(prev => ({ ...prev, courtPrediction: data }));
+                  break;
+                case 'defendantAnalysis':
+                  setResponse(prev => ({ ...prev, defendantAnalysis: data }));
+                  break;
+                case 'recommendations':
+                  setResponse(prev => ({ ...prev, recommendations: data }));
+                  break;
+                case 'clarificationRequest':
+                  setClarificationRequest(data);
+                  break;
+                case 'complete':
+                  setChatId(data.id);
+                  setIsComplete(true);
+                  // Don't redirect - stay on page and show full result
+                  break;
+                case 'error':
+                  setError(data.message);
+                  break;
+              }
+            } catch (e) {
+              console.error('Parse error:', e);
+            }
+            currentEvent = '';
+          }
+        }
       }
 
     } catch (err) {
-      console.error('Generation error:', err);
-      const errorMessage = err instanceof Error 
-        ? err.message 
-        : 'Произошла ошибка при генерации ответа. Попробуйте еще раз.';
-      setError(errorMessage);
+      console.error('Stream error:', err);
+      setError(err instanceof Error ? err.message : 'Произошла ошибка');
     } finally {
       setIsGenerating(false);
     }
@@ -187,6 +276,37 @@ export default function NewChatPage() {
     }
   };
 
+  // Handle defendant clarification form submission
+  const handleDefendantSubmit = async () => {
+    if (!chatId || !defendantForm.defendantName.trim()) return;
+    
+    setIsRefining(true);
+    try {
+      const res = await fetch('/api/refine-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          generationId: chatId,
+          defendantName: defendantForm.defendantName.trim(),
+          defendantLocation: defendantForm.defendantLocation.trim() || 'Москва',
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setRefinedData(data);
+        setClarificationRequest(null);
+      }
+    } catch (err) {
+      console.error('Refine error:', err);
+    } finally {
+      setIsRefining(false);
+    }
+  };
+
+  // Check if we have any content to show
+  const hasContent = response.courtCases || response.shortAnswer || response.legalAnalysis;
+
   return (
     <div className="flex h-screen bg-[#0E0E0E]">
       <MobileHeader 
@@ -219,15 +339,15 @@ export default function NewChatPage() {
                 {query}
               </h1>
 
-              {/* Loading state */}
-              {isGenerating && (
+              {/* Loading state - only show when no content yet */}
+              {isGenerating && !hasContent && (
                 <div className="flex items-center gap-3 py-4">
                   <div className="flex gap-1">
                     <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                     <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                     <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                   </div>
-                  <span className="text-sm text-gray-400">Анализирую запрос и готовлю ответ...</span>
+                  <span className="text-sm text-gray-400">{statusMessage}</span>
                 </div>
               )}
 
@@ -244,95 +364,171 @@ export default function NewChatPage() {
                 </div>
               )}
 
-              {/* Response content */}
-              {response && (
-                <>
-                  {/* Court cases */}
+              {/* Clarification question */}
+              {clarification && (
+                <div className="flex flex-col gap-4 animate-fadeIn">
+                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px]">
+                    Уточните вопрос
+                  </p>
+                  <div className="p-4 rounded-xl" style={{ backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F' }}>
+                    <p className="text-base text-foreground mb-4">{clarification.question}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {clarification.options.map((option, i) => (
+                        <button
+                          key={i}
+                          onClick={() => {
+                            setClarification(null);
+                            setIsGenerating(true);
+                            setStatusMessage('Ищу судебные дела...');
+                            setResponse({});
+                            // Re-run with clarified query
+                            const newQuery = `${query} (${option})`;
+                            setQuery(newQuery);
+                            sessionStorage.setItem('pendingQuery', newQuery);
+                            hasStartedGeneration.current = false;
+                            router.push(`/chat/new?q=${encodeURIComponent(newQuery)}`);
+                          }}
+                          className="px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-[#3a3a3a] transition-colors"
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Court cases - appears first (fast) */}
                   {response.courtCases && response.courtCases.length > 0 && (
-                    <div className="flex flex-col gap-4" style={{ marginLeft: '-16px', marginRight: '-16px' }}>
+                <div className="flex flex-col gap-4 animate-fadeIn" style={{ marginLeft: '-16px', marginRight: '-16px' }}>
                       <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
                         Судебные решения
                       </p>
                       <div 
-                        className="flex gap-2 overflow-x-auto hide-horizontal-scrollbar"
                         style={{ 
+                          display: 'flex',
+                          gap: '8px',
+                          overflowX: 'auto',
+                          overflowY: 'hidden',
                           paddingLeft: '16px',
                           paddingRight: '16px',
+                          paddingBottom: '4px',
                           WebkitOverflowScrolling: 'touch',
                           msOverflowStyle: 'none',
                           scrollbarWidth: 'none'
                         }}
                       >
-                        {response.courtCases.slice(0, 3).map((c) => (
+                        {response.courtCases.map((c) => (
                           <a
                             key={c.id}
                             href={c.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex-shrink-0 p-3 rounded-2xl hover:bg-gray-200 dark:hover:bg-[#4a4a4a] transition-colors flex flex-col gap-3"
                             style={{ 
                               backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F',
-                              width: '200px',
-                              minWidth: '200px'
+                              width: '240px',
+                              minWidth: '240px',
+                              flexShrink: 0,
+                              padding: '12px',
+                              borderRadius: '16px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '12px',
+                              textDecoration: 'none',
+                              transition: 'background-color 0.2s'
                             }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = resolvedTheme === 'light' ? '#E5E5E5' : '#4a4a4a'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F'}
                           >
-                            <p className="text-[16px] lg:text-[16px] font-medium text-foreground leading-[24px] lg:leading-[24px] line-clamp-3 h-12">
+                            <p className="text-[13px] lg:text-[14px] font-medium text-foreground leading-[18px] lg:leading-[20px] line-clamp-3" style={{ margin: 0 }}>
                               {c.title}
                             </p>
-                            <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 leading-[14px] lg:leading-[14px]">
+                            <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 leading-[14px] lg:leading-[14px]" style={{ margin: 0 }}>
                               {c.url?.includes('sudact.ru') ? 'sudact.ru' : 
                                c.url?.includes('help.mos-gorsud.ru') ? 'help.mos-gorsud.ru' : 'mos-gorsud.ru'}
                             </p>
                           </a>
                         ))}
+                        {/* Spacer для последней карточки */}
+                        <div style={{ minWidth: '8px', flexShrink: 0 }} />
+                      </div>
+                  
+                  {/* Defendant history if available */}
+                  {courtCasesData?.defendantHistory && (
+                    <div className="grid grid-cols-1 gap-3" style={{ paddingLeft: '16px', paddingRight: '16px', marginTop: '8px' }}>
+                      <div 
+                        className="p-3 rounded-xl"
+                        style={{ backgroundColor: resolvedTheme === 'light' ? '#FEF3C7' : '#422006' }}
+                      >
+                        <p className="text-[11px] font-medium text-gray-400 uppercase mb-1">⚖️ История ответчика</p>
+                        <p className="text-[13px] font-medium text-foreground leading-[18px]">
+                          {courtCasesData.defendantHistory.name}
+                        </p>
+                        <p className="text-[12px] text-secondary-text">
+                          {courtCasesData.defendantHistory.totalCases} дел, проиграно {courtCasesData.defendantHistory.casesLost}
+                        </p>
                       </div>
                     </div>
                   )}
+                  
+                  {/* Show loading indicator for AI analysis */}
+                  {isGenerating && !response.shortAnswer && (
+                    <div className="flex items-center gap-3 py-2" style={{ paddingLeft: '16px' }}>
+                      <div className="flex gap-1">
+                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </div>
+                      <span className="text-xs text-gray-400">{statusMessage}</span>
+                    </div>
+                  )}
+                    </div>
+                  )}
 
-                  <div className="h-px bg-gray-200" />
+              {response.courtCases && <div className="h-px bg-gray-200" />}
 
-                  {/* Short answer */}
+              {/* Short answer - appears second */}
                   {response.shortAnswer && (
-                    <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-4 animate-fadeIn">
                       <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                         Краткий ответ
                       </p>
                       <div className="text-base text-foreground leading-[24px] break-words">
                         <p className="mb-3 text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold break-words">{response.shortAnswer.title}</p>
                         <p className="break-words">{response.shortAnswer.content}</p>
-                        {(response.shortAnswer.probability || response.probability) && (() => {
-                          const percentage = response.shortAnswer.probability?.percentage 
-                            || response.probability?.percentage
-                            || (response.probability?.level === 'высокая' ? 75 
-                              : response.probability?.level === 'выше средней' ? 65 
-                              : response.probability?.level === 'средняя' ? 45 
-                              : response.probability?.level === 'низкая' ? 25 
-                              : 60);
-                          const level = response.shortAnswer.probability?.level || response.probability?.level || 'оценивается';
-                          
-                          return (
-                            <div className="mt-4 p-4 rounded-xl" style={{ backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F' }}>
-                              <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] mb-2">
-                                Оценка вероятности успеха
-                              </p>
-                              <p className="text-[24px] lg:text-[32px] font-bold text-foreground">
-                                {percentage}%
-                                <span className="text-[16px] lg:text-[18px] font-medium text-gray-500 ml-2">
-                                  ({level})
-                                </span>
-                              </p>
-                            </div>
-                          );
-                        })()}
+                    {(response.shortAnswer.probability || response.probability) && (() => {
+                      const percentage = response.shortAnswer.probability?.percentage 
+                        || response.probability?.percentage
+                        || (response.probability?.level === 'высокая' ? 75 
+                          : response.probability?.level === 'выше средней' ? 65 
+                          : response.probability?.level === 'средняя' ? 45 
+                          : response.probability?.level === 'низкая' ? 25 
+                          : 60);
+                      const level = response.shortAnswer.probability?.level || response.probability?.level || 'оценивается';
+                      
+                      return (
+                        <div className="mt-4 p-4 rounded-xl" style={{ backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F' }}>
+                          <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] mb-2">
+                            Оценка вероятности успеха
+                          </p>
+                          <p className="text-[24px] lg:text-[32px] font-bold text-foreground">
+                            {percentage}%
+                            <span className="text-[16px] lg:text-[18px] font-medium text-gray-500 ml-2">
+                              ({level})
+                            </span>
+                          </p>
+                        </div>
+                      );
+                    })()}
                       </div>
                     </div>
                   )}
 
-                  <div className="h-px bg-gray-200" />
+              {response.shortAnswer && <div className="h-px bg-gray-200" />}
 
-                  {/* Legal analysis */}
+              {/* Legal analysis - appears third */}
                   {response.legalAnalysis && (
-                    <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-4 animate-fadeIn">
                       <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                         Правовой анализ
                       </p>
@@ -360,11 +556,11 @@ export default function NewChatPage() {
                     </div>
                   )}
 
-                  <div className="h-px bg-gray-200" />
+              {response.legalAnalysis && <div className="h-px bg-gray-200" />}
 
                   {/* Practice analysis */}
                   {response.practiceAnalysis && (
-                    <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-4 animate-fadeIn">
                       <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                         Анализ судебной практики
                       </p>
@@ -396,35 +592,93 @@ export default function NewChatPage() {
                     </div>
                   )}
 
-                  <div className="h-px bg-gray-200" />
+              {response.practiceAnalysis && <div className="h-px bg-gray-200" />}
 
-                  {/* Probability */}
-                  {response.probability && (
-                    <div className="flex flex-col gap-4">
-                      <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
-                        Оценка вероятности
-                      </p>
-                      <div className="text-base text-foreground leading-[24px] break-words">
-                        <p className="mb-3 break-words">Вероятность удовлетворения требований: <strong>{response.probability.level}</strong>.</p>
-                        {response.probability.factors && (
-                          <>
-                            <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 break-words">Повышается, если есть:</p>
-                            <ul className="list-disc ml-5 break-words">
-                              {response.probability.factors.map((factor, i) => (
-                                <li key={i} className="mb-2 last:mb-0 break-words">{factor}</li>
-                              ))}
-                            </ul>
-                          </>
+              {/* Court Prediction with Judges */}
+              {response.courtPrediction && (
+                <div className="flex flex-col gap-4 animate-fadeIn">
+                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
+                    Подсудность и судьи
+                  </p>
+                  <div className="text-base text-foreground leading-[24px] break-words">
+                    {response.courtPrediction.predictedCourt && (
+                      <div className="mb-4 p-4 rounded-xl" style={{ backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F' }}>
+                        <p className="font-semibold mb-1">📍 {response.courtPrediction.predictedCourt.name}</p>
+                        {response.courtPrediction.predictedCourt.address && (
+                          <p className="text-sm text-secondary-text mb-2">{response.courtPrediction.predictedCourt.address}</p>
+                        )}
+                        {response.courtPrediction.predictedCourt.reason && (
+                          <p className="text-sm text-secondary-text italic">{response.courtPrediction.predictedCourt.reason}</p>
                         )}
                       </div>
-                    </div>
-                  )}
+                    )}
+                    {response.courtPrediction.judges && response.courtPrediction.judges.length > 0 && (
+                      <>
+                        <p className="text-[16px] font-semibold mb-3">Судьи по аналогичным делам:</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {response.courtPrediction.judges.map((judge, i) => (
+                            <div 
+                              key={i}
+                              className="p-3 rounded-lg"
+                              style={{ backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F' }}
+                            >
+                              <p className="font-medium text-foreground">{judge.name}</p>
+                              {judge.satisfactionRate !== undefined && (
+                                <p className="text-sm text-secondary-text">
+                                  Удовлетворено: {Math.round(judge.satisfactionRate * 100)}%
+                                  {judge.casesCount && ` (${judge.casesCount} дел)`}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
 
-                  <div className="h-px bg-gray-200" />
+              {response.courtPrediction && <div className="h-px bg-gray-200" />}
+
+              {/* Defendant Analysis */}
+              {response.defendantAnalysis && response.defendantAnalysis.hasHistory && (
+                <div className="flex flex-col gap-4 animate-fadeIn">
+                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
+                    Анализ ответчика
+                  </p>
+                  <div className="text-base text-foreground leading-[24px] break-words">
+                    {response.defendantAnalysis.summary && (
+                      <p className="mb-3">{response.defendantAnalysis.summary}</p>
+                    )}
+                    {response.defendantAnalysis.opportunities && response.defendantAnalysis.opportunities.length > 0 && (
+                      <div className="mb-3">
+                        <p className="text-[16px] font-semibold mb-2 text-green-600 dark:text-green-400">✅ Возможности:</p>
+                        <ul className="list-disc ml-5">
+                          {response.defendantAnalysis.opportunities.map((opp, i) => (
+                            <li key={i} className="mb-1">{opp}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {response.defendantAnalysis.riskFactors && response.defendantAnalysis.riskFactors.length > 0 && (
+                      <div>
+                        <p className="text-[16px] font-semibold mb-2 text-orange-600 dark:text-orange-400">⚠️ Риски:</p>
+                        <ul className="list-disc ml-5">
+                          {response.defendantAnalysis.riskFactors.map((risk, i) => (
+                            <li key={i} className="mb-1">{risk}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {response.defendantAnalysis?.hasHistory && <div className="h-px bg-gray-200" />}
 
                   {/* Recommendations */}
                   {response.recommendations && (
-                    <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-4 animate-fadeIn">
                       <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                         Рекомендованные действия
                       </p>
@@ -436,11 +690,169 @@ export default function NewChatPage() {
                     </div>
                   )}
 
-                  <div className="h-px bg-gray-200" />
+              {response.recommendations && <div className="h-px bg-gray-200" />}
+
+              {/* Clarification request - ask for defendant info */}
+              {clarificationRequest && isComplete && !refinedData && (
+                <div className="flex flex-col gap-4 animate-fadeIn">
+                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
+                    Уточнить поиск
+                  </p>
+                  <div 
+                    className="p-4 rounded-xl border-2 border-dashed"
+                    style={{ 
+                      borderColor: resolvedTheme === 'light' ? '#312ecb' : '#6366f1',
+                      backgroundColor: resolvedTheme === 'light' ? 'rgba(49, 46, 203, 0.05)' : 'rgba(99, 102, 241, 0.1)'
+                    }}
+                  >
+                    <p className="text-base font-medium text-foreground mb-2">
+                      {clarificationRequest.message}
+                    </p>
+                    <p className="text-sm text-secondary-text mb-4">
+                      {clarificationRequest.hint}
+                    </p>
+                    <div className="flex flex-col gap-3">
+                      {clarificationRequest.fields.map((field) => (
+                        <div key={field.key}>
+                          <label className="block text-sm text-secondary-text mb-1">
+                            {field.label}
+                          </label>
+                          <input
+                            type="text"
+                            placeholder={field.placeholder}
+                            value={defendantForm[field.key as keyof typeof defendantForm] || ''}
+                            onChange={(e) => setDefendantForm(prev => ({ ...prev, [field.key]: e.target.value }))}
+                            className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-background text-foreground placeholder:text-secondary-text focus:outline-none focus:ring-2 focus:ring-accent"
+                          />
+                        </div>
+                      ))}
+                      <button
+                        onClick={handleDefendantSubmit}
+                        disabled={isRefining || !defendantForm.defendantName.trim()}
+                        className="mt-2 px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
+                        style={{ 
+                          backgroundColor: resolvedTheme === 'light' ? '#212121' : '#ffffff',
+                          color: resolvedTheme === 'light' ? '#ffffff' : '#000000'
+                        }}
+                      >
+                        {isRefining ? 'Поиск...' : 'Найти дела с этим ответчиком'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {clarificationRequest && !refinedData && <div className="h-px bg-gray-200" />}
+
+              {/* Refined search results */}
+              {refinedData && (
+                <div className="flex flex-col gap-4 animate-fadeIn">
+                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
+                    Анализ ответчика: {refinedData.defendantName}
+                  </p>
+                  
+                  {/* Defendant history */}
+                  {refinedData.defendantHistory && (
+                    <div className="p-4 rounded-xl" style={{ backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F' }}>
+                      <div className="grid grid-cols-3 gap-4 text-center">
+                        <div>
+                          <p className="text-2xl font-bold text-foreground">{refinedData.defendantHistory.totalCases}</p>
+                          <p className="text-xs text-secondary-text">дел всего</p>
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold text-foreground">{refinedData.defendantHistory.asDefendant}</p>
+                          <p className="text-xs text-secondary-text">как ответчик</p>
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold text-red-500">{refinedData.defendantHistory.casesLost}</p>
+                          <p className="text-xs text-secondary-text">проиграно</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Updated probability - only show when defendant has cases */}
+                  {refinedData.updatedProbability && refinedData.defendantHistory?.totalCases > 0 && (
+                    <div className="p-4 rounded-xl" style={{ backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F' }}>
+                      <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] mb-2">
+                        Обновлённый прогноз
+                      </p>
+                      <p className="text-[24px] lg:text-[32px] font-bold text-foreground">
+                        {refinedData.updatedProbability.percentage}%
+                        <span className="text-[16px] lg:text-[18px] font-medium text-gray-500 ml-2">
+                          ({refinedData.updatedProbability.level})
+                        </span>
+                      </p>
+                      <p className="text-sm text-secondary-text mt-2">
+                        {refinedData.updatedProbability.adjustment}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Additional recommendations */}
+                  {refinedData.recommendations && refinedData.recommendations.length > 0 && (
+                    <div>
+                      <p className="font-semibold mb-2">💡 Рекомендации с учётом ответчика</p>
+                      <ul className="list-disc ml-5 text-base text-foreground">
+                        {refinedData.recommendations.map((rec: string, i: number) => (
+                          <li key={i} className="mb-2">{rec}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {refinedData && <div className="h-px bg-gray-200" />}
+
+              {/* Next Steps - when complete */}
+              {isComplete && chatId && (
+                <div className="flex flex-col gap-4 animate-fadeIn">
+                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
+                    Что дальше?
+                  </p>
+                  <div className="p-4 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600">
+                    <p className="text-base text-foreground mb-4">
+                      <strong>Хотите, чтобы я подготовил документы?</strong>
+                    </p>
+                    <p className="text-sm text-gray-500 mb-4">
+                      Выберите нужный документ:
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => router.push(`/chat/${chatId}?action=lawsuit`)}
+                        className="px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-[#3a3a3a] transition-colors"
+                      >
+                        📄 Исковое заявление
+                      </button>
+                      <button
+                        onClick={() => router.push(`/chat/${chatId}?action=claim`)}
+                        className="px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-[#3a3a3a] transition-colors"
+                      >
+                        📝 Претензия
+                      </button>
+                      <button
+                        onClick={() => router.push(`/chat/${chatId}?action=motion`)}
+                        className="px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-[#3a3a3a] transition-colors"
+                      >
+                        📋 Ходатайство
+                      </button>
+                      <button
+                        onClick={() => router.push(`/chat/${chatId}?action=objection`)}
+                        className="px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-[#3a3a3a] transition-colors"
+                      >
+                        ⚖️ Возражения на иск
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {isComplete && chatId && <div className="h-px bg-gray-200" />}
 
                   {/* Documents */}
                   {response.documents && response.documents.length > 0 && (
-                    <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-4 animate-fadeIn">
                       <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                         Подготовленные документы
                       </p>
@@ -496,7 +908,17 @@ export default function NewChatPage() {
                       </button>
                     </div>
                   )}
-                </>
+              
+              {/* Loading indicator at the bottom when still generating */}
+              {isGenerating && hasContent && !isComplete && (
+                <div className="flex items-center gap-3 py-4">
+                  <div className="flex gap-1">
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                  <span className="text-sm text-gray-400">{statusMessage}</span>
+                </div>
               )}
             </div>
           </div>
@@ -509,7 +931,19 @@ export default function NewChatPage() {
           />
         </div>
       </div>
+      
     </div>
   );
 }
 
+export default function NewChatPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen bg-[#0E0E0E] items-center justify-center">
+        <div className="animate-pulse text-gray-400">Загрузка...</div>
+      </div>
+    }>
+      <NewChatPageContent />
+    </Suspense>
+  );
+}

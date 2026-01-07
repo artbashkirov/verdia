@@ -222,3 +222,12 @@ export function MonitorIcon({ className = "w-[18px] h-[18px]" }: { className?: s
   );
 }
 
+export function UserIcon({ className = "w-[18px] h-[18px]" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="9" cy="5.25" r="3" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M2.25 15.75C2.25 12.4363 4.93629 9.75 8.25 9.75H9.75C13.0637 9.75 15.75 12.4363 15.75 15.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+

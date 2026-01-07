@@ -2,6 +2,51 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { geminiChatCompletion } from '@/lib/openai';
 import { DOCUMENT_GENERATION_PROMPT, CHAT_CONTINUATION_PROMPT } from '@/lib/prompts';
+import type { UserProfile } from '@/types/database';
+
+// Format plaintiff info for document generation
+function formatPlaintiffForDocuments(profile: UserProfile | null): string {
+  if (!profile) return '';
+  
+  let context = '\n\nДАННЫЕ ИСТЦА ДЛЯ ДОКУМЕНТОВ:\n';
+  
+  if (profile.person_type === 'individual') {
+    if (profile.full_name) context += `ФИО: ${profile.full_name}\n`;
+    if (profile.passport_series && profile.passport_number) {
+      context += `Паспорт: ${profile.passport_series} ${profile.passport_number}`;
+      if (profile.passport_issued_by) context += `, выдан ${profile.passport_issued_by}`;
+      if (profile.passport_issue_date) context += ` ${profile.passport_issue_date}`;
+      context += '\n';
+    }
+    if (profile.registration_address) context += `Адрес регистрации: ${profile.registration_address}\n`;
+    if (profile.phone) context += `Телефон: ${profile.phone}\n`;
+    if (profile.email_contact) context += `Email: ${profile.email_contact}\n`;
+  } else if (profile.person_type === 'entrepreneur') {
+    if (profile.full_name) context += `ИП ${profile.full_name}\n`;
+    if (profile.ogrnip) context += `ОГРНИП: ${profile.ogrnip}\n`;
+    if (profile.inn_individual) context += `ИНН: ${profile.inn_individual}\n`;
+    if (profile.registration_address) context += `Адрес: ${profile.registration_address}\n`;
+  } else if (profile.person_type === 'legal_entity') {
+    if (profile.company_form && profile.company_name) {
+      context += `${profile.company_form} "${profile.company_name}"\n`;
+    }
+    if (profile.ogrn) context += `ОГРН: ${profile.ogrn}\n`;
+    if (profile.inn_legal) context += `ИНН: ${profile.inn_legal}\n`;
+    if (profile.kpp) context += `КПП: ${profile.kpp}\n`;
+    if (profile.registration_address) context += `Юридический адрес: ${profile.registration_address}\n`;
+  }
+  
+  // Bank details if available
+  if (profile.bank_name && profile.bank_account) {
+    context += `\nБанковские реквизиты:\n`;
+    context += `Банк: ${profile.bank_name}\n`;
+    if (profile.bank_bik) context += `БИК: ${profile.bank_bik}\n`;
+    context += `Р/с: ${profile.bank_account}\n`;
+    if (profile.bank_corr_account) context += `К/с: ${profile.bank_corr_account}\n`;
+  }
+  
+  return context;
+}
 
 const CHAT_SYSTEM_PROMPT = `Ты - Verdia, юридический AI-ассистент для граждан России. 
 Ты уже предоставил пользователю юридическую консультацию с анализом судебной практики и прогнозом успеха.
@@ -180,10 +225,20 @@ _Услуга станет доступна после оплаты подгот
 
     // Handle document generation
     if (shouldGenerateDocuments) {
+      // Load user profile for plaintiff data
+      const { data: profileData } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+      
+      const userProfile = profileData as UserProfile | null;
+      const plaintiffContext = formatPlaintiffForDocuments(userProfile);
+      
       const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
         { role: 'system', content: DOCUMENT_GENERATION_PROMPT },
-        { role: 'user', content: contextSummary },
-        { role: 'assistant', content: 'Понял контекст. Готов создать документы.' },
+        { role: 'user', content: contextSummary + plaintiffContext },
+        { role: 'assistant', content: 'Понял контекст и данные истца. Готов создать документы.' },
       ];
 
       // Add previous chat context

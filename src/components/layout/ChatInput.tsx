@@ -88,7 +88,7 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
             style={{ width: '28px', height: '28px' }}
             title="Прикрепить файл"
           >
-            <AttachmentIcon style={{ width: '20px', height: '20px' }} strokeWidth="1.5" />
+            <AttachmentIcon className="w-5 h-5" strokeWidth="1.5" />
           </button>
           
           {/* Microphone button */}
@@ -98,7 +98,7 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
             style={{ width: '28px', height: '28px' }}
             title="Голосовой ввод"
           >
-            <MicrophoneIcon style={{ width: '20px', height: '20px' }} strokeWidth="1.5" />
+            <MicrophoneIcon className="w-5 h-5" strokeWidth="1.5" />
           </button>
           
           {/* Send button */}

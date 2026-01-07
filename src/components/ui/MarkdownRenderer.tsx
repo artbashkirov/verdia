@@ -1,5 +1,7 @@
 'use client';
 
+import React from 'react';
+
 interface MarkdownRendererProps {
   content: string;
   className?: string;
@@ -7,8 +9,8 @@ interface MarkdownRendererProps {
 
 // Markdown parser for chat messages with proper nested list support
 export function MarkdownRenderer({ content, className = '' }: MarkdownRendererProps) {
-  const parseInline = (text: string): (string | JSX.Element)[] => {
-    const parts: (string | JSX.Element)[] = [];
+  const parseInline = (text: string): (string | React.ReactElement)[] => {
+    const parts: (string | React.ReactElement)[] = [];
     let remaining = text;
     let inlineKey = 0;
 
@@ -37,7 +39,7 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
 
   const parseMarkdown = (text: string) => {
     const lines = text.split('\n');
-    const elements: JSX.Element[] = [];
+    const elements: React.ReactElement[] = [];
     let key = 0;
     let i = 0;
 

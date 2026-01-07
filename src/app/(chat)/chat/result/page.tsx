@@ -149,37 +149,63 @@ function ResultContent() {
         <div className="flex-1 p-0 md:p-2 md:pl-0">
           <div className="h-full bg-background md:rounded-2xl relative flex flex-col">
           <div className="flex-1 overflow-y-auto pt-6 md:pt-14 pb-36 px-0 relative">
-            <div className="w-full md:max-w-[660px] md:mx-auto flex flex-col gap-8 break-words overflow-x-hidden" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
+            <div className="w-full md:max-w-[660px] md:mx-auto flex flex-col gap-8 break-words" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
               <h1 className="text-[20px] lg:text-[32px] font-medium text-foreground leading-[28px] lg:leading-[40px] tracking-tight break-words md:mt-0">
                 {query}
               </h1>
 
               {response.courtCases && response.courtCases.length > 0 && (
-                <div className="flex flex-col gap-4">
-                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
+                <div className="flex flex-col gap-4" style={{ marginLeft: '-16px', marginRight: '-16px' }}>
+                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
                     Судебные решения
                   </p>
-                  <div className="flex gap-2">
-                    {response.courtCases.slice(0, 3).map((c) => (
+                  <div 
+                    style={{ 
+                      display: 'flex',
+                      gap: '8px',
+                      overflowX: 'auto',
+                      overflowY: 'hidden',
+                      paddingLeft: '16px',
+                      paddingRight: '16px',
+                      paddingBottom: '4px',
+                      WebkitOverflowScrolling: 'touch',
+                      msOverflowStyle: 'none',
+                      scrollbarWidth: 'none'
+                    }}
+                  >
+                    {response.courtCases.map((c) => (
                       <a
                         key={c.id}
                         href={c.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex-1 p-3 rounded-2xl hover:bg-gray-200 dark:hover:bg-[#4a4a4a] transition-colors flex flex-col gap-3"
                         style={{ 
-                          backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F'
+                          backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F',
+                          width: '240px',
+                          minWidth: '240px',
+                          flexShrink: 0,
+                          padding: '12px',
+                          borderRadius: '16px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '12px',
+                          textDecoration: 'none',
+                          transition: 'background-color 0.2s'
                         }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = resolvedTheme === 'light' ? '#E5E5E5' : '#4a4a4a'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F'}
                       >
-                        <p className="text-[16px] lg:text-[16px] font-medium text-foreground leading-[24px] lg:leading-[24px] line-clamp-3 h-12">
+                        <p className="text-[13px] lg:text-[14px] font-medium text-foreground leading-[18px] lg:leading-[20px] line-clamp-3" style={{ margin: 0 }}>
                           {c.title}
                         </p>
-                        <p className="text-[11px] md:text-[12px] font-medium text-gray-400 leading-[14px]">
+                        <p className="text-[11px] md:text-[12px] font-medium text-gray-400 leading-[14px]" style={{ margin: 0 }}>
                           {c.url?.includes('sudact.ru') ? 'sudact.ru' : 
                            c.url?.includes('help.mos-gorsud.ru') ? 'help.mos-gorsud.ru' : 'mos-gorsud.ru'}
                         </p>
                       </a>
                     ))}
+                    {/* Spacer для последней карточки */}
+                    <div style={{ minWidth: '8px', flexShrink: 0 }} />
                   </div>
                 </div>
               )}
@@ -294,29 +320,6 @@ function ResultContent() {
 
               <div className="h-px bg-gray-200" />
 
-              {response.probability && (
-                <div className="flex flex-col gap-4">
-                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
-                    Оценка вероятности
-                  </p>
-                  <div className="text-base text-foreground leading-[24px] break-words">
-                    <p className="mb-3 break-words">Вероятность удовлетворения требований: <strong>{response.probability.level}</strong>.</p>
-                    {response.probability.factors && (
-                      <>
-                        <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 break-words">Повышается, если есть:</p>
-                        <ul className="list-disc ml-5 break-words">
-                          {response.probability.factors.map((factor, i) => (
-                            <li key={i} className="mb-2 last:mb-0 break-words">{factor}</li>
-                          ))}
-                        </ul>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div className="h-px bg-gray-200" />
-
               {response.recommendations && (
                 <div className="flex flex-col gap-4">
                   <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
@@ -329,6 +332,32 @@ function ResultContent() {
                   </ol>
                 </div>
               )}
+
+              <div className="h-px bg-gray-200" />
+
+              {/* Next Steps - Document Offer */}
+              <div className="flex flex-col gap-4">
+                <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
+                  Что дальше?
+                </p>
+                <div className="p-4 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600">
+                  <p className="text-base text-foreground mb-4">
+                    <strong>Хотите, чтобы я подготовил документы?</strong>
+                  </p>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Могу составить для вас:
+                  </p>
+                  <ul className="text-sm text-foreground space-y-2 mb-4">
+                    <li>📄 <strong>Исковое заявление</strong> — для подачи в суд</li>
+                    <li>📝 <strong>Претензию</strong> — для досудебного урегулирования</li>
+                    <li>📋 <strong>Ходатайство</strong> — для заявления в процессе</li>
+                    <li>⚖️ <strong>Возражения на иск</strong> — для защиты от требований</li>
+                  </ul>
+                  <p className="text-sm text-gray-500">
+                    Напишите в чат какой документ вам нужен
+                  </p>
+                </div>
+              </div>
 
               <div className="h-px bg-gray-200" />
 

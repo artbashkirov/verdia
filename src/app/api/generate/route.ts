@@ -144,8 +144,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 3: Save generation to database
-    const { data: generation, error: dbError } = await supabase
-      .from('generations')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: generation, error: dbError } = await (supabase.from('generations') as any)
       .insert({
         user_id: user.id,
         query: query,
@@ -171,8 +171,8 @@ export async function POST(request: NextRequest) {
 
     // Step 4: Create chat history entry
     if (generation) {
-      const { error: historyError } = await supabase
-        .from('chat_history')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: historyError } = await (supabase.from('chat_history') as any)
         .insert({
           user_id: user.id,
           title: query.slice(0, 100),
