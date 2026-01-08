@@ -156,11 +156,11 @@ async function getBrowser(): Promise<Browser> {
   console.log('getBrowser called, BROWSERLESS_API_KEY exists:', !!browserlessApiKey);
   
   if (browserlessApiKey) {
-    // Use Browserless.io cloud browser (for Vercel/production)
+    // Use Browserless.io cloud browser with stealth mode (for Vercel/production)
     try {
-      console.log('Connecting to Browserless.io cloud browser...');
+      console.log('Connecting to Browserless.io cloud browser with stealth...');
       const browser = await puppeteerCore.connect({
-        browserWSEndpoint: `wss://chrome.browserless.io?token=${browserlessApiKey}`,
+        browserWSEndpoint: `wss://chrome.browserless.io?token=${browserlessApiKey}&stealth=true&blockAds=true`,
       });
       console.log('Successfully connected to Browserless.io');
       return browser as unknown as Browser;
@@ -204,26 +204,20 @@ async function scrapeSudact(searchTerms: string, maxResults: number = 5): Promis
     
     const page = await browser.newPage();
     
-    // Block unnecessary resources for speed
-    await page.setRequestInterception(true);
-    page.on('request', (req) => {
-      const resourceType = req.resourceType();
-      if (['image', 'stylesheet', 'font', 'media'].includes(resourceType)) {
-        req.abort();
-      } else {
-        req.continue();
-      }
+    // Set realistic browser fingerprint
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    await page.setExtraHTTPHeaders({
+      'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
     });
-    
-    await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36');
     
     // Navigate to search page - суды Москвы
     const searchUrl = `https://sudact.ru/regular/doc/?regular-txt=${encodeURIComponent(searchTerms)}&regular-area=1011`;
     console.log('Navigating to:', searchUrl);
     
     await page.goto(searchUrl, { 
-      waitUntil: 'domcontentloaded', // Faster than networkidle2
-      timeout: 15000 
+      waitUntil: 'networkidle2',
+      timeout: 30000 
     });
     
     // Wait for results to load - try multiple selectors
