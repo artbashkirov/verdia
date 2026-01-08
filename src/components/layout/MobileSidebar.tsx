@@ -275,7 +275,7 @@ export function MobileSidebar({
           {/* Chat history */}
           <div ref={historyRef} className="flex flex-col gap-2 flex-1 overflow-y-auto" style={{ marginTop: '12px' }}>
             {isLoadingHistory ? (
-              <div className="p-3 text-sm text-gray-500">Загрузка...</div>
+              <div className="p-3 text-sm text-gray-400">Загрузка...</div>
             ) : displayHistory.length === 0 ? (
               null
             ) : (
@@ -284,7 +284,7 @@ export function MobileSidebar({
                   key={chat.id}
                   className={`
                     group relative h-10 rounded-xl transition-colors
-                    ${currentChatId === chat.id ? 'bg-[#3a3a3a] dark:bg-[#1E1E1F]' : 'hover:bg-[#3a3a3a] dark:hover:bg-[#1E1E1F]'}
+                    ${currentChatId === chat.id ? 'bg-white/10' : 'hover:bg-white/10'}
                   `}
                 >
                   <Link
@@ -323,32 +323,32 @@ export function MobileSidebar({
           <div className="relative" ref={dropdownRef}>
             <button 
               onClick={() => setShowDropdown(!showDropdown)}
-              className="w-full flex items-center justify-between px-4 py-2.5 bg-[#3a3a3a] dark:bg-[#1E1E1F] rounded-xl hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a] transition-colors"
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
             >
               <div className="flex flex-col items-start">
                 <span className="text-sm font-semibold text-white">{userName}</span>
-                <span className="text-xs font-medium text-gray-500">{userPlan}</span>
+                <span className="text-xs font-medium text-gray-400">{userPlan}</span>
               </div>
               <ChevronDownIcon className={`w-[18px] h-[18px] text-white transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
             </button>
 
             {/* Dropdown menu */}
             {showDropdown && (
-              <div className="absolute bottom-full mb-2 left-0 right-0 bg-[#5a5a5a] dark:bg-[#3a3a3a] rounded-xl overflow-hidden shadow-lg z-50">
+              <div className="absolute bottom-full mb-2 left-0 right-0 bg-white rounded-xl overflow-hidden shadow-lg border border-gray-200 z-50">
                 <Link
                   href="/profile"
                   onClick={() => {
                     setShowDropdown(false);
                     onClose();
                   }}
-                  className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-white hover:bg-[#6a6a6a] dark:hover:bg-[#4a4a4a] transition-colors"
+                  className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-foreground hover:bg-gray-100 transition-colors"
                 >
                   <UserIcon className="w-[18px] h-[18px]" />
                   <span>Профиль истца</span>
                 </Link>
                 <button
                   onClick={handleClearHistory}
-                  className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-white hover:bg-[#6a6a6a] dark:hover:bg-[#4a4a4a] transition-colors"
+                  className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-foreground hover:bg-gray-100 transition-colors"
                 >
                   <TrashIcon className="w-[18px] h-[18px]" />
                   <span>Очистить историю</span>
@@ -359,16 +359,16 @@ export function MobileSidebar({
                     setShowDropdown(false);
                     onClose();
                   }}
-                  className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-white hover:bg-[#6a6a6a] dark:hover:bg-[#4a4a4a] transition-colors"
+                  className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-foreground hover:bg-gray-100 transition-colors"
                 >
                   <HelpCircleIcon className="w-[18px] h-[18px]" />
                   <span>Вопросы и ответы</span>
                 </Link>
                 
-                <div className="border-t border-white/10 my-1"></div>
+                <div className="border-t border-gray-200 my-1"></div>
                 <button
                   onClick={handleSignOut}
-                  className="w-full px-4 py-3 text-left text-sm text-white hover:bg-[#6a6a6a] dark:hover:bg-[#4a4a4a] transition-colors"
+                  className="w-full px-4 py-3 text-left text-sm text-foreground hover:bg-gray-100 transition-colors"
                 >
                   Выйти из аккаунта
                 </button>

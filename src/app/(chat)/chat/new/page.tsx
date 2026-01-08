@@ -330,7 +330,7 @@ function NewChatPageContent() {
   const hasContent = response.courtCases || response.shortAnswer || response.legalAnalysis;
 
   return (
-    <div className="flex h-screen bg-[#0E0E0E]">
+    <div className="flex h-screen bg-background">
       <MobileHeader 
         onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         isMenuOpen={isMobileMenuOpen}
@@ -946,7 +946,7 @@ function NewChatPageContent() {
 export default function NewChatPage() {
   return (
     <Suspense fallback={
-      <div className="flex h-screen bg-[#0E0E0E] items-center justify-center">
+      <div className="flex h-screen bg-background items-center justify-center">
         <div className="animate-pulse text-gray-400">Загрузка...</div>
       </div>
     }>

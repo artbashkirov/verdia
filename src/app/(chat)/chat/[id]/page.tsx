@@ -346,7 +346,7 @@ export default function ChatResultPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen bg-[#0E0E0E]">
+      <div className="flex h-screen bg-background">
         <MobileHeader 
           onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           isMenuOpen={isMobileMenuOpen}
@@ -370,7 +370,7 @@ export default function ChatResultPage() {
 
   if (error || !generation) {
     return (
-      <div className="flex h-screen bg-[#0E0E0E]">
+      <div className="flex h-screen bg-background">
         <MobileHeader 
           onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           isMenuOpen={isMobileMenuOpen}
@@ -403,7 +403,7 @@ export default function ChatResultPage() {
   const { query, response } = generation;
 
   return (
-    <div className="flex h-screen bg-[#0E0E0E] max-w-[100vw] overflow-x-hidden">
+    <div className="flex h-screen bg-background max-w-[100vw] overflow-x-hidden">
       <MobileHeader 
         onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         isMenuOpen={isMobileMenuOpen}

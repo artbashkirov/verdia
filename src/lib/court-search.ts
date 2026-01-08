@@ -1,7 +1,9 @@
 // Court case search using sudact.ru and mos-gorsud.ru
 // Uses Puppeteer to scrape real court cases
+// On Vercel, uses Browserless.io cloud browser
 
-import puppeteer from 'puppeteer';
+import puppeteer, { Browser } from 'puppeteer';
+import puppeteerCore from 'puppeteer-core';
 
 export interface CourtCase {
   title: string;
@@ -147,6 +149,24 @@ const BROWSER_OPTIONS = {
   timeout: 15000, // Reduced from 30s
 };
 
+// Get browser instance - uses Browserless.io in production, local Puppeteer in development
+async function getBrowser(): Promise<Browser> {
+  const browserlessApiKey = process.env.BROWSERLESS_API_KEY;
+  
+  if (browserlessApiKey) {
+    // Use Browserless.io cloud browser (for Vercel/production)
+    console.log('Connecting to Browserless.io cloud browser...');
+    const browser = await puppeteerCore.connect({
+      browserWSEndpoint: `wss://chrome.browserless.io?token=${browserlessApiKey}`,
+    });
+    return browser as unknown as Browser;
+  } else {
+    // Use local Puppeteer (for development)
+    console.log('Launching local browser...');
+    return await puppeteer.launch(BROWSER_OPTIONS);
+  }
+}
+
 // Simple in-memory cache for search results
 const searchCache = new Map<string, { cases: CourtCase[]; timestamp: number }>();
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
@@ -163,9 +183,9 @@ async function scrapeSudact(searchTerms: string, maxResults: number = 5): Promis
 
   let browser;
   try {
-    console.log('Launching browser for sudact.ru scraping...');
+    console.log('Getting browser for sudact.ru scraping...');
     
-    browser = await puppeteer.launch(BROWSER_OPTIONS);
+    browser = await getBrowser();
     
     const page = await browser.newPage();
     
@@ -416,9 +436,9 @@ async function scrapeSudact(searchTerms: string, maxResults: number = 5): Promis
 async function scrapeMosGorsud(searchTerms: string, maxResults: number = 5): Promise<CourtCase[]> {
   let browser;
   try {
-    console.log('Launching browser for mos-gorsud.ru scraping...');
+    console.log('Getting browser for mos-gorsud.ru scraping...');
     
-    browser = await puppeteer.launch(BROWSER_OPTIONS);
+    browser = await getBrowser();
     
     const page = await browser.newPage();
     await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36');
@@ -543,7 +563,7 @@ export async function searchDefendantHistory(defendantName: string): Promise<Def
   
   let browser;
   try {
-    browser = await puppeteer.launch(BROWSER_OPTIONS);
+    browser = await getBrowser();
     
     const page = await browser.newPage();
     await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36');

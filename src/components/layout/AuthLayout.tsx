@@ -20,22 +20,22 @@ export function AuthLayout({ children, title = "Заголовок", description
 
   return (
     <div 
-      className="fixed inset-0 w-full bg-[#0E0E0E] flex items-center justify-center lg:p-0 overflow-hidden"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)', backgroundColor: '#0E0E0E' }}
+      className="fixed inset-0 w-full bg-background flex items-center justify-center lg:p-0 overflow-hidden"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      <div className="w-full h-full bg-[#0E0E0E] flex flex-col lg:flex-row overflow-hidden">
+      <div className="w-full h-full bg-background flex flex-col lg:flex-row overflow-hidden">
         {/* Left panel with form - full width on mobile, 50% on desktop */}
         <div className="w-full lg:w-1/2 flex flex-col relative h-full">
           {/* Logo for mobile - centered at top, 63px from top */}
           <div className={`lg:hidden absolute top-[63px] left-1/2 -translate-x-1/2 z-10 transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
-            <LogoFull variant="light" size="small" />
+            <LogoFull variant="dark" size="small" />
           </div>
           
           {/* Form content - mobile: centered with padding, desktop: centered with 70px padding */}
           <div className="flex-1 flex items-center justify-center px-[24px] py-8 lg:px-[70px] lg:py-0 relative overflow-hidden">
             {/* Logo positioned at top center, 80px from top of screen, centered with form - visible on desktop, 32px height */}
             <div className={`hidden lg:block absolute top-[80px] left-1/2 -translate-x-1/2 z-10 transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
-              <LogoFull variant="light" size="default" />
+              <LogoFull variant="dark" size="default" />
             </div>
             
             {/* Form container - max-width 460px, full width on mobile up to 460px */}

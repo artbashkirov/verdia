@@ -34,7 +34,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-screen bg-[#0E0E0E]">
+    <div className="flex h-screen bg-background">
       {/* Mobile Header */}
       <MobileHeader 
         onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
