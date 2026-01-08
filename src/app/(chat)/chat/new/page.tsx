@@ -543,7 +543,7 @@ function NewChatPageContent() {
                       return (
                         <div className="mt-4 p-4 rounded-xl relative" style={{ backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F' }}>
                           <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] mb-2">
-                            Оценка вероятности успеха
+                            Вероятность выиграть дело
                           </p>
                           <p className="text-[24px] lg:text-[32px] font-bold text-foreground">
                             {percentage > 0 ? `${percentage}%` : '—'}
@@ -823,7 +823,7 @@ function NewChatPageContent() {
                   {refinedData.updatedProbability && refinedData.defendantHistory?.totalCases > 0 && (
                     <div className="p-4 rounded-xl" style={{ backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F' }}>
                       <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] mb-2">
-                        Обновлённый прогноз
+                        Вероятность выиграть дело (уточнённая)
                       </p>
                       <p className="text-[24px] lg:text-[32px] font-bold text-foreground">
                         {refinedData.updatedProbability.percentage}%
