@@ -705,13 +705,7 @@ function NewChatPageContent() {
                   <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                     Уточнить поиск
                   </p>
-                  <div 
-                    className="p-4 rounded-xl border-2 border-dashed"
-                    style={{ 
-                      borderColor: resolvedTheme === 'light' ? '#312ecb' : '#6366f1',
-                      backgroundColor: resolvedTheme === 'light' ? 'rgba(49, 46, 203, 0.05)' : 'rgba(99, 102, 241, 0.1)'
-                    }}
-                  >
+                  <div className="p-4 rounded-xl bg-[#F3F3F3]">
                     <p className="text-base font-medium text-foreground mb-2">
                       {clarificationRequest.message}
                     </p>
