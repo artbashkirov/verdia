@@ -818,12 +818,12 @@ function NewChatPageContent() {
                   <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                     Что дальше?
                   </p>
-                  <div className="p-4 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600">
+                  <div className="p-4 rounded-xl bg-[#F3F3F3]">
                     <p className="text-base text-foreground mb-4">
                       <strong>Хотите, чтобы я подготовил документы?</strong>
                     </p>
                     <p className="text-sm text-gray-500 mb-4">
-                      Выберите нужный документ:
+                      Напишите в чат какой документ вам нужен:
                     </p>
                     <div className="flex flex-wrap gap-2">
                       <button
