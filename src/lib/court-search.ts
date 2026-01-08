@@ -188,6 +188,13 @@ const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
 // Scrape court cases from sudact.ru using Puppeteer
 async function scrapeSudact(searchTerms: string, maxResults: number = 5): Promise<CourtCase[]> {
+  // On Vercel/production, sudact.ru blocks cloud IPs - skip scraping
+  // TODO: Add VPS proxy or residential proxy for production scraping
+  if (process.env.VERCEL || process.env.BROWSERLESS_API_KEY) {
+    console.log('Skipping scraping on production - sudact.ru blocks cloud IPs');
+    return [];
+  }
+  
   // Check cache first
   const cacheKey = `sudact:${searchTerms}`;
   const cached = searchCache.get(cacheKey);
