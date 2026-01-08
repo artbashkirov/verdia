@@ -1,9 +1,12 @@
 // Court case search using sudact.ru and mos-gorsud.ru
-// Uses Puppeteer to scrape real court cases
-// On Vercel, uses Browserless.io cloud browser
+// Uses VPS scraper in production, local Puppeteer in development
 
 import puppeteer, { Browser } from 'puppeteer';
 import puppeteerCore from 'puppeteer-core';
+
+// VPS Scraper configuration
+const VPS_SCRAPER_URL = process.env.VPS_SCRAPER_URL || 'http://193.227.240.206:3001';
+const SCRAPER_API_KEY = process.env.SCRAPER_API_KEY || 'verdia_scraper_2026_secret_xyz789';
 
 export interface CourtCase {
   title: string;
@@ -186,13 +189,46 @@ async function getBrowser(): Promise<Browser> {
 const searchCache = new Map<string, { cases: CourtCase[]; timestamp: number }>();
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
+// Call VPS scraper API
+async function callVpsScraper(searchTerms: string, maxResults: number = 5): Promise<CourtCase[]> {
+  try {
+    console.log(`Calling VPS scraper at ${VPS_SCRAPER_URL} for: ${searchTerms}`);
+    
+    const response = await fetch(`${VPS_SCRAPER_URL}/scrape/sudact`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': SCRAPER_API_KEY,
+      },
+      body: JSON.stringify({ searchTerms, maxResults }),
+    });
+    
+    if (!response.ok) {
+      console.error('VPS scraper error:', response.status, response.statusText);
+      return [];
+    }
+    
+    const data = await response.json();
+    console.log(`VPS scraper returned ${data.cases?.length || 0} cases`);
+    
+    return (data.cases || []).map((c: { title: string; url: string; snippet: string; court?: string; date?: string; result?: string }) => ({
+      ...c,
+      caseNumber: extractCaseNumber(c.title),
+      result: c.result as CourtCase['result'],
+      isSearchLink: false,
+    }));
+  } catch (error) {
+    console.error('Failed to call VPS scraper:', error);
+    return [];
+  }
+}
+
 // Scrape court cases from sudact.ru using Puppeteer
 async function scrapeSudact(searchTerms: string, maxResults: number = 5): Promise<CourtCase[]> {
-  // On Vercel/production, sudact.ru blocks cloud IPs - skip scraping
-  // TODO: Add VPS proxy or residential proxy for production scraping
-  if (process.env.VERCEL || process.env.BROWSERLESS_API_KEY) {
-    console.log('Skipping scraping on production - sudact.ru blocks cloud IPs');
-    return [];
+  // In production, use VPS scraper
+  if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+    console.log('Using VPS scraper for production');
+    return callVpsScraper(searchTerms, maxResults);
   }
   
   // Check cache first
