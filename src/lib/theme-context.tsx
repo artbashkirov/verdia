@@ -1,73 +1,31 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, ReactNode } from 'react';
 
-type Theme = 'light' | 'dark' | 'system';
+type Theme = 'light';
 
 interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
-  resolvedTheme: 'light' | 'dark';
+  resolvedTheme: 'light';
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window !== 'undefined') {
-      const savedTheme = localStorage.getItem('theme') as Theme | null;
-      if (savedTheme && ['light', 'dark', 'system'].includes(savedTheme)) {
-        return savedTheme;
-      }
-    }
-    return 'system';
-  });
-  
-  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>(() => {
-    if (typeof window !== 'undefined') {
-      const savedTheme = localStorage.getItem('theme') as Theme | null;
-      if (savedTheme === 'light') return 'light';
-      if (savedTheme === 'dark') return 'dark';
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-    return 'dark';
-  });
+  // Только светлая тема - темная тема временно отключена
+  const theme: Theme = 'light';
+  const resolvedTheme: 'light' = 'light';
 
   useEffect(() => {
     const root = document.documentElement;
-    
-    const getSystemTheme = (): 'light' | 'dark' => {
-      if (typeof window !== 'undefined') {
-        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      }
-      return 'dark';
-    };
+    // Устанавливаем только светлую тему
+    root.classList.remove('dark');
+    root.classList.add('light');
+  }, []);
 
-    const applyTheme = (t: Theme) => {
-      const actualTheme = t === 'system' ? getSystemTheme() : t;
-      setResolvedTheme(actualTheme);
-      
-      // Remove all theme classes first
-      root.classList.remove('dark', 'light');
-      
-      // Add the appropriate theme class
-      root.classList.add(actualTheme);
-    };
-
-    applyTheme(theme);
-
-    // Listen for system theme changes
-    if (theme === 'system') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const handleChange = () => applyTheme('system');
-      mediaQuery.addEventListener('change', handleChange);
-      return () => mediaQuery.removeEventListener('change', handleChange);
-    }
-  }, [theme]);
-
-  const setTheme = (newTheme: Theme) => {
-    setThemeState(newTheme);
-    localStorage.setItem('theme', newTheme);
+  const setTheme = () => {
+    // Временно отключено - всегда светлая тема
   };
 
   return (
