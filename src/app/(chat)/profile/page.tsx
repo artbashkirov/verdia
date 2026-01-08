@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Sidebar } from '@/components/layout';
 import { MobileHeader } from '@/components/layout/MobileHeader';
 import { MobileSidebar } from '@/components/layout/MobileSidebar';
-import { Button } from '@/components/ui';
+import { useTheme } from '@/lib/theme-context';
 import type { PersonType, UserProfile } from '@/types/database';
 
 // Tabs for different sections
@@ -14,6 +14,7 @@ type TabType = 'personal' | 'address' | 'bank' | 'defendants';
 
 export default function ProfilePage() {
   const router = useRouter();
+  const { resolvedTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<TabType>('personal');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -397,9 +398,17 @@ export default function ProfilePage() {
 
             {/* Save button */}
             <div className="mt-8 flex items-center gap-4">
-              <Button onClick={handleSave} disabled={isSaving}>
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl font-medium transition-colors disabled:opacity-50"
+                style={{ 
+                  backgroundColor: resolvedTheme === 'light' ? '#212121' : '#ffffff',
+                  color: resolvedTheme === 'light' ? '#ffffff' : '#000000'
+                }}
+              >
                 {isSaving ? 'Сохранение...' : 'Сохранить профиль'}
-              </Button>
+              </button>
               {message && (
                 <span className={`text-sm ${message.type === 'success' ? 'text-green-500' : 'text-red-500'}`}>
                   {message.text}

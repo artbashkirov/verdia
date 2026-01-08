@@ -62,6 +62,28 @@ function ResultContent() {
   const query = searchParams.get('q') || '';
   const [response, setResponse] = useState<GenerationResponse | null>(null);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [visitedUrls, setVisitedUrls] = useState<Set<string>>(new Set());
+
+  // Load visited URLs from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('visitedCourtCases');
+    if (stored) {
+      try {
+        setVisitedUrls(new Set(JSON.parse(stored)));
+      } catch (e) {
+        console.error('Error loading visited URLs:', e);
+      }
+    }
+  }, []);
+
+  const markAsVisited = (url: string) => {
+    setVisitedUrls(prev => {
+      const updated = new Set(prev);
+      updated.add(url);
+      localStorage.setItem('visitedCourtCases', JSON.stringify([...updated]));
+      return updated;
+    });
+  };
 
   useEffect(() => {
     const stored = sessionStorage.getItem('lastResponse');
@@ -126,7 +148,7 @@ function ResultContent() {
       <div className="flex h-screen bg-[#0E0E0E]">
         <Sidebar onNewChat={handleNewChat} />
         <div className="flex-1 p-0 md:p-2 md:pl-0">
-          <div className="h-full bg-background md:rounded-2xl flex items-center justify-center">
+          <div className="h-full bg-background md:rounded-2xl overflow-hidden flex items-center justify-center">
             <div className="text-center">
               <p className="text-lg text-gray-400 mb-4">Результат не найден</p>
               <button
@@ -147,7 +169,7 @@ function ResultContent() {
       <Sidebar onNewChat={handleNewChat} />
       
         <div className="flex-1 p-0 md:p-2 md:pl-0">
-          <div className="h-full bg-background md:rounded-2xl relative flex flex-col">
+          <div className="h-full bg-background md:rounded-2xl overflow-hidden relative flex flex-col">
           <div className="flex-1 overflow-y-auto pt-6 md:pt-14 pb-36 px-0 relative">
             <div className="w-full md:max-w-[660px] md:mx-auto flex flex-col gap-8 break-words" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
               <h1 className="text-[20px] lg:text-[32px] font-medium text-foreground leading-[28px] lg:leading-[40px] tracking-tight break-words md:mt-0">
@@ -179,8 +201,10 @@ function ResultContent() {
                         href={c.url}
                         target="_blank"
                         rel="noopener noreferrer"
+                            onClick={() => markAsVisited(c.url)}
                         style={{ 
-                          backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F',
+                          opacity: visitedUrls.has(c.url) ? 0.5 : 1,
+                              backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F',
                           width: '240px',
                           minWidth: '240px',
                           flexShrink: 0,
@@ -190,7 +214,7 @@ function ResultContent() {
                           flexDirection: 'column',
                           gap: '12px',
                           textDecoration: 'none',
-                          transition: 'background-color 0.2s'
+                          transition: 'background-color 0.2s, opacity 0.2s'
                         }}
                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = resolvedTheme === 'light' ? '#E5E5E5' : '#4a4a4a'}
                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F'}
@@ -271,7 +295,7 @@ function ResultContent() {
                     )}
                     {response.legalAnalysis.bases && response.legalAnalysis.bases.length > 0 && (
                       <>
-                        <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 break-words">Основания:</p>
+                        <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 mt-3 lg:mt-4 break-words">Основания:</p>
                         <ul className="list-disc ml-5 break-words">
                           {response.legalAnalysis.bases.map((base, i) => (
                             <li key={i} className="mb-2 last:mb-0 break-words">{base}</li>
@@ -295,7 +319,7 @@ function ResultContent() {
                     
                     {response.practiceAnalysis.satisfied && (
                       <>
-                        <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 break-words">{response.practiceAnalysis.satisfied.title}</p>
+                        <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 mt-3 lg:mt-4 break-words">{response.practiceAnalysis.satisfied.title}</p>
                         <ul className="list-disc ml-5 mb-3 break-words">
                           {response.practiceAnalysis.satisfied.points.map((point, i) => (
                             <li key={i} className="mb-2 last:mb-0 break-words">{point}</li>
@@ -306,7 +330,7 @@ function ResultContent() {
                     
                     {response.practiceAnalysis.rejected && (
                       <>
-                        <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 break-words">{response.practiceAnalysis.rejected.title}</p>
+                        <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 mt-3 lg:mt-4 break-words">{response.practiceAnalysis.rejected.title}</p>
                         <ul className="list-disc ml-5 break-words">
                           {response.practiceAnalysis.rejected.points.map((point, i) => (
                             <li key={i} className="mb-2 last:mb-0 break-words">{point}</li>

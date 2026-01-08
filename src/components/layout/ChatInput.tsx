@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, KeyboardEvent } from 'react';
-import { AttachmentIcon, MicrophoneIcon } from '@/components/icons';
 import { SendHorizontal } from 'lucide-react';
 
 interface ChatInputProps {
@@ -80,26 +79,6 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
             disabled={disabled}
             className="flex-1 bg-transparent outline-none text-base font-normal text-foreground placeholder:text-[#808080]"
           />
-          
-          {/* Attachment button */}
-          <button
-            type="button"
-            className="flex items-center justify-center text-foreground transition-colors"
-            style={{ width: '28px', height: '28px' }}
-            title="Прикрепить файл"
-          >
-            <AttachmentIcon className="w-5 h-5" strokeWidth="1.5" />
-          </button>
-          
-          {/* Microphone button */}
-          <button
-            type="button"
-            className="flex items-center justify-center text-foreground transition-colors"
-            style={{ width: '28px', height: '28px' }}
-            title="Голосовой ввод"
-          >
-            <MicrophoneIcon className="w-5 h-5" strokeWidth="1.5" />
-          </button>
           
           {/* Send button */}
           <button

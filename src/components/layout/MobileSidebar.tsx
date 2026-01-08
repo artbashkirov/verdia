@@ -5,10 +5,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { MessageCircleMore } from 'lucide-react';
-import { PlusIcon, TrashIcon, HelpCircleIcon, ChevronDownIcon, SunIcon, MonitorIcon } from '@/components/icons';
-import { Moon } from 'lucide-react';
+import { PlusIcon, TrashIcon, HelpCircleIcon, ChevronDownIcon, UserIcon } from '@/components/icons';
 import { createClient } from '@/lib/supabase/client';
-import { useTheme } from '@/lib/theme-context';
 import type { User } from '@supabase/supabase-js';
 
 interface ChatHistory {
@@ -34,13 +32,14 @@ export function MobileSidebar({
   onClearHistory,
 }: MobileSidebarProps) {
   const router = useRouter();
-  const { theme, setTheme } = useTheme();
   const [user, setUser] = useState<User | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatHistory[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [hasOverflow, setHasOverflow] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const historyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -103,6 +102,19 @@ export function MobileSidebar({
     };
   }, [isOpen, onClose]);
 
+  // Check if chat history has overflow
+  useEffect(() => {
+    const checkOverflow = () => {
+      if (historyRef.current) {
+        setHasOverflow(historyRef.current.scrollHeight > historyRef.current.clientHeight);
+      }
+    };
+    
+    checkOverflow();
+    window.addEventListener('resize', checkOverflow);
+    return () => window.removeEventListener('resize', checkOverflow);
+  }, [chatHistory, isOpen]);
+
   const loadChatHistory = async (userId: string) => {
     setIsLoadingHistory(true);
     const supabase = createClient();
@@ -111,8 +123,7 @@ export function MobileSidebar({
     const { data, error } = await (supabase.from('generations') as any)
       .select('id, query, created_at')
       .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(10);
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error loading chat history:', error);
@@ -222,13 +233,13 @@ export function MobileSidebar({
       {/* Sidebar */}
       <div
         ref={sidebarRef}
-        className={`fixed top-0 left-0 h-screen bg-[#17181A] flex flex-col justify-between shrink-0 transition-transform duration-300 ease-in-out z-50 md:hidden ${
+        className={`fixed top-0 left-0 h-screen bg-[#17181A] flex flex-col shrink-0 transition-transform duration-300 ease-in-out z-50 md:hidden ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
         style={{ width: '60vw' }}
       >
         {/* Top section */}
-        <div className="flex flex-col pt-5 pb-5 px-4">
+        <div className="flex flex-col flex-1 min-h-0 pt-5 px-4">
           {/* Logo - full version */}
           <div className="flex items-center mb-5">
             <Link href="/chat" onClick={handleChatClick} className="flex items-center justify-center" style={{ lineHeight: 0 }}>
@@ -262,37 +273,42 @@ export function MobileSidebar({
           </button>
 
           {/* Chat history */}
-          <div className="flex flex-col gap-2" style={{ marginTop: '12px' }}>
+          <div ref={historyRef} className="flex flex-col gap-2 flex-1 overflow-y-auto" style={{ marginTop: '12px' }}>
             {isLoadingHistory ? (
               <div className="p-3 text-sm text-gray-500">Загрузка...</div>
             ) : displayHistory.length === 0 ? (
-              <div className="p-3 text-sm text-gray-500">История пуста</div>
+              null
             ) : (
               displayHistory.map((chat) => (
                 <div
                   key={chat.id}
                   className={`
-                    group relative flex items-center gap-2 h-10 px-3 rounded-xl transition-colors
+                    group relative h-10 rounded-xl transition-colors
                     ${currentChatId === chat.id ? 'bg-[#3a3a3a] dark:bg-[#1E1E1F]' : 'hover:bg-[#3a3a3a] dark:hover:bg-[#1E1E1F]'}
                   `}
                 >
                   <Link
                     href={`/chat/${chat.id}`}
                     onClick={handleChatClick}
-                    className="flex items-center gap-2 flex-1 min-w-0"
+                    className="flex items-center gap-2 w-full h-full px-3 overflow-hidden"
                   >
                     <MessageCircleMore className="w-4 h-4 text-white shrink-0" strokeWidth="1.5" />
                     <span className="text-sm font-medium text-white truncate">
                       {chat.title}
                     </span>
                   </Link>
-                  <button
-                    onClick={(e) => handleDeleteChat(e, chat.id)}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-white/10 transition-all shrink-0"
-                    title="Удалить"
-                  >
-                    <TrashIcon className="w-4 h-4 text-gray-400 hover:text-red-400" />
-                  </button>
+                  <div className="absolute right-0 top-0 h-full flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="w-12 h-full bg-gradient-to-r from-[#17181A]/0 to-[#17181A]" />
+                    <div className="h-full flex items-center bg-[#17181A] pr-2">
+                      <button
+                        onClick={(e) => handleDeleteChat(e, chat.id)}
+                        className="p-1 rounded-lg hover:bg-white/10"
+                        title="Удалить"
+                      >
+                        <TrashIcon className="w-4 h-4 text-gray-400 hover:text-red-400" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ))
             )}
@@ -300,7 +316,9 @@ export function MobileSidebar({
         </div>
 
         {/* Bottom section */}
-        <div className="pb-5 pt-3 px-4">
+        <div className="pb-5 px-4 shrink-0">
+          {/* Divider - only show when chat history overflows */}
+          {hasOverflow && <div className="h-px bg-white/10 mb-3" />}
           {/* User profile */}
           <div className="relative" ref={dropdownRef}>
             <button 
@@ -316,10 +334,21 @@ export function MobileSidebar({
 
             {/* Dropdown menu */}
             {showDropdown && (
-              <div className="absolute bottom-full mb-2 left-0 right-0 bg-[#3a3a3a] dark:bg-[#1E1E1F] rounded-xl overflow-hidden shadow-lg z-50">
+              <div className="absolute bottom-full mb-2 left-0 right-0 bg-[#5a5a5a] dark:bg-[#3a3a3a] rounded-xl overflow-hidden shadow-lg z-50">
+                <Link
+                  href="/profile"
+                  onClick={() => {
+                    setShowDropdown(false);
+                    onClose();
+                  }}
+                  className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-white hover:bg-[#6a6a6a] dark:hover:bg-[#4a4a4a] transition-colors"
+                >
+                  <UserIcon className="w-[18px] h-[18px]" />
+                  <span>Профиль истца</span>
+                </Link>
                 <button
                   onClick={handleClearHistory}
-                  className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-white hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a] transition-colors"
+                  className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-white hover:bg-[#6a6a6a] dark:hover:bg-[#4a4a4a] transition-colors"
                 >
                   <TrashIcon className="w-[18px] h-[18px]" />
                   <span>Очистить историю</span>
@@ -330,66 +359,16 @@ export function MobileSidebar({
                     setShowDropdown(false);
                     onClose();
                   }}
-                  className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-white hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a] transition-colors"
+                  className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-white hover:bg-[#6a6a6a] dark:hover:bg-[#4a4a4a] transition-colors"
                 >
                   <HelpCircleIcon className="w-[18px] h-[18px]" />
                   <span>Вопросы и ответы</span>
                 </Link>
                 
-                {/* Theme selector */}
-                <div className="border-t border-white/10 my-1"></div>
-                <div className="px-4 py-2">
-                  <div className="text-xs font-medium text-gray-400 mb-2">Тема интерфейса</div>
-                  <div className="flex flex-col gap-1">
-                    <button
-                      onClick={() => {
-                        setTheme('light');
-                        setShowDropdown(false);
-                      }}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                        theme === 'light' 
-                          ? 'bg-[#4a4a4a] dark:bg-[#2a2a2a] text-white' 
-                          : 'text-gray-300 hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a]'
-                      }`}
-                    >
-                      <SunIcon className="w-[18px] h-[18px]" />
-                      <span>Дневная</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setTheme('dark');
-                        setShowDropdown(false);
-                      }}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                        theme === 'dark' 
-                          ? 'bg-[#4a4a4a] dark:bg-[#2a2a2a] text-white' 
-                          : 'text-gray-300 hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a]'
-                      }`}
-                    >
-                      <Moon className="w-[18px] h-[18px]" />
-                      <span>Ночная</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setTheme('system');
-                        setShowDropdown(false);
-                      }}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                        theme === 'system' 
-                          ? 'bg-[#4a4a4a] dark:bg-[#2a2a2a] text-white' 
-                          : 'text-gray-300 hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a]'
-                      }`}
-                    >
-                      <MonitorIcon className="w-[18px] h-[18px]" />
-                      <span>Системная</span>
-                    </button>
-                  </div>
-                </div>
-                
                 <div className="border-t border-white/10 my-1"></div>
                 <button
                   onClick={handleSignOut}
-                  className="w-full px-4 py-3 text-left text-sm text-white hover:bg-[#4a4a4a] dark:hover:bg-[#2a2a2a] transition-colors"
+                  className="w-full px-4 py-3 text-left text-sm text-white hover:bg-[#6a6a6a] dark:hover:bg-[#4a4a4a] transition-colors"
                 >
                   Выйти из аккаунта
                 </button>

@@ -71,12 +71,36 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Prevent any scaling */
+/* Cursor pointer for all clickable elements */
+button,
+a,
+[role="button"],
+input[type="submit"],
+input[type="button"],
+input[type="reset"],
+select,
+label[for],
+.cursor-pointer {
+  cursor: pointer;
+}
+
+/* Prevent any scaling and horizontal overflow */
 @media screen {
   html, body {
     width: 100%;
+    max-width: 100vw;
     height: 100%;
     overflow-x: hidden;
+  }
+  
+  /* Force all containers to respect viewport width on mobile */
+  @media (max-width: 768px) {
+    #__next,
+    main,
+    .flex-1 {
+      max-width: 100vw;
+      overflow-x: hidden;
+    }
   }
   
   /* Force 1:1 pixel ratio on mobile */
@@ -332,4 +356,15 @@ input:-webkit-autofill:focus {
 .animate-fadeIn {
   opacity: 0;
   animation: fadeInUp 0.35s ease-out forwards;
+}
+
+/* Document content - all text should be black/foreground color */
+.document-content,
+.document-content * {
+  color: var(--foreground) !important;
+}
+
+.document-content a {
+  color: var(--foreground) !important;
+  text-decoration: underline;
 }

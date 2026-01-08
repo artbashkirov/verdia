@@ -230,4 +230,3 @@ export function UserIcon({ className = "w-[18px] h-[18px]" }: { className?: stri
     </svg>
   );
 }
-

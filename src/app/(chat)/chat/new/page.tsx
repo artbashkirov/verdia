@@ -118,8 +118,30 @@ function NewChatPageContent() {
   const [isRefining, setIsRefining] = useState(false);
   const [refinedData, setRefinedData] = useState<any>(null);
   const [courtCasesData, setCourtCasesData] = useState<CourtCasesData | null>(null);
+  const [visitedUrls, setVisitedUrls] = useState<Set<string>>(new Set());
   const contentRef = useRef<HTMLDivElement>(null);
   const hasStartedGeneration = useRef(false);
+
+  // Load visited URLs from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('visitedCourtCases');
+    if (stored) {
+      try {
+        setVisitedUrls(new Set(JSON.parse(stored)));
+      } catch (e) {
+        console.error('Error loading visited URLs:', e);
+      }
+    }
+  }, []);
+
+  const markAsVisited = (url: string) => {
+    setVisitedUrls(prev => {
+      const updated = new Set(prev);
+      updated.add(url);
+      localStorage.setItem('visitedCourtCases', JSON.stringify([...updated]));
+      return updated;
+    });
+  };
 
   useEffect(() => {
     if (hasStartedGeneration.current) return;
@@ -322,8 +344,8 @@ function NewChatPageContent() {
       />
       <Sidebar currentChatId={chatId || undefined} onNewChat={handleNewChat} className="hidden md:flex" />
       
-      <div className="flex-1 p-0 md:p-2 md:pl-0 pt-[56px] md:pt-2">
-        <div className="h-full bg-background md:rounded-2xl relative flex flex-col">
+      <div className="flex-1 p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2">
+        <div className="h-full bg-background md:rounded-2xl relative flex flex-col overflow-hidden">
           {/* Scrollable content */}
           <div 
             ref={contentRef} 
@@ -333,7 +355,7 @@ function NewChatPageContent() {
               WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black calc(100% - 120px), rgba(0, 0, 0, 0.9) calc(100% - 112px), rgba(0, 0, 0, 0.6) calc(100% - 96px), rgba(0, 0, 0, 0.3) calc(100% - 80px), transparent calc(100% - 72px))'
             }}
           >
-            <div className="w-full md:max-w-[660px] md:mx-auto flex flex-col gap-8 break-words" style={{ paddingLeft: '16px', paddingRight: '16px', position: 'relative' }}>
+            <div className="w-full max-w-[660px] mx-auto flex flex-col gap-8 break-words px-4" style={{ position: 'relative' }}>
               {/* Query */}
               <h1 className="text-[20px] lg:text-[32px] font-medium text-foreground leading-[28px] lg:leading-[40px] tracking-tight break-words md:mt-0">
                 {query}
@@ -400,22 +422,17 @@ function NewChatPageContent() {
 
               {/* Court cases - appears first (fast) */}
                   {response.courtCases && response.courtCases.length > 0 && (
-                <div className="flex flex-col gap-4 animate-fadeIn" style={{ marginLeft: '-16px', marginRight: '-16px' }}>
-                      <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
+                <div className="flex flex-col gap-4 animate-fadeIn -mx-4">
+                      <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px] px-4">
                         Судебные решения
                       </p>
                       <div 
+                        className="overflow-x-auto overflow-y-hidden hide-horizontal-scrollbar pl-4"
                         style={{ 
                           display: 'flex',
                           gap: '8px',
-                          overflowX: 'auto',
-                          overflowY: 'hidden',
-                          paddingLeft: '16px',
-                          paddingRight: '16px',
                           paddingBottom: '4px',
-                          WebkitOverflowScrolling: 'touch',
-                          msOverflowStyle: 'none',
-                          scrollbarWidth: 'none'
+                          WebkitOverflowScrolling: 'touch'
                         }}
                       >
                         {response.courtCases.map((c) => (
@@ -424,7 +441,9 @@ function NewChatPageContent() {
                             href={c.url}
                             target="_blank"
                             rel="noopener noreferrer"
+                            onClick={() => markAsVisited(c.url)}
                             style={{ 
+                              opacity: visitedUrls.has(c.url) ? 0.5 : 1,
                               backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F',
                               width: '240px',
                               minWidth: '240px',
@@ -435,7 +454,7 @@ function NewChatPageContent() {
                               flexDirection: 'column',
                               gap: '12px',
                               textDecoration: 'none',
-                              transition: 'background-color 0.2s'
+                              transition: 'background-color 0.2s, opacity 0.2s'
                             }}
                             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = resolvedTheme === 'light' ? '#E5E5E5' : '#4a4a4a'}
                             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F'}
@@ -450,12 +469,12 @@ function NewChatPageContent() {
                           </a>
                         ))}
                         {/* Spacer для последней карточки */}
-                        <div style={{ minWidth: '8px', flexShrink: 0 }} />
+                        <div className="min-w-4 flex-shrink-0" />
                       </div>
                   
                   {/* Defendant history if available */}
                   {courtCasesData?.defendantHistory && (
-                    <div className="grid grid-cols-1 gap-3" style={{ paddingLeft: '16px', paddingRight: '16px', marginTop: '8px' }}>
+                    <div className="grid grid-cols-1 gap-3 px-4 mt-2">
                       <div 
                         className="p-3 rounded-xl"
                         style={{ backgroundColor: resolvedTheme === 'light' ? '#FEF3C7' : '#422006' }}
@@ -468,18 +487,6 @@ function NewChatPageContent() {
                           {courtCasesData.defendantHistory.totalCases} дел, проиграно {courtCasesData.defendantHistory.casesLost}
                         </p>
                       </div>
-                    </div>
-                  )}
-                  
-                  {/* Show loading indicator for AI analysis */}
-                  {isGenerating && !response.shortAnswer && (
-                    <div className="flex items-center gap-3 py-2" style={{ paddingLeft: '16px' }}>
-                      <div className="flex gap-1">
-                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                      </div>
-                      <span className="text-xs text-gray-400">{statusMessage}</span>
                     </div>
                   )}
                     </div>
@@ -544,7 +551,7 @@ function NewChatPageContent() {
                         )}
                         {response.legalAnalysis.bases && (
                           <>
-                            <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 break-words">Основания:</p>
+                            <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 mt-3 lg:mt-4 break-words">Основания:</p>
                             <ul className="list-disc ml-5 break-words">
                               {response.legalAnalysis.bases.map((base, i) => (
                                 <li key={i} className="mb-2 last:mb-0 break-words">{base}</li>
@@ -569,7 +576,7 @@ function NewChatPageContent() {
                         
                         {response.practiceAnalysis.satisfied && (
                           <>
-                            <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 break-words">{response.practiceAnalysis.satisfied.title}</p>
+                            <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 mt-3 lg:mt-4 break-words">{response.practiceAnalysis.satisfied.title}</p>
                             <ul className="list-disc ml-5 mb-3 break-words">
                               {response.practiceAnalysis.satisfied.points.map((point, i) => (
                                 <li key={i} className="mb-2 last:mb-0 break-words">{point}</li>
@@ -580,7 +587,7 @@ function NewChatPageContent() {
                         
                         {response.practiceAnalysis.rejected && (
                           <>
-                            <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 break-words">{response.practiceAnalysis.rejected.title}</p>
+                            <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 mt-3 lg:mt-4 break-words">{response.practiceAnalysis.rejected.title}</p>
                             <ul className="list-disc ml-5 break-words">
                               {response.practiceAnalysis.rejected.points.map((point, i) => (
                                 <li key={i} className="mb-2 last:mb-0 break-words">{point}</li>
@@ -821,27 +828,27 @@ function NewChatPageContent() {
                     <div className="flex flex-wrap gap-2">
                       <button
                         onClick={() => router.push(`/chat/${chatId}?action=lawsuit`)}
-                        className="px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-[#3a3a3a] transition-colors"
+                        className="px-4 py-2 text-sm font-medium rounded-xl bg-[#212121] text-white hover:bg-[#3a3a3a] transition-colors"
                       >
-                        📄 Исковое заявление
+                        Исковое заявление
                       </button>
                       <button
                         onClick={() => router.push(`/chat/${chatId}?action=claim`)}
-                        className="px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-[#3a3a3a] transition-colors"
+                        className="px-4 py-2 text-sm font-medium rounded-xl bg-[#212121] text-white hover:bg-[#3a3a3a] transition-colors"
                       >
-                        📝 Претензия
+                        Претензия
                       </button>
                       <button
                         onClick={() => router.push(`/chat/${chatId}?action=motion`)}
-                        className="px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-[#3a3a3a] transition-colors"
+                        className="px-4 py-2 text-sm font-medium rounded-xl bg-[#212121] text-white hover:bg-[#3a3a3a] transition-colors"
                       >
-                        📋 Ходатайство
+                        Ходатайство
                       </button>
                       <button
                         onClick={() => router.push(`/chat/${chatId}?action=objection`)}
-                        className="px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-[#3a3a3a] transition-colors"
+                        className="px-4 py-2 text-sm font-medium rounded-xl bg-[#212121] text-white hover:bg-[#3a3a3a] transition-colors"
                       >
-                        ⚖️ Возражения на иск
+                        Возражения на иск
                       </button>
                     </div>
                   </div>

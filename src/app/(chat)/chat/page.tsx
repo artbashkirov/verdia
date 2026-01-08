@@ -3,53 +3,19 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar, ChatInput, MobileHeader, MobileSidebar } from '@/components/layout';
-import { LogoFull } from '@/components/icons';
-
-const exampleQueries = [
-  {
-    id: 1,
-    text: 'Можно ли расторгнуть договор купли-продажи автомобиля и вернуть деньги, если выявлены скрытые недостатки?',
-  },
-  {
-    id: 2,
-    text: 'Как взыскать неустойку и штраф за просрочку возврата денежных средств по онлайн-покупке?',
-  },
-  {
-    id: 3,
-    text: 'Возможно ли уменьшить алименты или изменить порядок их выплаты?',
-  },
-  {
-    id: 4,
-    text: 'Как обязать управляющую компанию устранить протечку и возместить ущерб от залива квартиры?',
-  },
-  {
-    id: 5,
-    text: 'Можно ли оспорить незаконное увольнение и восстановиться на работе с выплатой среднего заработка?',
-  },
-  {
-    id: 6,
-    text: 'Можно ли взыскать компенсацию морального вреда за некачественную медицинскую услугу?',
-  },
-  {
-    id: 7,
-    text: 'Как взыскать долг по расписке, если должник уклоняется от возврата?',
-  },
-  {
-    id: 8,
-    text: 'Как признать договор навязанным и вернуть уплаченные деньги (страхование, сервисные программы и т.п.)?',
-  },
-  {
-    id: 9,
-    text: 'Можно ли признать сделку недействительной, если она заключена под давлением или в состоянии заблуждения?',
-  },
-];
+import { getRandomQueries } from '@/lib/example-queries';
 
 export default function ChatPage() {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
-
+  
+  // Получаем 9 случайных вопросов при загрузке страницы
+  const [displayQueries, setDisplayQueries] = useState<{ id: number; text: string }[]>([]);
+  
   useEffect(() => {
+    // Генерируем случайные вопросы только на клиенте
+    setDisplayQueries(getRandomQueries(9));
     setIsLoaded(true);
   }, []);
 
@@ -87,8 +53,8 @@ export default function ChatPage() {
       <Sidebar onNewChat={handleNewChat} className="hidden md:flex" />
       
       {/* Main content */}
-      <div className="flex-1 p-0 md:p-2 md:pl-0 pt-[56px] md:pt-2 overflow-hidden">
-        <div className="h-full bg-background md:rounded-2xl relative flex flex-col items-center justify-center md:justify-center min-h-0 px-4 md:px-0 pb-[88px] md:pb-0">
+      <div className="flex-1 p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2">
+        <div className="h-full bg-background md:rounded-2xl overflow-hidden relative flex flex-col items-center justify-center md:justify-center min-h-0 px-4 md:px-0 pb-[88px] md:pb-0">
           {/* Content */}
           <div className="flex flex-col items-center w-full md:max-w-[920px]">
             {/* Logo and tagline */}
@@ -111,7 +77,7 @@ export default function ChatPage() {
               <div className="hidden md:flex gap-3 w-full" style={{ marginTop: '0' }}>
                 {/* Column 1 */}
                 <div className="flex flex-col gap-3 flex-1">
-                  {exampleQueries.filter((_, i) => i % 3 === 0).map((query) => (
+                  {displayQueries.filter((_, i) => i % 3 === 0).map((query) => (
                     <button
                       key={query.id}
                       onClick={() => handleExampleClick(query.text)}
@@ -126,7 +92,7 @@ export default function ChatPage() {
                 
                 {/* Column 2 */}
                 <div className="flex flex-col gap-3 flex-1">
-                  {exampleQueries.filter((_, i) => i % 3 === 1).map((query) => (
+                  {displayQueries.filter((_, i) => i % 3 === 1).map((query) => (
                     <button
                       key={query.id}
                       onClick={() => handleExampleClick(query.text)}
@@ -141,7 +107,7 @@ export default function ChatPage() {
                 
                 {/* Column 3 */}
                 <div className="flex flex-col gap-3 flex-1">
-                  {exampleQueries.filter((_, i) => i % 3 === 2).map((query) => (
+                  {displayQueries.filter((_, i) => i % 3 === 2).map((query) => (
                     <button
                       key={query.id}
                       onClick={() => handleExampleClick(query.text)}
@@ -157,7 +123,7 @@ export default function ChatPage() {
 
               {/* Mobile: 3 cards, full width, max 400px */}
               <div className="flex flex-col gap-3 w-full md:hidden">
-                {exampleQueries.slice(0, 3).map((query) => (
+                {displayQueries.slice(0, 3).map((query) => (
                   <button
                     key={query.id}
                     onClick={() => handleExampleClick(query.text)}

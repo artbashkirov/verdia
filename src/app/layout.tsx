@@ -17,6 +17,15 @@ const outfit = Outfit({
 export const metadata: Metadata = {
   title: "Verdia - Юридический AI-ассистент",
   description: "Иски, ходатайства и анализ судебной практики — за минуты",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Verdia",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export const viewport: Viewport = {
@@ -36,6 +45,8 @@ export default function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         <meta name="format-detection" content="telephone=no" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body
         className={`${inter.variable} ${outfit.variable} antialiased`}

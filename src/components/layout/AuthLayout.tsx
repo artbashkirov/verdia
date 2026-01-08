@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { LogoFull } from '@/components/icons';
 
 interface AuthLayoutProps {
@@ -18,7 +19,10 @@ export function AuthLayout({ children, title = "Заголовок", description
   }, []);
 
   return (
-    <div className="h-screen w-full bg-[#131314] flex items-center justify-center lg:p-0 overflow-hidden">
+    <div 
+      className="min-h-screen h-screen w-full bg-[#131314] flex items-center justify-center lg:p-0 overflow-hidden"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+    >
       <div className="w-full h-full bg-[#131314] flex flex-col lg:flex-row overflow-hidden">
         {/* Left panel with form - full width on mobile, 50% on desktop */}
         <div className="w-full lg:w-1/2 flex flex-col relative h-full">
@@ -41,9 +45,18 @@ export function AuthLayout({ children, title = "Заголовок", description
           </div>
         </div>
 
-        {/* Right empty dark panel - 50% width on desktop, hidden on mobile */}
+        {/* Right panel with image - 50% width on desktop, hidden on mobile */}
         <div className="hidden lg:flex w-1/2 h-full items-center p-[8px]">
-          <div className={`w-full h-full bg-[#1e1f20] rounded-[48px] transition-opacity duration-700 ${isLoaded ? 'opacity-100' : 'opacity-0'}`} />
+          <div className={`relative w-full h-full bg-black rounded-[48px] overflow-hidden transition-opacity duration-700 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
+            <Image
+              src="/auth-bg.webp"
+              alt="Verdia"
+              fill
+              className="object-cover"
+              priority
+              sizes="50vw"
+            />
+          </div>
         </div>
       </div>
     </div>

@@ -4,6 +4,37 @@ import { generateLegalResponse } from '@/lib/openai';
 import { searchCourtCases, searchDefendantHistory } from '@/lib/court-search';
 import type { UserProfile, PersonType } from '@/types/database';
 
+// Determine if the query is about individual (physical person) or legal entity
+function getDefendantPlaceholder(query: string): { namePlaceholder: string; label: string } {
+  const lowerQuery = query.toLowerCase();
+  
+  // Keywords indicating individual person as defendant
+  const individualKeywords = [
+    'алименты', 'развод', 'раздел имущества', 'супруг', 'бывший муж', 'бывшая жена',
+    'наследство', 'наследник', 'завещание', 'родительские права', 'ребёнок', 'ребенок',
+    'отцовство', 'материнство', 'опека', 'усыновление',
+    'сосед', 'соседи', 'залив от соседа',
+    'расписка', 'долг по расписке', 'займ между',
+    'избиение', 'побои', 'клевета', 'оскорбление',
+  ];
+  
+  // Check for individual keywords
+  const isIndividual = individualKeywords.some(keyword => lowerQuery.includes(keyword));
+  
+  if (isIndividual) {
+    return {
+      namePlaceholder: 'Петров Алексей Сергеевич',
+      label: 'ФИО ответчика'
+    };
+  }
+  
+  // Default to legal entity (most common in consumer protection, labor disputes with companies, etc.)
+  return {
+    namePlaceholder: 'ООО "Ромашка" или ФИО',
+    label: 'Наименование ответчика'
+  };
+}
+
 // Extract defendant info from query
 function extractParties(query: string) {
   const result: { 
@@ -166,6 +197,9 @@ export async function POST(request: NextRequest) {
           } : null,
         });
 
+        // Step 4: Update status - preparing response
+        sendEvent('status', { stage: 'analyzing', message: 'Готовлю ответ (примерно 30 секунд)...' });
+
         // Build enhanced query with plaintiff and defendant context
         const plaintiffContext = formatPlaintiffContext(userProfile);
         const defendantContext = defendantHistory 
@@ -250,11 +284,12 @@ ${defendantHistory.commonCategories?.length ? `Частые категории �
 
         // Step 10.5: Send clarification request if defendant not specified
         if (!finalDefendantName) {
+          const defendantPlaceholder = getDefendantPlaceholder(query);
           sendEvent('clarificationRequest', {
             type: 'defendant',
             message: 'Для более точного анализа укажите данные ответчика',
             fields: [
-              { key: 'defendantName', label: 'Наименование ответчика', placeholder: 'ООО "Ромашка" или ФИО' },
+              { key: 'defendantName', label: defendantPlaceholder.label, placeholder: defendantPlaceholder.namePlaceholder },
               { key: 'defendantLocation', label: 'Город регистрации', placeholder: 'Москва' },
             ],
             hint: 'Если вы укажете ответчика, я найду все судебные дела с его участием и скорректирую прогноз успеха',

@@ -257,4 +257,3 @@ DROP TRIGGER IF EXISTS update_saved_defendants_updated_at ON public.saved_defend
 CREATE TRIGGER update_saved_defendants_updated_at
   BEFORE UPDATE ON public.saved_defendants
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
-

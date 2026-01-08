@@ -84,6 +84,28 @@ export default function ChatResultPage() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [visitedUrls, setVisitedUrls] = useState<Set<string>>(new Set());
+
+  // Load visited URLs from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('visitedCourtCases');
+    if (stored) {
+      try {
+        setVisitedUrls(new Set(JSON.parse(stored)));
+      } catch (e) {
+        console.error('Error loading visited URLs:', e);
+      }
+    }
+  }, []);
+
+  const markAsVisited = (url: string) => {
+    setVisitedUrls(prev => {
+      const updated = new Set(prev);
+      updated.add(url);
+      localStorage.setItem('visitedCourtCases', JSON.stringify([...updated]));
+      return updated;
+    });
+  };
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const actionProcessed = useRef(false);
 
@@ -337,8 +359,8 @@ export default function ChatResultPage() {
           onNewChat={handleNewChat}
         />
         <Sidebar currentChatId={chatId} onNewChat={handleNewChat} className="hidden md:flex" />
-        <div className="flex-1 p-0 md:p-2 md:pl-0 pt-[56px] md:pt-2">
-          <div className="h-full bg-background md:rounded-2xl flex items-center justify-center">
+        <div className="flex-1 min-w-0 overflow-x-hidden p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2">
+          <div className="h-full bg-background md:rounded-2xl overflow-hidden flex items-center justify-center">
             <div className="w-12 h-12 border-4 border-foreground border-t-transparent rounded-full animate-spin" />
           </div>
         </div>
@@ -361,8 +383,8 @@ export default function ChatResultPage() {
           onNewChat={handleNewChat}
         />
         <Sidebar currentChatId={chatId} onNewChat={handleNewChat} className="hidden md:flex" />
-        <div className="flex-1 p-0 md:p-2 md:pl-0 pt-[56px] md:pt-2">
-          <div className="h-full bg-background md:rounded-2xl flex items-center justify-center">
+        <div className="flex-1 min-w-0 overflow-x-hidden p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2">
+          <div className="h-full bg-background md:rounded-2xl overflow-hidden flex items-center justify-center">
             <div className="text-center">
               <p className="text-lg text-gray-400 mb-4">{error || 'Результат не найден'}</p>
               <button
@@ -381,7 +403,7 @@ export default function ChatResultPage() {
   const { query, response } = generation;
 
   return (
-    <div className="flex h-screen bg-[#0E0E0E]">
+    <div className="flex h-screen bg-[#0E0E0E] max-w-[100vw] overflow-x-hidden">
       <MobileHeader 
         onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         isMenuOpen={isMobileMenuOpen}
@@ -390,17 +412,17 @@ export default function ChatResultPage() {
       <MobileSidebar
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
-          currentChatId={chatId}
-          onNewChat={handleNewChat}
-        />
-        <Sidebar currentChatId={chatId} onNewChat={handleNewChat} className="hidden md:flex" />
+        currentChatId={chatId}
+        onNewChat={handleNewChat}
+      />
+      <Sidebar currentChatId={chatId} onNewChat={handleNewChat} className="hidden md:flex" />
       
       {/* Main content */}
-      <div className="flex-1 p-0 md:p-2 md:pl-0 pt-[56px] md:pt-2">
-        <div className="h-full bg-background md:rounded-2xl relative flex flex-col">
+      <div className="flex-1 min-w-0 max-w-[100vw] overflow-x-hidden p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2">
+        <div className="h-full bg-background md:rounded-2xl overflow-hidden relative flex flex-col">
           {/* Scrollable content */}
-          <div className="flex-1 overflow-y-auto pt-6 md:pt-14 pb-36 px-0 relative">
-            <div className="w-full md:max-w-[660px] md:mx-auto flex flex-col gap-8 break-words" style={{ paddingLeft: '16px', paddingRight: '16px', position: 'relative' }}>
+          <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden pt-6 md:pt-14 pb-36 px-0 relative">
+            <div className="w-full max-w-[660px] mx-auto flex flex-col gap-8 px-4" style={{ position: 'relative', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
               {/* Query */}
               <h1 className="text-[20px] lg:text-[32px] font-medium text-foreground leading-[28px] lg:leading-[40px] tracking-tight break-words md:mt-0">
                 {query}
@@ -408,22 +430,17 @@ export default function ChatResultPage() {
 
               {/* Court cases */}
               {response.courtCases && response.courtCases.length > 0 && (
-                <div className="flex flex-col gap-4" style={{ marginLeft: '-16px', marginRight: '-16px' }}>
-                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
+                <div className="flex flex-col gap-4 -mx-4">
+                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px] px-4">
                     Судебные решения
                   </p>
                   <div 
+                    className="overflow-x-auto overflow-y-hidden hide-horizontal-scrollbar pl-4"
                     style={{ 
                       display: 'flex',
                       gap: '8px',
-                      overflowX: 'auto',
-                      overflowY: 'hidden',
-                      paddingLeft: '16px',
-                      paddingRight: '16px',
                       paddingBottom: '4px',
-                      WebkitOverflowScrolling: 'touch',
-                      msOverflowStyle: 'none',
-                      scrollbarWidth: 'none'
+                      WebkitOverflowScrolling: 'touch'
                     }}
                   >
                     {response.courtCases.map((c) => (
@@ -432,7 +449,9 @@ export default function ChatResultPage() {
                         href={c.url}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={() => markAsVisited(c.url)}
                         style={{ 
+                          opacity: visitedUrls.has(c.url) ? 0.5 : 1,
                           backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F',
                           width: '240px',
                           minWidth: '240px',
@@ -443,7 +462,7 @@ export default function ChatResultPage() {
                           flexDirection: 'column',
                           gap: '12px',
                           textDecoration: 'none',
-                          transition: 'background-color 0.2s'
+                          transition: 'background-color 0.2s, opacity 0.2s'
                         }}
                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = resolvedTheme === 'light' ? '#E5E5E5' : '#4a4a4a'}
                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F'}
@@ -458,7 +477,7 @@ export default function ChatResultPage() {
                       </a>
                     ))}
                     {/* Spacer для последней карточки */}
-                    <div style={{ minWidth: '8px', flexShrink: 0 }} />
+                    <div className="min-w-4 flex-shrink-0" />
                   </div>
                 </div>
               )}
@@ -525,7 +544,7 @@ export default function ChatResultPage() {
                     )}
                     {response.legalAnalysis.bases && (
                       <>
-                        <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 break-words">Основания:</p>
+                        <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 mt-3 lg:mt-4 break-words">Основания:</p>
                         <ul className="list-disc ml-5 break-words">
                           {response.legalAnalysis.bases.map((base, i) => (
                             <li key={i} className="mb-2 last:mb-0 break-words">{base}</li>
@@ -551,7 +570,7 @@ export default function ChatResultPage() {
                     
                     {response.practiceAnalysis.satisfied && (
                       <>
-                            <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 break-words">{response.practiceAnalysis.satisfied.title}</p>
+                            <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 mt-3 lg:mt-4 break-words">{response.practiceAnalysis.satisfied.title}</p>
                         <ul className="list-disc ml-5 mb-3 break-words">
                           {response.practiceAnalysis.satisfied.points.map((point, i) => (
                             <li key={i} className="mb-2 last:mb-0 break-words">{point}</li>
@@ -562,7 +581,7 @@ export default function ChatResultPage() {
                     
                     {response.practiceAnalysis.rejected && (
                       <>
-                            <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 break-words">{response.practiceAnalysis.rejected.title}</p>
+                            <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 mt-3 lg:mt-4 break-words">{response.practiceAnalysis.rejected.title}</p>
                         <ul className="list-disc ml-5 break-words">
                           {response.practiceAnalysis.rejected.points.map((point, i) => (
                             <li key={i} className="mb-2 last:mb-0 break-words">{point}</li>
@@ -610,30 +629,30 @@ export default function ChatResultPage() {
                     <button
                       onClick={() => handleSubmit('Составь исковое заявление')}
                       disabled={isSending}
-                      className="px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-[#3a3a3a] transition-colors"
+                      className="px-4 py-2 text-sm font-medium rounded-xl bg-[#212121] text-white hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
                     >
-                      📄 Исковое заявление
+                      Исковое заявление
                     </button>
                     <button
                       onClick={() => handleSubmit('Составь претензию')}
                       disabled={isSending}
-                      className="px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-[#3a3a3a] transition-colors"
+                      className="px-4 py-2 text-sm font-medium rounded-xl bg-[#212121] text-white hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
                     >
-                      📝 Претензия
+                      Претензия
                     </button>
                     <button
                       onClick={() => handleSubmit('Составь ходатайство')}
                       disabled={isSending}
-                      className="px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-[#3a3a3a] transition-colors"
+                      className="px-4 py-2 text-sm font-medium rounded-xl bg-[#212121] text-white hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
                     >
-                      📋 Ходатайство
+                      Ходатайство
                     </button>
                     <button
                       onClick={() => handleSubmit('Составь возражения на иск')}
                       disabled={isSending}
-                      className="px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-[#3a3a3a] transition-colors"
+                      className="px-4 py-2 text-sm font-medium rounded-xl bg-[#212121] text-white hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
                     >
-                      ⚖️ Возражения на иск
+                      Возражения на иск
                     </button>
                   </div>
                 </div>
