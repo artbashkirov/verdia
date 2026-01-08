@@ -5,6 +5,9 @@ interface DocumentData {
   content: string;
 }
 
+// Black color for all text
+const BLACK_COLOR = '000000';
+
 // Generate DOCX file from document content
 export async function generateDocx(doc: DocumentData): Promise<Blob> {
   // Parse content and create paragraphs
@@ -16,8 +19,7 @@ export async function generateDocx(doc: DocumentData): Promise<Blob> {
       children: [
         // Title
         new Paragraph({
-          text: doc.title,
-          heading: HeadingLevel.HEADING_1,
+          children: [new TextRun({ text: doc.title, bold: true, size: 32, color: BLACK_COLOR })],
           alignment: AlignmentType.CENTER,
           spacing: { after: 400 },
         }),
@@ -32,7 +34,7 @@ export async function generateDocx(doc: DocumentData): Promise<Blob> {
 
 function parseContentToParagraphs(content: string): Paragraph[] {
   if (!content) {
-    return [new Paragraph({ text: 'Содержимое документа' })];
+    return [new Paragraph({ children: [new TextRun({ text: 'Содержимое документа', color: BLACK_COLOR })] })];
   }
 
   const lines = content.split('\n');
@@ -52,9 +54,7 @@ function parseContentToParagraphs(content: string): Paragraph[] {
       const level = trimmedLine.match(/^#+/)?.[0].length || 1;
       const text = trimmedLine.replace(/^#+\s/, '');
       paragraphs.push(new Paragraph({
-        text,
-        heading: level === 1 ? HeadingLevel.HEADING_1 : 
-                 level === 2 ? HeadingLevel.HEADING_2 : HeadingLevel.HEADING_3,
+        children: [new TextRun({ text, bold: true, color: BLACK_COLOR, size: level === 1 ? 28 : level === 2 ? 24 : 22 })],
         spacing: { before: 200, after: 100 },
       }));
       continue;
@@ -64,7 +64,7 @@ function parseContentToParagraphs(content: string): Paragraph[] {
     if (trimmedLine.match(/^[-*]\s/) || trimmedLine.match(/^\d+\.\s/)) {
       const text = trimmedLine.replace(/^[-*]\s/, '').replace(/^\d+\.\s/, '');
       paragraphs.push(new Paragraph({
-        children: [new TextRun({ text: '• ' + text })],
+        children: [new TextRun({ text: '• ' + text, color: BLACK_COLOR })],
         spacing: { after: 100 },
         indent: { left: 720 }, // 0.5 inch
       }));
@@ -73,7 +73,7 @@ function parseContentToParagraphs(content: string): Paragraph[] {
 
     // Regular paragraph
     paragraphs.push(new Paragraph({
-      children: [new TextRun({ text: trimmedLine })],
+      children: [new TextRun({ text: trimmedLine, color: BLACK_COLOR })],
       spacing: { after: 200 },
     }));
   }
@@ -89,8 +89,7 @@ export async function generateLegalDocument(
   const children: Paragraph[] = [
     // Title
     new Paragraph({
-      text: title,
-      heading: HeadingLevel.HEADING_1,
+      children: [new TextRun({ text: title, bold: true, size: 32, color: BLACK_COLOR })],
       alignment: AlignmentType.CENTER,
       spacing: { after: 400 },
     }),
@@ -99,8 +98,7 @@ export async function generateLegalDocument(
   for (const section of sections) {
     if (section.heading) {
       children.push(new Paragraph({
-        text: section.heading,
-        heading: HeadingLevel.HEADING_2,
+        children: [new TextRun({ text: section.heading, bold: true, size: 24, color: BLACK_COLOR })],
         spacing: { before: 300, after: 200 },
       }));
     }
@@ -109,7 +107,7 @@ export async function generateLegalDocument(
     for (const line of lines) {
       if (line.trim()) {
         children.push(new Paragraph({
-          children: [new TextRun({ text: line.trim() })],
+          children: [new TextRun({ text: line.trim(), color: BLACK_COLOR })],
           spacing: { after: 150 },
         }));
       }
