@@ -633,76 +633,12 @@ async function scrapeMosGorsud(searchTerms: string, maxResults: number = 5): Pro
   }
 }
 
-// Search for defendant's court history
+// Search for defendant's court history (DISABLED for speed optimization)
 export async function searchDefendantHistory(defendantName: string): Promise<DefendantHistory | null> {
-  if (!defendantName || defendantName.length < 3) {
-    return null;
-  }
-  
-  let browser;
-  try {
-    browser = await getBrowser();
-    
-    const page = await browser.newPage();
-    await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36');
-    
-    // Search by defendant name
-    const searchUrl = `https://sudact.ru/regular/doc/?regular-txt=${encodeURIComponent(defendantName)}&regular-area=1011`;
-    await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 30000 });
-    
-    // Count cases and analyze
-    const stats = await page.evaluate((name: string) => {
-      const items = document.querySelectorAll('#docListContainer li, .h-col2-inner2 li');
-      let asDefendant = 0;
-      let asPlaintiff = 0;
-      let casesLost = 0;
-      let casesWon = 0;
-      const categories: string[] = [];
-      
-      items.forEach(item => {
-        const text = item.textContent?.toLowerCase() || '';
-        const nameToFind = name.toLowerCase();
-        
-        if (text.includes(nameToFind)) {
-          if (text.includes('ответчик') && text.includes(nameToFind)) {
-            asDefendant++;
-            if (text.includes('удовлетворить') || text.includes('удовлетворен')) {
-              casesLost++;
-            }
-          }
-          if (text.includes('истец') && text.includes(nameToFind)) {
-            asPlaintiff++;
-            if (text.includes('удовлетворить') || text.includes('удовлетворен')) {
-              casesWon++;
-            }
-          }
-        }
-      });
-      
-      return {
-        totalCases: items.length,
-        asDefendant,
-        asPlaintiff,
-        casesLost,
-        casesWon,
-        categories,
-      };
-    }, defendantName);
-    
-    return {
-      name: defendantName,
-      ...stats,
-      commonCategories: stats.categories,
-    };
-    
-  } catch (error) {
-    console.error('Error searching defendant history:', error);
-    return null;
-  } finally {
-    if (browser) {
-      await browser.close();
-    }
-  }
+  // Skip this expensive operation - it adds ~10+ seconds
+  // Can be re-enabled when we have better caching
+  console.log('Defendant history search disabled for speed:', defendantName);
+  return null;
 }
 
 // Get court statistics by district/region

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { generateLegalResponse } from '@/lib/openai';
-import { searchCourtCases, searchDefendantHistory } from '@/lib/court-search';
+import { searchCourtCases } from '@/lib/court-search';
 import type { UserProfile, PersonType } from '@/types/database';
 
 // Determine if the query is about individual (physical person) or legal entity
@@ -159,9 +159,9 @@ export async function POST(request: NextRequest) {
         const finalDefendantName = defendantName || parties.defendantName;
         const finalDefendantLocation = defendantLocation || parties.defendantLocation || 'Москва';
         
-        // Step 2: Search court cases
+        // Step 2: Search court cases (OPTIMIZED - only 3 cases for speed)
         const searchResults = await searchCourtCases(query, {
-          maxResults: 5,
+          maxResults: 3,
           defendantName: finalDefendantName,
           defendantLocation: finalDefendantLocation,
           plaintiffLocation: userProfile?.registration_city,
@@ -169,12 +169,8 @@ export async function POST(request: NextRequest) {
         
         const { cases, stats, courtInfo, category } = searchResults;
         
-        // Step 2.5: If defendant name provided, search defendant history
-        let defendantHistory = null;
-        if (finalDefendantName) {
-          sendEvent('status', { stage: 'searching_defendant', message: `Ищу судебные дела с участием ${finalDefendantName}...` });
-          defendantHistory = await searchDefendantHistory(finalDefendantName);
-        }
+        // SKIP defendant history search for speed - it adds ~10 seconds
+        const defendantHistory = null;
 
         // Step 3: Send court cases immediately
         sendEvent('courtCases', {

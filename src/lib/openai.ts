@@ -59,8 +59,8 @@ export const openai = new Proxy({} as OpenAI, {
   }
 });
 
-// Helper function to call Gemini via Replicate
-async function callGemini(prompt: string, systemPrompt?: string, maxTokens: number = 4000): Promise<string> {
+// Helper function to call Gemini via Replicate (OPTIMIZED for speed)
+async function callGemini(prompt: string, systemPrompt?: string, maxTokens: number = 2000): Promise<string> {
   try {
     // Get replicate instance at runtime (not at module load time)
     const replicateClient = getReplicate();
@@ -70,12 +70,12 @@ async function callGemini(prompt: string, systemPrompt?: string, maxTokens: numb
       : prompt;
     
     const output = await replicateClient.run(
-      "google/gemini-2.5-flash",
+      "google/gemini-2.0-flash-001",
       {
         input: {
           prompt: fullPrompt,
           max_tokens: maxTokens,
-          temperature: 0.7,
+          temperature: 0.5, // Reduced for faster, more deterministic output
         }
       }
     );
@@ -170,23 +170,16 @@ export async function generateLegalResponse(
   
   const hasRealCases = cases.some(c => !c.isSearchLink);
   
-  // Build compact context for faster generation
+  // Build MINIMAL context for fastest generation
   const context = `ЗАПРОС: "${userQuery}"
-КАТЕГОРИЯ: ${category}
-СТАТИСТИКА: ${stats.percentage}% успешных исков (из ${stats.total} дел)
-${courtInfo ? `СУД: ${courtInfo.name}` : ''}
+СТАТИСТИКА: ${stats.percentage}% (${stats.satisfied} удовл, ${stats.partial} частично, ${stats.rejected} отказ)
+ДЕЛА: ${courtCasesFormatted.map(c => c.title.slice(0, 50) + ' - ' + c.result).join('; ')}
 
-ДЕЛА: ${JSON.stringify(courtCasesFormatted)}
-
-ВАЖНО:
-- probability.percentage = ${stats.percentage} (корректируй по факторам)
-- shortAnswer.probability тоже заполни
-- Добавь nextSteps с предложением документов
-- Ответ ТОЛЬКО JSON`;
+ВАЖНО: probability.percentage=${stats.percentage}. Ответ ТОЛЬКО JSON, кратко.`;
 
   try {
-    // Reduced max tokens for faster generation
-    const result = await callGemini(context, SYSTEM_PROMPT, 2500);
+    // Minimal tokens for speed (1500 max)
+    const result = await callGemini(context, SYSTEM_PROMPT, 1500);
     
     // Try to extract JSON from response
     const jsonMatch = result.match(/\{[\s\S]*\}/);
