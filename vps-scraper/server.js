@@ -75,6 +75,77 @@ app.post('/scrape/sudact', authMiddleware, async (req, res) => {
       const results = [];
       const items = document.querySelectorAll('#docListContainer li, .h-col2-inner2 li');
       
+      // Function to detect case result from text
+      function detectResult(text) {
+        const lowerText = text.toLowerCase();
+        
+        // Patterns for SATISFIED (иск удовлетворён)
+        const satisfiedPatterns = [
+          'иск удовлетворить',
+          'исковые требования удовлетворить',
+          'требования удовлетворить',
+          'удовлетворить иск',
+          'удовлетворить исковые',
+          'удовлетворить требования',
+          'иск удовлетворен',
+          'требования удовлетворены',
+          'исковые требования удовлетворены',
+          'решил удовлетворить',
+          'постановил удовлетворить',
+          'взыскать с ответчика',
+          'взыскать в пользу истца',
+          'обязать ответчика',
+          'признать право истца',
+          'восстановить на работе',
+          'расторгнуть договор',
+          'признать недействительным',
+        ];
+        
+        // Patterns for PARTIALLY SATISFIED
+        const partialPatterns = [
+          'частично удовлетворить',
+          'удовлетворить частично',
+          'частично удовлетворены',
+          'удовлетворены частично',
+          'в части удовлетворить',
+          'удовлетворить в части',
+        ];
+        
+        // Patterns for REJECTED (в иске отказано)
+        const rejectedPatterns = [
+          'в иске отказать',
+          'в удовлетворении отказать',
+          'отказать в иске',
+          'отказать в удовлетворении',
+          'в иске отказано',
+          'в удовлетворении отказано',
+          'отказано в иске',
+          'отказано в удовлетворении',
+          'исковые требования оставить без удовлетворения',
+          'оставить без удовлетворения',
+          'не подлежит удовлетворению',
+          'не нашли подтверждения',
+          'истец не доказал',
+        ];
+        
+        // Check partial first (more specific)
+        for (const pattern of partialPatterns) {
+          if (lowerText.includes(pattern)) return 'частично удовлетворен';
+        }
+        
+        // Check rejected
+        for (const pattern of rejectedPatterns) {
+          if (lowerText.includes(pattern)) return 'отказано';
+        }
+        
+        // Check satisfied
+        for (const pattern of satisfiedPatterns) {
+          if (lowerText.includes(pattern)) return 'удовлетворен';
+        }
+        
+        return 'неизвестно';
+      }
+      
       let count = 0;
       items.forEach((item) => {
         if (count >= limit) return;
@@ -91,7 +162,6 @@ app.post('/scrape/sudact', authMiddleware, async (req, res) => {
         const h4 = item.querySelector('h4');
         let court = '';
         let date = '';
-        let result = 'неизвестно';
         
         const courtInfoElement = h4?.nextElementSibling || item.querySelector('.court, .meta, .info, span');
         if (courtInfoElement) {
@@ -100,15 +170,9 @@ app.post('/scrape/sudact', authMiddleware, async (req, res) => {
           if (dateMatch) date = dateMatch[1];
         }
         
-        // Detect result
-        const itemText = item.textContent?.toLowerCase() || '';
-        if (itemText.includes('удовлетворить') || itemText.includes('удовлетворен')) {
-          result = 'удовлетворен';
-        } else if (itemText.includes('частично')) {
-          result = 'частично удовлетворен';
-        } else if (itemText.includes('отказать') || itemText.includes('отказано')) {
-          result = 'отказано';
-        }
+        // Get all text from item including snippets
+        const itemText = item.textContent || '';
+        const result = detectResult(itemText);
         
         results.push({
           title: title.slice(0, 200),
