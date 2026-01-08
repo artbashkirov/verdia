@@ -429,7 +429,10 @@ function ResultContent() {
                 </div>
               </div>
 
-              <div className="h-px bg-gray-200" />
+              {/* Divider - only show if documents follow */}
+              {response.documents && response.documents.length > 0 && (
+                <div className="h-px bg-gray-200" />
+              )}
 
               {response.documents && response.documents.length > 0 && (
                 <div className="flex flex-col gap-4">

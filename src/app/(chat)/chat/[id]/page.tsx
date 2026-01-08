@@ -705,8 +705,10 @@ export default function ChatResultPage() {
                 </div>
               </div>
 
-              {/* Divider */}
-              <div className="h-px bg-gray-200" />
+              {/* Divider - only show if documents follow */}
+              {response.documents && response.documents.length > 0 && (
+                <div className="h-px bg-gray-200" />
+              )}
 
               {/* Documents */}
               {response.documents && response.documents.length > 0 && (
