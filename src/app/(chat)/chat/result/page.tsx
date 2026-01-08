@@ -7,6 +7,17 @@ import { DownloadIcon } from '@/components/icons';
 import { generateDocx, downloadBlob } from '@/lib/docx-generator';
 import { useTheme } from '@/lib/theme-context';
 
+// Helper function to get probability label based on percentage
+function getProbabilityLabel(percentage: number): string {
+  if (percentage >= 95) return 'максимальная';
+  if (percentage >= 80) return 'очень высокая';
+  if (percentage >= 65) return 'высокая';
+  if (percentage >= 50) return 'выше средней';
+  if (percentage >= 35) return 'средняя';
+  if (percentage >= 20) return 'ниже средней';
+  return 'низкая';
+}
+
 interface GenerationResponse {
   courtCases: Array<{
     id: number;
@@ -84,6 +95,21 @@ function ResultContent() {
       return updated;
     });
   };
+
+  // Close probability tooltip on click outside (mobile)
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.probability-tooltip-container')) {
+        document.querySelectorAll('.probability-tooltip').forEach(el => {
+          el.classList.add('hidden');
+          el.classList.remove('block');
+        });
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const stored = sessionStorage.getItem('lastResponse');
@@ -252,10 +278,10 @@ function ResultContent() {
                           : response.probability?.level === 'средняя' ? 45 
                           : response.probability?.level === 'низкая' ? 25 
                           : 60);
-                      const level = response.shortAnswer.probability?.level || response.probability?.level || 'оценивается';
+                      const level = getProbabilityLabel(percentage);
                       
                       return (
-                        <div className="mt-4 p-4 rounded-xl" style={{ backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F' }}>
+                        <div className="mt-4 p-4 rounded-xl relative" style={{ backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F' }}>
                           <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] mb-2">
                             Оценка вероятности успеха
                           </p>
@@ -265,6 +291,26 @@ function ResultContent() {
                               ({level})
                             </span>
                           </p>
+                          {/* Info icon with tooltip */}
+                          <div className="probability-tooltip-container absolute right-6 top-1/2 -translate-y-1/2 group">
+                            <button
+                              className="w-6 h-6 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center text-sm font-medium hover:bg-gray-400 transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const tooltip = e.currentTarget.nextElementSibling;
+                                if (tooltip) {
+                                  tooltip.classList.toggle('hidden');
+                                  tooltip.classList.toggle('block');
+                                }
+                              }}
+                            >
+                              i
+                            </button>
+                            <div className="probability-tooltip hidden lg:group-hover:block absolute right-0 top-full mt-2 w-72 p-3 bg-white rounded-lg shadow-lg border border-gray-200 text-sm text-gray-600 z-50">
+                              <p className="font-medium text-gray-900 mb-1">Как рассчитывается вероятность?</p>
+                              <p>Оценка основана на анализе похожих судебных дел: соотношении удовлетворённых и отклонённых исков, а также ключевых факторов вашей ситуации.</p>
+                            </div>
+                          </div>
                         </div>
                       );
                     })()}
