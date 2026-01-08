@@ -189,6 +189,21 @@ async function getBrowser(): Promise<Browser> {
 const searchCache = new Map<string, { cases: CourtCase[]; timestamp: number }>();
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
+// VPS scraper response with stats
+interface VpsScraperResponse {
+  cases: CourtCase[];
+  stats: {
+    total: number;
+    satisfied: number;
+    partial: number;
+    rejected: number;
+    percentage: number;
+  };
+}
+
+// Store last VPS response stats
+let lastVpsStats: VpsScraperResponse['stats'] | null = null;
+
 // Call VPS scraper API
 async function callVpsScraper(searchTerms: string, maxResults: number = 5): Promise<CourtCase[]> {
   try {
@@ -208,8 +223,14 @@ async function callVpsScraper(searchTerms: string, maxResults: number = 5): Prom
       return [];
     }
     
-    const data = await response.json();
+    const data = await response.json() as VpsScraperResponse;
     console.log(`VPS scraper returned ${data.cases?.length || 0} cases`);
+    console.log(`VPS scraper stats: satisfied=${data.stats?.satisfied}, partial=${data.stats?.partial}, rejected=${data.stats?.rejected}, percentage=${data.stats?.percentage}%`);
+    
+    // Store stats for later use
+    if (data.stats) {
+      lastVpsStats = data.stats;
+    }
     
     return (data.cases || []).map((c: { title: string; url: string; snippet: string; court?: string; date?: string; result?: string }) => ({
       ...c,
@@ -221,6 +242,11 @@ async function callVpsScraper(searchTerms: string, maxResults: number = 5): Prom
     console.error('Failed to call VPS scraper:', error);
     return [];
   }
+}
+
+// Get last VPS stats (used to avoid recalculation)
+export function getLastVpsStats(): VpsScraperResponse['stats'] | null {
+  return lastVpsStats;
 }
 
 // Scrape court cases from sudact.ru using Puppeteer
@@ -840,8 +866,23 @@ export async function searchCourtCases(
     allCases = generateSearchLinks(query, searchTerms);
   }
   
-  // Calculate statistics
-  const stats = calculateSatisfactionRate(allCases.filter(c => !c.isSearchLink));
+  // Use VPS stats if available (more accurate), otherwise calculate locally
+  const vpsStats = getLastVpsStats();
+  let stats: ReturnType<typeof calculateSatisfactionRate>;
+  
+  if (vpsStats && vpsStats.total > 0) {
+    console.log(`Using VPS stats: ${vpsStats.percentage}%`);
+    stats = {
+      satisfied: vpsStats.satisfied,
+      partial: vpsStats.partial,
+      rejected: vpsStats.rejected,
+      total: vpsStats.total,
+      percentage: vpsStats.percentage,
+    };
+  } else {
+    // Fallback to local calculation
+    stats = calculateSatisfactionRate(allCases.filter(c => !c.isSearchLink));
+  }
   
   // Get court info based on location
   let courtInfo: CourtStats | null = null;
