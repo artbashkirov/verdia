@@ -267,15 +267,23 @@ _Услуга станет доступна после оплаты подгот
       
       let parsed;
       try {
-        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        // Remove markdown code block wrappers if present
+        let cleanedText = responseText
+          .replace(/^```json\s*/i, '')
+          .replace(/^```\s*/i, '')
+          .replace(/\s*```$/i, '')
+          .trim();
+        
+        // Try to find JSON object
+        const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           parsed = JSON.parse(jsonMatch[0]);
         } else {
-          parsed = { message: responseText.trim(), documents: [] };
+          parsed = { message: 'Документы готовы.', documents: [] };
         }
       } catch (parseError) {
         console.error('JSON parse error:', parseError, 'Response:', responseText.slice(0, 500));
-        parsed = { message: responseText.trim() || 'Документы готовы.', documents: [] };
+        parsed = { message: 'Документы готовы.', documents: [] };
       }
 
       const assistantMessage = parsed.message || 'Документы готовы для скачивания.';
