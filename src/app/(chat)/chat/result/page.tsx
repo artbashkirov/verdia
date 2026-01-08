@@ -147,7 +147,7 @@ function ResultContent() {
     return (
       <div className="flex h-screen bg-background">
         <Sidebar onNewChat={handleNewChat} />
-        <div className="flex-1 p-0 md:p-2 md:pl-0">
+        <div className="flex-1 p-0 md:p-2 md:pl-0 md:pb-2 bg-[#17181A]">
           <div className="h-full bg-background md:rounded-2xl overflow-hidden flex items-center justify-center">
             <div className="text-center">
               <p className="text-lg text-gray-400 mb-4">Результат не найден</p>
@@ -168,7 +168,7 @@ function ResultContent() {
     <div className="flex h-screen bg-background">
       <Sidebar onNewChat={handleNewChat} />
       
-        <div className="flex-1 p-0 md:p-2 md:pl-0">
+        <div className="flex-1 p-0 md:p-2 md:pl-0 md:pb-2 bg-[#17181A]">
           <div className="h-full bg-background md:rounded-2xl overflow-hidden relative flex flex-col">
           <div className="flex-1 overflow-y-auto pt-6 md:pt-14 pb-36 px-0 relative">
             <div className="w-full md:max-w-[660px] md:mx-auto flex flex-col gap-8 break-words" style={{ paddingLeft: '16px', paddingRight: '16px' }}>

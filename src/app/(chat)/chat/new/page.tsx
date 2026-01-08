@@ -344,7 +344,7 @@ function NewChatPageContent() {
       />
       <Sidebar currentChatId={chatId || undefined} onNewChat={handleNewChat} className="hidden md:flex" />
       
-      <div className="flex-1 p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2">
+      <div className="flex-1 p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A]">
         <div className="h-full bg-background md:rounded-2xl relative flex flex-col overflow-hidden">
           {/* Scrollable content */}
           <div 

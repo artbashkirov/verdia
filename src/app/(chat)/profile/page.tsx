@@ -98,8 +98,10 @@ export default function ProfilePage() {
         <div className="hidden lg:block">
           <Sidebar />
         </div>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="animate-pulse text-secondary-text">Загрузка...</div>
+        <div className="flex-1 flex flex-col overflow-hidden pt-[60px] lg:p-2 lg:pl-0 lg:pb-2 bg-[#17181A]">
+          <div className="flex-1 flex items-center justify-center bg-background lg:rounded-2xl">
+            <div className="animate-pulse text-secondary-text">Загрузка...</div>
+          </div>
         </div>
       </div>
     );
@@ -120,8 +122,8 @@ export default function ProfilePage() {
       />
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden pt-[60px] lg:pt-0">
-        <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 flex flex-col overflow-hidden pt-[60px] lg:p-2 lg:pl-0 lg:pb-2 bg-[#17181A]">
+        <div className="flex-1 overflow-y-auto bg-background lg:rounded-2xl">
           <div className="max-w-3xl mx-auto px-4 py-8">
             {/* Header */}
             <div className="mb-8">

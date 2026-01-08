@@ -359,7 +359,7 @@ export default function ChatResultPage() {
           onNewChat={handleNewChat}
         />
         <Sidebar currentChatId={chatId} onNewChat={handleNewChat} className="hidden md:flex" />
-        <div className="flex-1 min-w-0 overflow-x-hidden p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2">
+        <div className="flex-1 min-w-0 overflow-x-hidden p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A]">
           <div className="h-full bg-background md:rounded-2xl overflow-hidden flex items-center justify-center">
             <div className="w-12 h-12 border-4 border-foreground border-t-transparent rounded-full animate-spin" />
           </div>
@@ -383,7 +383,7 @@ export default function ChatResultPage() {
           onNewChat={handleNewChat}
         />
         <Sidebar currentChatId={chatId} onNewChat={handleNewChat} className="hidden md:flex" />
-        <div className="flex-1 min-w-0 overflow-x-hidden p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2">
+        <div className="flex-1 min-w-0 overflow-x-hidden p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A]">
           <div className="h-full bg-background md:rounded-2xl overflow-hidden flex items-center justify-center">
             <div className="text-center">
               <p className="text-lg text-gray-400 mb-4">{error || 'Результат не найден'}</p>
@@ -418,7 +418,7 @@ export default function ChatResultPage() {
       <Sidebar currentChatId={chatId} onNewChat={handleNewChat} className="hidden md:flex" />
       
       {/* Main content */}
-      <div className="flex-1 min-w-0 max-w-[100vw] overflow-x-hidden p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2">
+      <div className="flex-1 min-w-0 max-w-[100vw] overflow-x-hidden p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A]">
         <div className="h-full bg-background md:rounded-2xl overflow-hidden relative flex flex-col">
           {/* Scrollable content */}
           <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden pt-6 md:pt-14 pb-36 px-0 relative">
