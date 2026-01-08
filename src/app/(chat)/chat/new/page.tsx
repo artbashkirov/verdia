@@ -9,6 +9,7 @@ import { useTheme } from '@/lib/theme-context';
 
 // Helper function to get probability label based on percentage
 function getProbabilityLabel(percentage: number): string {
+  if (percentage === 0) return 'недостаточно данных';
   if (percentage >= 95) return 'максимальная';
   if (percentage >= 80) return 'очень высокая';
   if (percentage >= 65) return 'высокая';
@@ -545,7 +546,7 @@ function NewChatPageContent() {
                             Оценка вероятности успеха
                           </p>
                           <p className="text-[24px] lg:text-[32px] font-bold text-foreground">
-                            {percentage}%
+                            {percentage > 0 ? `${percentage}%` : '—'}
                             <span className="text-[16px] lg:text-[18px] font-medium text-gray-500 ml-2">
                               ({level})
                             </span>

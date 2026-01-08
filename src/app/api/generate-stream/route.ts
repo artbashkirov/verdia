@@ -159,9 +159,9 @@ export async function POST(request: NextRequest) {
         const finalDefendantName = defendantName || parties.defendantName;
         const finalDefendantLocation = defendantLocation || parties.defendantLocation || 'Москва';
         
-        // Step 2: Search court cases (OPTIMIZED - only 3 cases for speed)
+        // Step 2: Search court cases
         const searchResults = await searchCourtCases(query, {
-          maxResults: 3,
+          maxResults: 5,
           defendantName: finalDefendantName,
           defendantLocation: finalDefendantLocation,
           plaintiffLocation: userProfile?.registration_city,

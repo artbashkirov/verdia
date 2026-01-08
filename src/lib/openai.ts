@@ -59,8 +59,8 @@ export const openai = new Proxy({} as OpenAI, {
   }
 });
 
-// Helper function to call Gemini via Replicate (OPTIMIZED for speed)
-async function callGemini(prompt: string, systemPrompt?: string, maxTokens: number = 2000): Promise<string> {
+// Helper function to call Gemini via Replicate
+async function callGemini(prompt: string, systemPrompt?: string, maxTokens: number = 3000): Promise<string> {
   try {
     // Get replicate instance at runtime (not at module load time)
     const replicateClient = getReplicate();
@@ -75,7 +75,7 @@ async function callGemini(prompt: string, systemPrompt?: string, maxTokens: numb
         input: {
           prompt: fullPrompt,
           max_tokens: maxTokens,
-          temperature: 0.5, // Reduced for faster, more deterministic output
+          temperature: 0.7,
         }
       }
     );
@@ -170,16 +170,22 @@ export async function generateLegalResponse(
   
   const hasRealCases = cases.some(c => !c.isSearchLink);
   
-  // Build MINIMAL context for fastest generation
+  // Build context for generation
   const context = `ЗАПРОС: "${userQuery}"
-СТАТИСТИКА: ${stats.percentage}% (${stats.satisfied} удовл, ${stats.partial} частично, ${stats.rejected} отказ)
-ДЕЛА: ${courtCasesFormatted.map(c => c.title.slice(0, 50) + ' - ' + c.result).join('; ')}
+КАТЕГОРИЯ: ${category}
+СТАТИСТИКА: ${stats.percentage}% успешных (${stats.satisfied} удовлетворено, ${stats.partial} частично, ${stats.rejected} отказано)
+${courtInfo ? `СУД: ${courtInfo.name}` : ''}
 
-ВАЖНО: probability.percentage=${stats.percentage}. Ответ ТОЛЬКО JSON, кратко.`;
+НАЙДЕННЫЕ ДЕЛА:
+${courtCasesFormatted.map(c => `- ${c.title} [${c.result}]`).join('\n')}
+
+ВАЖНО:
+- probability.percentage = ${stats.percentage} (это реальные данные из анализа дел)
+- Если percentage = 0, значит не удалось определить исходы дел
+- Ответ строго в формате JSON`;
 
   try {
-    // Minimal tokens for speed (1500 max)
-    const result = await callGemini(context, SYSTEM_PROMPT, 1500);
+    const result = await callGemini(context, SYSTEM_PROMPT, 2500);
     
     // Try to extract JSON from response
     const jsonMatch = result.match(/\{[\s\S]*\}/);

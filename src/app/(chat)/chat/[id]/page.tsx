@@ -11,6 +11,7 @@ import { useTheme } from '@/lib/theme-context';
 
 // Helper function to get probability label based on percentage
 function getProbabilityLabel(percentage: number): string {
+  if (percentage === 0) return 'недостаточно данных';
   if (percentage >= 95) return 'максимальная';
   if (percentage >= 80) return 'очень высокая';
   if (percentage >= 65) return 'высокая';
