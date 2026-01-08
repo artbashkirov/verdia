@@ -18,6 +18,13 @@ export const metadata: Metadata = {
   title: "Verdia - Юридический AI-ассистент",
   description: "Иски, ходатайства и анализ судебной практики — за минуты",
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: '/iconV.svg', type: 'image/svg+xml' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    apple: '/apple-touch-icon.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -45,6 +52,9 @@ export default function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         <meta name="format-detection" content="telephone=no" />
+        <link rel="icon" type="image/svg+xml" href="/iconV.svg" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+        <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
