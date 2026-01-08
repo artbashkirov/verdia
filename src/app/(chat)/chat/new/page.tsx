@@ -922,7 +922,7 @@ function NewChatPageContent() {
                             key={doc.id}
                             onClick={() => handleDownload(doc)}
                             disabled={downloadingId === doc.id}
-                            className="w-full flex items-center justify-between px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-100 dark:hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
+                            className="w-full flex items-center justify-between px-4 py-3 border border-gray-200 rounded-xl bg-white hover:bg-gray-100 transition-colors disabled:opacity-50"
                           >
                             <div className="flex flex-col items-start min-w-0 flex-1 mr-4">
                               <p className="text-sm font-medium text-foreground truncate w-full text-left">
