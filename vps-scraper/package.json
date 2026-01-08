@@ -1,0 +1,14 @@
+{
+  "name": "verdia-scraper",
+  "version": "1.0.0",
+  "description": "Court case scraper API for Verdia",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "puppeteer": "^21.6.1",
+    "cors": "^2.8.5"
+  }
+}
