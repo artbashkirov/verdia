@@ -761,7 +761,7 @@ function NewChatPageContent() {
                     <div className="flex flex-col gap-3">
                       {clarificationRequest.fields.map((field) => (
                         <div key={field.key}>
-                          <label className="block text-sm text-secondary-text mb-1">
+                          <label className="block text-sm font-medium text-foreground mb-1.5">
                             {field.label}
                           </label>
                           <input
@@ -769,14 +769,14 @@ function NewChatPageContent() {
                             placeholder={field.placeholder}
                             value={defendantForm[field.key as keyof typeof defendantForm] || ''}
                             onChange={(e) => setDefendantForm(prev => ({ ...prev, [field.key]: e.target.value }))}
-                            className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-background text-foreground placeholder:text-secondary-text focus:outline-none focus:ring-2 focus:ring-accent"
+                            className="w-full h-[48px] px-4 text-base text-foreground border-0 rounded-[16px] placeholder:text-secondary-text focus:outline-none focus:ring-2 focus:ring-accent transition-colors bg-white"
                           />
                         </div>
                       ))}
                       <button
                         onClick={handleDefendantSubmit}
                         disabled={isRefining || !defendantForm.defendantName.trim()}
-                        className="mt-2 px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
+                        className="mt-2 px-5 py-3 rounded-xl font-medium transition-colors disabled:opacity-50"
                         style={{ 
                           backgroundColor: resolvedTheme === 'light' ? '#212121' : '#ffffff',
                           color: resolvedTheme === 'light' ? '#ffffff' : '#000000'
@@ -895,7 +895,10 @@ function NewChatPageContent() {
                 </div>
               )}
 
-              {isComplete && chatId && <div className="h-px bg-gray-200" />}
+              {/* Divider - only show if documents follow */}
+              {isComplete && chatId && response.documents && response.documents.length > 0 && (
+                <div className="h-px bg-gray-200" />
+              )}
 
                   {/* Documents */}
                   {response.documents && response.documents.length > 0 && (
