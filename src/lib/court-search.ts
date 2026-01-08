@@ -153,17 +153,32 @@ const BROWSER_OPTIONS = {
 async function getBrowser(): Promise<Browser> {
   const browserlessApiKey = process.env.BROWSERLESS_API_KEY;
   
+  console.log('getBrowser called, BROWSERLESS_API_KEY exists:', !!browserlessApiKey);
+  
   if (browserlessApiKey) {
     // Use Browserless.io cloud browser (for Vercel/production)
-    console.log('Connecting to Browserless.io cloud browser...');
-    const browser = await puppeteerCore.connect({
-      browserWSEndpoint: `wss://chrome.browserless.io?token=${browserlessApiKey}`,
-    });
-    return browser as unknown as Browser;
+    try {
+      console.log('Connecting to Browserless.io cloud browser...');
+      const browser = await puppeteerCore.connect({
+        browserWSEndpoint: `wss://chrome.browserless.io?token=${browserlessApiKey}`,
+      });
+      console.log('Successfully connected to Browserless.io');
+      return browser as unknown as Browser;
+    } catch (error) {
+      console.error('Failed to connect to Browserless.io:', error);
+      throw error;
+    }
   } else {
     // Use local Puppeteer (for development)
-    console.log('Launching local browser...');
-    return await puppeteer.launch(BROWSER_OPTIONS);
+    try {
+      console.log('Launching local browser...');
+      const browser = await puppeteer.launch(BROWSER_OPTIONS);
+      console.log('Successfully launched local browser');
+      return browser;
+    } catch (error) {
+      console.error('Failed to launch local browser:', error);
+      throw error;
+    }
   }
 }
 

@@ -26,7 +26,7 @@ export function MobileHeader({ onMenuClick, isMenuOpen, onNewChat }: MobileHeade
 
   return (
     <header 
-      className="md:hidden fixed top-0 left-0 right-0 z-50 bg-[#f5f5f5] flex items-center justify-between"
+      className="md:hidden fixed top-0 left-0 right-0 z-50 bg-[#17181A] flex items-center justify-between"
       style={{ 
         height: '56px',
         paddingLeft: '16px',
@@ -36,7 +36,7 @@ export function MobileHeader({ onMenuClick, isMenuOpen, onNewChat }: MobileHeade
       {/* Menu button */}
       <button
         onClick={onMenuClick}
-        className="flex items-center justify-center text-foreground hover:text-foreground/80 transition-colors"
+        className="flex items-center justify-center text-white hover:text-white/80 transition-colors"
         style={{ width: '36px', height: '36px' }}
         aria-label="Открыть меню"
       >
