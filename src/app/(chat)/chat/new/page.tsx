@@ -553,7 +553,7 @@ function NewChatPageContent() {
                           {/* Info icon with tooltip */}
                           <div className="probability-tooltip-container absolute right-6 top-1/2 -translate-y-1/2 group">
                             <button
-                              className="w-6 h-6 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center text-sm font-medium hover:bg-gray-400 transition-colors"
+                              className="w-4 h-4 rounded-full border border-gray-400 text-gray-400 flex items-center justify-center text-[10px] font-medium hover:border-gray-500 hover:text-gray-500 transition-colors"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 const tooltip = e.currentTarget.nextElementSibling;
@@ -565,7 +565,7 @@ function NewChatPageContent() {
                             >
                               i
                             </button>
-                            <div className="probability-tooltip hidden lg:group-hover:block absolute right-0 top-full mt-2 w-72 p-3 bg-white rounded-lg shadow-lg border border-gray-200 text-sm text-gray-600 z-50">
+                            <div className="probability-tooltip hidden lg:group-hover:block absolute right-0 bottom-full mb-2 w-72 p-3 bg-white rounded-lg shadow-lg border border-gray-200 text-sm text-gray-600 z-50">
                               <p className="font-medium text-gray-900 mb-1">Как рассчитывается вероятность?</p>
                               <p>Оценка основана на анализе похожих судебных дел: соотношении удовлетворённых и отклонённых исков, а также ключевых факторов вашей ситуации.</p>
                             </div>
