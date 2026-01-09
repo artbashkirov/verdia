@@ -77,8 +77,22 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
       const isMobile = window.innerWidth < 768;
       
       if (isMobile) {
-        const browserBarHeight = getBrowserBarHeight();
-        const bottomOffset = 8; // 8px отступ от низа экрана (браузерная панель уже учтена в visualViewport)
+        // Определяем реальную высоту видимой области
+        let viewportHeight: number;
+        let browserBottomBarHeight: number = 0;
+        
+        if (window.visualViewport) {
+          // Используем visualViewport - это реальная видимая область без браузерных панелей
+          viewportHeight = window.visualViewport.height;
+          const windowHeight = window.innerHeight;
+          const offsetTop = window.visualViewport.offsetTop || 0;
+          const totalBrowserUI = windowHeight - viewportHeight;
+          browserBottomBarHeight = Math.max(totalBrowserUI - offsetTop, 0);
+        } else {
+          // Fallback для браузеров без visualViewport (Яндекс браузер)
+          viewportHeight = window.innerHeight;
+          browserBottomBarHeight = getBrowserBarHeight();
+        }
         
         // Учитываем safe-area-inset-bottom для устройств с вырезом
         let safeAreaBottom = 0;
@@ -100,9 +114,20 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
           // Игнорируем ошибки
         }
         
-        // Используем visualViewport.height для определения реальной высоты экрана
-        // bottomOffset = 8px от низа видимой области
-        const finalBottom = bottomOffset + safeAreaBottom;
+        // Позиционируем инпут на 8px от низа видимой области
+        // Если есть браузерная панель снизу, она уже учтена в visualViewport
+        // Но для Яндекс браузера нужно добавить высоту панели
+        const bottomOffset = 8; // 8px отступ от низа
+        let finalBottom: number;
+        
+        if (window.visualViewport) {
+          // Для браузеров с visualViewport - просто 8px + safe-area
+          finalBottom = bottomOffset + safeAreaBottom;
+        } else {
+          // Для Яндекс браузера - добавляем высоту браузерной панели
+          finalBottom = browserBottomBarHeight + bottomOffset + safeAreaBottom;
+        }
+        
         containerRef.current.style.bottom = `${finalBottom}px`;
         containerRef.current.style.top = 'auto';
       } else {
@@ -151,7 +176,6 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
       ref={containerRef}
       className="fixed md:absolute left-0 right-0 z-50"
       style={{ 
-        bottom: '8px', // fallback для мобильных
         paddingTop: '16px',
         paddingBottom: '16px',
         backgroundColor: 'var(--background)'

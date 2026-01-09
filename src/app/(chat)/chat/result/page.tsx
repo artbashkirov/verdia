@@ -192,14 +192,9 @@ function ResultContent() {
   }
 
   return (
-    <div className="flex bg-background" style={{ 
+    <div className="flex bg-background h-screen" style={{ 
       height: '100dvh',
       overflow: 'hidden',
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
       width: '100%'
     }}>
       <Sidebar onNewChat={handleNewChat} />
@@ -513,9 +508,7 @@ function ResultContent() {
           </div>
 
           {/* Input - fixed at bottom for mobile, relative for desktop */}
-          <div className="md:hidden fixed left-0 right-0 z-40" style={{ 
-            bottom: 'calc(8px + env(safe-area-inset-bottom, 0px))'
-          }}>
+          <div className="md:hidden fixed left-0 right-0 z-40">
             <ChatInput onSubmit={handleSubmit} />
           </div>
           <div className="hidden md:block relative">

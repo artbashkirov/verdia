@@ -233,10 +233,13 @@ export function MobileSidebar({
       {/* Sidebar */}
       <div
         ref={sidebarRef}
-        className={`fixed top-0 left-0 h-screen bg-[#17181A] flex flex-col shrink-0 transition-transform duration-300 ease-in-out z-50 md:hidden ${
+        className={`fixed top-0 left-0 bg-[#17181A] flex flex-col shrink-0 transition-transform duration-300 ease-in-out z-50 md:hidden ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
-        style={{ width: '60vw' }}
+        style={{ 
+          width: '60vw',
+          height: '100dvh'
+        }}
       >
         {/* Top section */}
         <div className="flex flex-col flex-1 min-h-0 pt-5 px-4">
