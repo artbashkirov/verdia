@@ -431,15 +431,15 @@ export default function ChatResultPage() {
   const { query, response } = generation;
 
   return (
-    <div className="flex bg-background max-w-[100vw] h-screen" style={{ 
-      height: '100dvh',
-      overflow: 'hidden',
+    <div className="flex bg-background max-w-[100vw]" style={{ 
       position: 'fixed',
       top: 0,
       left: 0,
       right: 0,
       bottom: 0,
-      width: '100%'
+      width: '100%',
+      height: '100dvh',
+      overflow: 'hidden'
     }}>
       <MobileHeader 
         onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -456,15 +456,18 @@ export default function ChatResultPage() {
       
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 max-w-[100vw] overflow-x-hidden p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A] overflow-hidden" style={{
-        height: '100%',
-        paddingBottom: '0'
+        minHeight: 0,
+        maxHeight: '100%'
       }}>
-        <div className="flex-1 bg-background md:rounded-2xl overflow-hidden relative flex flex-col">
+        <div className="flex-1 bg-background md:rounded-2xl overflow-hidden relative flex flex-col" style={{
+          minHeight: 0,
+          maxHeight: '100%'
+        }}>
           {/* Scrollable content */}
           <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden pt-6 md:pt-14 px-0 relative" style={{
             minHeight: 0,
-            WebkitOverflowScrolling: 'touch',
-            paddingBottom: 'calc(56px + 16px + 8px)' // высота input + padding + 8px отступ
+            maxHeight: '100%',
+            WebkitOverflowScrolling: 'touch'
           }}>
             <div className="w-full max-w-[660px] mx-auto flex flex-col gap-8 px-4" style={{ position: 'relative', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
               {/* Query */}

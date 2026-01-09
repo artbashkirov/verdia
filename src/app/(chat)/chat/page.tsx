@@ -34,15 +34,15 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex bg-background h-screen" style={{ 
-      height: '100dvh',
-      overflow: 'hidden',
+    <div className="flex bg-background" style={{ 
       position: 'fixed',
       top: 0,
       left: 0,
       right: 0,
       bottom: 0,
-      width: '100%'
+      width: '100%',
+      height: '100dvh',
+      overflow: 'hidden'
     }}>
       {/* Mobile Header - fixed at top */}
       <MobileHeader 
@@ -64,16 +64,17 @@ export default function ChatPage() {
       {/* Main content - flex container */}
       <div className="flex-1 flex flex-col min-w-0 p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A]" style={{ 
         overflow: 'hidden',
-        height: '100%',
-        paddingBottom: '0' // инпут fixed, не нужно место
+        minHeight: 0,
+        maxHeight: '100%'
       }}>
         {/* Scrollable content area - only this scrolls on mobile */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden bg-background md:rounded-2xl" style={{ 
           minHeight: 0,
+          maxHeight: '100%',
           WebkitOverflowScrolling: 'touch',
-          paddingBottom: 'calc(56px + 16px + 8px)' // высота input + padding + 8px отступ
+          paddingBottom: 'calc(56px + 16px + 8px)' // отступ снизу для инпута (fixed, но нужен отступ контента)
         }}>
-          <div className="flex flex-col items-center justify-center min-h-full px-4 md:px-0 py-8 md:py-14">
+          <div className="flex flex-col items-center justify-center px-4 md:px-0 py-8 md:py-14">
             {/* Content */}
             <div className="flex flex-col items-center w-full md:max-w-[920px]">
               {/* Logo and tagline */}

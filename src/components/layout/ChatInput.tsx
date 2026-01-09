@@ -77,21 +77,34 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
       const isMobile = window.innerWidth < 768;
       
       if (isMobile) {
-        // Определяем реальную высоту видимой области
-        let viewportHeight: number;
+        // Определяем реальную высоту видимой области и высоту браузерной панели
         let browserBottomBarHeight: number = 0;
         
         if (window.visualViewport) {
-          // Используем visualViewport - это реальная видимая область без браузерных панелей
-          viewportHeight = window.visualViewport.height;
+          // Для браузеров с visualViewport (Safari, Chrome)
+          // visualViewport.height - это видимая область БЕЗ браузерных панелей
+          // window.innerHeight - это полная высота окна ВКЛЮЧАЯ браузерные панели
+          const viewportHeight = window.visualViewport.height;
           const windowHeight = window.innerHeight;
           const offsetTop = window.visualViewport.offsetTop || 0;
           const totalBrowserUI = windowHeight - viewportHeight;
+          // Высота нижней браузерной панели = общая высота UI - высота верхней панели
           browserBottomBarHeight = Math.max(totalBrowserUI - offsetTop, 0);
         } else {
-          // Fallback для браузеров без visualViewport (Яндекс браузер)
-          viewportHeight = window.innerHeight;
-          browserBottomBarHeight = getBrowserBarHeight();
+          // Для браузеров без visualViewport (Яндекс браузер)
+          // Используем несколько методов для определения высоты нижней панели
+          const calculatedBarHeight = getBrowserBarHeight();
+          
+          // Альтернативный метод: разница между innerHeight и clientHeight
+          const innerHeight = window.innerHeight;
+          const clientHeight = document.documentElement.clientHeight;
+          const heightDiff = innerHeight - clientHeight;
+          
+          // Берем большее значение из методов, но не больше 150px (разумный максимум)
+          browserBottomBarHeight = Math.min(
+            Math.max(calculatedBarHeight, heightDiff > 0 && heightDiff < 100 ? heightDiff : calculatedBarHeight),
+            150
+          );
         }
         
         // Учитываем safe-area-inset-bottom для устройств с вырезом
@@ -116,25 +129,29 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
         
         // Позиционируем инпут на 8px от видимой нижней границы браузера
         // Видимая нижняя граница браузера = это нижний край браузерной панели навигации
-        // Структура: [экран] -> [браузерная панель снизу] -> [8px отступ] -> [инпут]
+        // position: fixed позиционируется относительно window.innerHeight (полная высота окна с панелями)
+        // Структура снизу вверх: [низ окна] -> [браузерная панель навигации] -> [8px] -> [инпут] -> [контент]
         const bottomOffset = 8; // 8px отступ от видимой нижней границы браузера
         
-        // Для всех браузеров: инпут должен быть на высоте браузерной панели + 8px + safe-area
+        // Для всех браузеров: инпут должен быть на высоте браузерной панели + 8px + safe-area от низа окна
         // browserBottomBarHeight - это высота нижней браузерной панели (навигация)
+        // Если браузерная панель отсутствует (desktop или скрыта), browserBottomBarHeight будет 0
         const finalBottom = browserBottomBarHeight + bottomOffset + safeAreaBottom;
         
         containerRef.current.style.bottom = `${finalBottom}px`;
-        containerRef.current.style.top = 'auto';
+        containerRef.current.style.position = 'fixed';
+        containerRef.current.style.left = '0';
+        containerRef.current.style.right = '0';
         
         // Отладка в development режиме
         if (process.env.NODE_ENV === 'development') {
           console.log('ChatInput positioning:', {
             hasVisualViewport: !!window.visualViewport,
-            viewportHeight,
-            browserBottomBarHeight,
-            safeAreaBottom,
+            visualViewportHeight: window.visualViewport?.height,
             windowInnerHeight: window.innerHeight,
             clientHeight: document.documentElement.clientHeight,
+            browserBottomBarHeight,
+            safeAreaBottom,
             finalBottom: `${finalBottom}px`
           });
         }

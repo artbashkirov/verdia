@@ -357,15 +357,15 @@ function NewChatPageContent() {
   const hasContent = response.courtCases || response.shortAnswer || response.legalAnalysis;
 
   return (
-    <div className="flex bg-background h-screen" style={{ 
-      height: '100dvh',
-      overflow: 'hidden',
+    <div className="flex bg-background" style={{ 
       position: 'fixed',
       top: 0,
       left: 0,
       right: 0,
       bottom: 0,
-      width: '100%'
+      width: '100%',
+      height: '100dvh',
+      overflow: 'hidden'
     }}>
       <MobileHeader 
         onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -381,18 +381,21 @@ function NewChatPageContent() {
       <Sidebar currentChatId={chatId || undefined} onNewChat={handleNewChat} className="hidden md:flex" />
       
       <div className="flex-1 flex flex-col p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A] overflow-hidden" style={{
-        height: '100%',
-        paddingBottom: '0'
+        minHeight: 0,
+        maxHeight: '100%'
       }}>
-        <div className="flex-1 bg-background md:rounded-2xl relative flex flex-col overflow-hidden">
+        <div className="flex-1 bg-background md:rounded-2xl relative flex flex-col overflow-hidden" style={{
+          minHeight: 0,
+          maxHeight: '100%'
+        }}>
           {/* Scrollable content */}
           <div 
             ref={contentRef} 
             className="flex-1 overflow-y-auto overflow-x-hidden pt-6 md:pt-14 px-0 relative"
             style={{
               minHeight: 0,
-              WebkitOverflowScrolling: 'touch',
-              paddingBottom: 'calc(56px + 16px + 8px)' // высота input + padding + 8px отступ
+              maxHeight: '100%',
+              WebkitOverflowScrolling: 'touch'
             }}
           >
             <div className="w-full max-w-[660px] mx-auto flex flex-col gap-8 break-words px-4" style={{ position: 'relative' }}>
