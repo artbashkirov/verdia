@@ -10,6 +10,20 @@ interface AuthLayoutProps {
   description?: string;
 }
 
+// Тёмные CSS переменные для auth страниц
+const darkThemeStyles: React.CSSProperties = {
+  // @ts-expect-error CSS custom properties
+  '--background': '#131314',
+  '--foreground': '#ffffff',
+  '--secondary-text': '#9a9a9a',
+  '--gray-100': '#3a3a3a',
+  '--gray-200': '#4a4a4a',
+  '--gray-400': '#9a9a9a',
+  '--border-color': 'rgba(255, 255, 255, 0.1)',
+  '--input-bg': '#1E1E1F',
+  paddingBottom: 'env(safe-area-inset-bottom)',
+};
+
 export function AuthLayout({ children, title = "Заголовок", description = "Краткое описание сервиса" }: AuthLayoutProps) {
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -20,10 +34,10 @@ export function AuthLayout({ children, title = "Заголовок", description
 
   return (
     <div 
-      className="fixed inset-0 w-full bg-background flex items-center justify-center lg:p-0 overflow-hidden"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      className="fixed inset-0 w-full bg-[#131314] flex items-center justify-center lg:p-0 overflow-hidden"
+      style={darkThemeStyles}
     >
-      <div className="w-full h-full bg-background flex flex-col lg:flex-row overflow-hidden">
+      <div className="w-full h-full bg-[#131314] flex flex-col lg:flex-row overflow-hidden">
         {/* Left panel with form - full width on mobile, 50% on desktop */}
         <div className="w-full lg:w-1/2 flex flex-col relative h-full">
           {/* Logo for mobile - centered at top, 63px from top */}
