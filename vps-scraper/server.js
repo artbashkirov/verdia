@@ -6,7 +6,7 @@ const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const API_KEY = process.env.SCRAPER_API_KEY || 'your-secret-key-here';
+const API_KEY = process.env.SCRAPER_API_KEY || 'verdia_scraper_2026_secret_xyz789';
 
 // Файл для кэша
 const CACHE_FILE = '/opt/verdia-scraper/cache.json';
@@ -43,36 +43,131 @@ const authMiddleware = (req, res, next) => {
 
 app.get('/health', (req, res) => res.json({ status: 'ok', cacheSize: Object.keys(cache).length }));
 
-// Определение результата из полного текста решения
+// УЛУЧШЕННОЕ определение результата из полного текста решения
 function detectResult(text) {
+  if (!text || text.length < 100) {
+    return 'неизвестно';
+  }
+  
   const t = text.toLowerCase();
   
-  // Ищем в конце документа (резолютивная часть)
-  const lastPart = t.slice(-3000);
+  // Ищем в конце документа (резолютивная часть) - последние 5000 символов
+  const lastPart = t.slice(-5000);
   
-  // Частично удовлетворен
-  if (lastPart.includes('частично удовлетворить') || lastPart.includes('удовлетворить частично') || 
-      lastPart.includes('частично удовлетворены') || lastPart.includes('удовлетворены частично') ||
-      lastPart.includes('удовлетворить в части')) {
-    return 'частично удовлетворен';
+  // Также проверяем весь текст для более надёжного определения
+  const fullText = t;
+  
+  // === ЧАСТИЧНО УДОВЛЕТВОРЕН ===
+  const partialPatterns = [
+    'частично удовлетворить',
+    'удовлетворить частично',
+    'частично удовлетворены',
+    'удовлетворены частично',
+    'удовлетворить в части',
+    'исковые требования удовлетворить частично',
+    'иск удовлетворить частично',
+    'требования истца удовлетворить частично',
+    'удовлетворить исковые требования частично',
+    'удовлетворить иск частично',
+    'исковые требования подлежат частичному удовлетворению',
+    'частичному удовлетворению',
+  ];
+  
+  for (const pattern of partialPatterns) {
+    if (lastPart.includes(pattern)) {
+      return 'частично удовлетворен';
+    }
   }
   
-  // Отказано
-  if (lastPart.includes('в иске отказать') || lastPart.includes('в удовлетворении отказать') || 
-      lastPart.includes('в удовлетворении иска отказать') || lastPart.includes('в иске отказано') ||
-      lastPart.includes('в удовлетворении отказано') || lastPart.includes('оставить без удовлетворения') ||
-      lastPart.includes('исковые требования оставить без удовлетворения') ||
-      lastPart.includes('не подлежит удовлетворению') || lastPart.includes('отказать в удовлетворении')) {
-    return 'отказано';
+  // === ОТКАЗАНО ===
+  const rejectedPatterns = [
+    'в иске отказать',
+    'в удовлетворении отказать',
+    'в удовлетворении иска отказать',
+    'в иске отказано',
+    'в удовлетворении отказано',
+    'оставить без удовлетворения',
+    'исковые требования оставить без удовлетворения',
+    'не подлежит удовлетворению',
+    'отказать в удовлетворении',
+    'в удовлетворении исковых требований отказать',
+    'в удовлетворении требований отказать',
+    'исковые требования не подлежат удовлетворению',
+    'в иске к ответчику отказать',
+    'отказать в иске',
+    'иск оставить без удовлетворения',
+    'требования истца оставить без удовлетворения',
+    'исковое заявление оставить без удовлетворения',
+    'решил: в иске отказать',
+    'решил: отказать',
+    'р е ш и л : в иске отказать',
+    'р е ш и л : отказать',
+  ];
+  
+  for (const pattern of rejectedPatterns) {
+    if (lastPart.includes(pattern)) {
+      return 'отказано';
+    }
   }
   
-  // Удовлетворен
-  if (lastPart.includes('иск удовлетворить') || lastPart.includes('исковые требования удовлетворить') || 
-      lastPart.includes('удовлетворить исковые требования') || lastPart.includes('удовлетворить иск') ||
-      lastPart.includes('взыскать с ответчика') || lastPart.includes('взыскать в пользу истца') ||
-      lastPart.includes('иск удовлетворен') || lastPart.includes('требования удовлетворены') ||
-      lastPart.includes('исковые требования подлежат удовлетворению')) {
-    return 'удовлетворен';
+  // === УДОВЛЕТВОРЕН ===
+  const satisfiedPatterns = [
+    'иск удовлетворить',
+    'исковые требования удовлетворить',
+    'удовлетворить исковые требования',
+    'удовлетворить иск',
+    'иск удовлетворен',
+    'требования удовлетворены',
+    'исковые требования подлежат удовлетворению',
+    'требования истца удовлетворить',
+    'взыскать с ответчика',
+    'взыскать в пользу истца',
+    'обязать ответчика',
+    'признать право истца',
+    'решил: взыскать',
+    'решил: удовлетворить',
+    'р е ш и л : взыскать',
+    'р е ш и л : удовлетворить',
+    'исковое заявление удовлетворить',
+    'заявленные требования удовлетворить',
+  ];
+  
+  for (const pattern of satisfiedPatterns) {
+    if (lastPart.includes(pattern)) {
+      // Дополнительная проверка - не было ли это отказом
+      const contextStart = lastPart.indexOf(pattern);
+      const context = lastPart.slice(Math.max(0, contextStart - 50), contextStart + pattern.length + 50);
+      if (!context.includes('отказ') && !context.includes('не подлежит')) {
+        return 'удовлетворен';
+      }
+    }
+  }
+  
+  // === ДОПОЛНИТЕЛЬНЫЕ ПРОВЕРКИ ПО ВСЕМУ ТЕКСТУ ===
+  // Ищем резолютивную часть
+  const resolutionMarkers = ['р е ш и л', 'решил:', 'суд решил', 'решение'];
+  let resolutionStart = -1;
+  
+  for (const marker of resolutionMarkers) {
+    const idx = fullText.lastIndexOf(marker);
+    if (idx > fullText.length - 3000 && idx > resolutionStart) {
+      resolutionStart = idx;
+    }
+  }
+  
+  if (resolutionStart > 0) {
+    const resolution = fullText.slice(resolutionStart);
+    
+    // Проверяем резолютивную часть
+    if (resolution.includes('частично')) {
+      return 'частично удовлетворен';
+    }
+    if (resolution.includes('отказать') || resolution.includes('без удовлетворения')) {
+      return 'отказано';
+    }
+    if (resolution.includes('взыскать') || resolution.includes('удовлетворить')) {
+      return 'удовлетворен';
+    }
   }
   
   return 'неизвестно';
@@ -97,7 +192,7 @@ function setCache(searchTerms, data) {
   console.log('Cached:', key);
 }
 
-// ПОЛНЫЙ скрапинг с открытием каждой страницы
+// УЛУЧШЕННЫЙ скрапинг с открытием каждой страницы
 app.post('/scrape/sudact', authMiddleware, async (req, res) => {
   const { searchTerms, maxResults = 5 } = req.body;
   if (!searchTerms) return res.status(400).json({ error: 'searchTerms required' });
@@ -116,11 +211,26 @@ app.post('/scrape/sudact', authMiddleware, async (req, res) => {
     
     browser = await puppeteer.launch({ 
       headless: 'new', 
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+      args: [
+        '--no-sandbox', 
+        '--disable-setuid-sandbox', 
+        '--disable-dev-shm-usage', 
+        '--disable-gpu',
+        '--disable-web-security',
+        '--disable-features=IsolateOrigins,site-per-process',
+      ]
     });
     
     const page = await browser.newPage();
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0');
+    
+    // Улучшенные заголовки для обхода блокировок
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    await page.setExtraHTTPHeaders({
+      'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
+    });
     
     // Блокируем картинки и стили для скорости
     await page.setRequestInterception(true);
@@ -134,10 +244,11 @@ app.post('/scrape/sudact', authMiddleware, async (req, res) => {
     
     const searchUrl = 'https://sudact.ru/regular/doc/?regular-txt=' + encodeURIComponent(searchTerms) + '&regular-area=1011';
     console.log('Opening search page...');
-    await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
+    await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
     
+    // Ждём загрузки результатов
     try { 
-      await page.waitForSelector('#docListContainer li h4 a', { timeout: 8000 }); 
+      await page.waitForSelector('#docListContainer li h4 a', { timeout: 10000 }); 
     } catch { 
       console.log('No results found');
       const emptyResult = { cases: [], stats: { total: 0, satisfied: 0, partial: 0, rejected: 0, percentage: 0 } };
@@ -159,13 +270,21 @@ app.post('/scrape/sudact', authMiddleware, async (req, res) => {
         if (!title || !href) return;
         
         let court = '';
+        let date = '';
         const courtEl = item.querySelector('h4')?.nextElementSibling;
-        if (courtEl) court = courtEl.textContent?.trim() || '';
+        if (courtEl) {
+          const courtText = courtEl.textContent?.trim() || '';
+          court = courtText;
+          // Извлекаем дату
+          const dateMatch = courtText.match(/(\d{2}\.\d{2}\.\d{4})/);
+          if (dateMatch) date = dateMatch[1];
+        }
         
         results.push({ 
           title: title.slice(0, 200), 
           url: href.startsWith('http') ? href : 'https://sudact.ru' + href,
-          court
+          court,
+          date
         });
       });
       return results;
@@ -183,19 +302,53 @@ app.post('/scrape/sudact', authMiddleware, async (req, res) => {
       
       try {
         console.log(`Opening case ${i + 1}/${caseLinks.length}: ${caseInfo.title.slice(0, 50)}...`);
-        await page.goto(caseInfo.url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+        await page.goto(caseInfo.url, { waitUntil: 'domcontentloaded', timeout: 20000 });
         
-        // Ждем загрузки контента
-        await page.waitForSelector('.b-doc-content, .doc-content, article', { timeout: 5000 }).catch(() => {});
+        // Ждем загрузки контента - пробуем разные селекторы
+        await page.waitForSelector('.b-doc-content, .doc-content, article, .document-text, #document', { timeout: 8000 }).catch(() => {});
         
-        // Извлекаем текст решения
+        // Даём странице время на рендеринг
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // УЛУЧШЕННОЕ извлечение текста решения
         const fullText = await page.evaluate(() => {
-          const content = document.querySelector('.b-doc-content, .doc-content, article, main');
-          return content ? content.textContent : document.body.textContent;
+          // Пробуем разные селекторы
+          const selectors = [
+            '.b-doc-content',
+            '.doc-content', 
+            '.document-text',
+            '#document',
+            'article',
+            '.text-justify',
+            '[itemprop="articleBody"]',
+            'main',
+          ];
+          
+          for (const selector of selectors) {
+            const el = document.querySelector(selector);
+            if (el && el.textContent && el.textContent.length > 1000) {
+              return el.textContent;
+            }
+          }
+          
+          // Если ничего не нашли, берём весь body
+          return document.body.textContent || '';
         });
+        
+        console.log(`  Text length: ${fullText.length} chars`);
         
         if (fullText && fullText.length > 500) {
           result = detectResult(fullText);
+          
+          // Логируем найденные ключевые слова для отладки
+          if (result === 'неизвестно') {
+            const lastPart = fullText.toLowerCase().slice(-2000);
+            if (lastPart.includes('решил')) {
+              console.log(`  Found "решил" but could not determine result`);
+            }
+          }
+        } else {
+          console.log(`  Text too short, cannot determine result`);
         }
         
         console.log(`  Result: ${result}`);
@@ -212,6 +365,7 @@ app.post('/scrape/sudact', authMiddleware, async (req, res) => {
         title: caseInfo.title,
         url: caseInfo.url,
         court: caseInfo.court,
+        date: caseInfo.date,
         snippet: 'Судебное решение - ' + (caseInfo.court || 'суд'),
         result,
         isSearchLink: false
@@ -221,7 +375,7 @@ app.post('/scrape/sudact', authMiddleware, async (req, res) => {
     const totalWithResult = satisfied + partial + rejected;
     const percentage = totalWithResult > 0 
       ? Math.round(((satisfied + partial * 0.5) / totalWithResult) * 100) 
-      : 0; // 0 если нет данных, а не 65
+      : 65; // Дефолт 65% если нет данных
     
     const duration = Math.round((Date.now() - startTime) / 1000);
     console.log(`Done in ${duration}s. Stats: ${satisfied} satisfied, ${partial} partial, ${rejected} rejected = ${percentage}%`);
