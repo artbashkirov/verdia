@@ -169,9 +169,6 @@ export async function POST(request: NextRequest) {
         
         const { cases, stats, courtInfo, category } = searchResults;
         
-        // SKIP defendant history search for speed - it adds ~10 seconds
-        const defendantHistory = null;
-
         // Step 3: Send court cases immediately
         sendEvent('courtCases', {
           cases: cases.slice(0, 5).map((c, i) => ({
@@ -186,36 +183,22 @@ export async function POST(request: NextRequest) {
             percentage: stats.percentage,
           },
           courtInfo: courtInfo?.name,
-          defendantHistory: defendantHistory ? {
-            name: defendantHistory.name,
-            totalCases: defendantHistory.totalCases,
-            casesLost: defendantHistory.casesLost,
-          } : null,
         });
 
         // Step 4: Update status - preparing response
         sendEvent('status', { stage: 'analyzing', message: 'Готовлю ответ (примерно 30 секунд)...' });
 
-        // Build enhanced query with plaintiff and defendant context
+        // Build enhanced query with plaintiff context
         const plaintiffContext = formatPlaintiffContext(userProfile);
-        const defendantContext = defendantHistory 
-          ? `\n\nИНФОРМАЦИЯ ОБ ОТВЕТЧИКЕ:
-Наименование: ${defendantHistory.name}
-Всего дел с участием: ${defendantHistory.totalCases}
-Проигранных дел (как ответчик): ${defendantHistory.casesLost}
-${defendantHistory.commonCategories?.length ? `Частые категории дел: ${defendantHistory.commonCategories.join(', ')}` : ''}`
-          : '';
         
         const enhancedSearchResults = {
           ...searchResults,
           plaintiffContext,
-          defendantContext,
-          defendantHistory,
         };
 
         // Step 5: Generate AI response
         const responseJson = await generateLegalResponse(
-          query + plaintiffContext + defendantContext, 
+          query + plaintiffContext, 
           enhancedSearchResults
         );
         
