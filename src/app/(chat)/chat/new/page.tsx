@@ -429,11 +429,11 @@ function NewChatPageContent() {
                         }}
                       >
                         <div className="space-y-2">
-                          <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-full" />
-                          <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-4/5" />
-                          <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-3/5" />
+                          <div className="h-4 rounded w-full" style={{ backgroundColor: resolvedTheme === 'light' ? '#E5E5E5' : '#2a2a2b' }} />
+                          <div className="h-4 rounded w-4/5" style={{ backgroundColor: resolvedTheme === 'light' ? '#E5E5E5' : '#2a2a2b' }} />
+                          <div className="h-4 rounded w-3/5" style={{ backgroundColor: resolvedTheme === 'light' ? '#E5E5E5' : '#2a2a2b' }} />
                         </div>
-                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
+                        <div className="h-3 rounded w-1/3" style={{ backgroundColor: resolvedTheme === 'light' ? '#EBEBEB' : '#252526' }} />
                       </div>
                     ))}
                     <div className="min-w-4 flex-shrink-0" />
