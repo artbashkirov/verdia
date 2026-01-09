@@ -54,7 +54,7 @@ export default function ChatPage() {
       
       {/* Main content */}
       <div className="flex-1 p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A]">
-        <div className="h-full bg-background md:rounded-2xl overflow-hidden relative flex flex-col items-center justify-center md:justify-center min-h-0 px-4 md:px-0 pb-[88px] md:pb-0">
+        <div className="h-full bg-background md:rounded-2xl overflow-hidden relative flex flex-col items-center justify-center md:justify-center min-h-0 px-4 md:px-0 pb-[104px] md:pb-0">
           {/* Content */}
           <div className="flex flex-col items-center w-full md:max-w-[920px]">
             {/* Logo and tagline */}

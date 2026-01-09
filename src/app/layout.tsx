@@ -40,6 +40,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -50,7 +51,7 @@ export default function RootLayout({
   return (
     <html lang="ru" className="light" suppressHydrationWarning style={{ fontSize: '16px' }}>
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
         <meta name="format-detection" content="telephone=no" />
         <link rel="icon" type="image/svg+xml" href="/iconV.svg" />
         <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />

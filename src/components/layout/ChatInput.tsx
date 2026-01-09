@@ -31,7 +31,7 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
     <div 
       className="fixed md:absolute bottom-0 left-0 right-0 z-10 overflow-hidden"
       style={{ 
-        paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
+        paddingBottom: 'calc(max(16px, env(safe-area-inset-bottom)) + 16px)',
         backgroundColor: 'var(--background)'
       }}
     >
