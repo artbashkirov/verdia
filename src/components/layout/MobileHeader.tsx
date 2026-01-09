@@ -30,12 +30,7 @@ export function MobileHeader({ onMenuClick, isMenuOpen, onNewChat }: MobileHeade
       style={{ 
         height: '56px',
         paddingLeft: '16px',
-        paddingRight: '16px',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 50
+        paddingRight: '16px'
       }}
     >
       {/* Menu button */}

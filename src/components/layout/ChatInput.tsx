@@ -114,22 +114,30 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
           // Игнорируем ошибки
         }
         
-        // Позиционируем инпут на 8px от низа видимой области
-        // Если есть браузерная панель снизу, она уже учтена в visualViewport
-        // Но для Яндекс браузера нужно добавить высоту панели
-        const bottomOffset = 8; // 8px отступ от низа
-        let finalBottom: number;
+        // Позиционируем инпут на 8px от видимой нижней границы браузера
+        // Видимая нижняя граница браузера = это нижний край браузерной панели навигации
+        // Структура: [экран] -> [браузерная панель снизу] -> [8px отступ] -> [инпут]
+        const bottomOffset = 8; // 8px отступ от видимой нижней границы браузера
         
-        if (window.visualViewport) {
-          // Для браузеров с visualViewport - просто 8px + safe-area
-          finalBottom = bottomOffset + safeAreaBottom;
-        } else {
-          // Для Яндекс браузера - добавляем высоту браузерной панели
-          finalBottom = browserBottomBarHeight + bottomOffset + safeAreaBottom;
-        }
+        // Для всех браузеров: инпут должен быть на высоте браузерной панели + 8px + safe-area
+        // browserBottomBarHeight - это высота нижней браузерной панели (навигация)
+        const finalBottom = browserBottomBarHeight + bottomOffset + safeAreaBottom;
         
         containerRef.current.style.bottom = `${finalBottom}px`;
         containerRef.current.style.top = 'auto';
+        
+        // Отладка в development режиме
+        if (process.env.NODE_ENV === 'development') {
+          console.log('ChatInput positioning:', {
+            hasVisualViewport: !!window.visualViewport,
+            viewportHeight,
+            browserBottomBarHeight,
+            safeAreaBottom,
+            windowInnerHeight: window.innerHeight,
+            clientHeight: document.documentElement.clientHeight,
+            finalBottom: `${finalBottom}px`
+          });
+        }
       } else {
         containerRef.current.style.bottom = '0';
         containerRef.current.style.top = 'auto';
