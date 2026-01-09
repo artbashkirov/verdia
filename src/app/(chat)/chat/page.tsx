@@ -34,14 +34,14 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex bg-background" style={{ 
+    <div className="flex flex-col bg-background" style={{ 
       position: 'fixed',
       top: 0,
       left: 0,
       right: 0,
       bottom: 0,
       width: '100%',
-      height: '100vh',
+      height: '100dvh',
       overflow: 'hidden'
     }}>
       {/* Mobile Header - fixed at top (не скроллится) */}
@@ -61,14 +61,17 @@ export default function ChatPage() {
       {/* Desktop Sidebar */}
       <Sidebar onNewChat={handleNewChat} className="hidden md:flex" />
       
-      {/* Main content - скроллится */}
+      {/* Main content - flex container */}
       <div className="flex-1 flex flex-col min-w-0 p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A]" style={{ 
         overflow: 'hidden',
-        minHeight: 0
+        minHeight: 0,
+        display: 'flex',
+        flexDirection: 'column'
       }}>
         {/* Content area - только контент скроллится */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden bg-background md:rounded-2xl" style={{ 
           minHeight: 0,
+          flex: '1 1 auto',
           WebkitOverflowScrolling: 'touch',
           paddingBottom: 'calc(56px + 32px + 8px)' // отступ снизу для fixed инпута
         }}>
