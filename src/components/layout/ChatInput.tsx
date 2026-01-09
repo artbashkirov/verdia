@@ -78,24 +78,12 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
       
       if (isMobile) {
         // ПРАВИЛЬНЫЙ РАСЧЕТ: инпут на 8px от видимой нижней границы браузера
-        // Видимая нижняя граница = visualViewport.height (верхний край браузерной панели)
-        // position: fixed позиционируется относительно window.innerHeight
-        // Разница = window.innerHeight - visualViewport.height - offsetTop = высота нижней панели
+        // Видимая нижняя граница = верхний край браузерной панели навигации
+        // Используем единый метод getBrowserBarHeight() для всех браузеров
+        // (включая Safari, Chrome, Яндекс браузер и другие)
         
-        let bottomBarHeight: number = 0;
+        const bottomBarHeight = getBrowserBarHeight();
         let safeAreaBottom: number = 0;
-        
-        if (window.visualViewport) {
-          // Safari, Chrome - используем visualViewport
-          const viewportHeight = window.visualViewport.height;
-          const windowHeight = window.innerHeight;
-          const offsetTop = window.visualViewport.offsetTop || 0;
-          const totalBrowserUI = windowHeight - viewportHeight;
-          bottomBarHeight = Math.max(totalBrowserUI - offsetTop, 0);
-        } else {
-          // Яндекс браузер и другие - используем getBrowserBarHeight()
-          bottomBarHeight = getBrowserBarHeight();
-        }
         
         // Получаем safe-area-inset-bottom
         try {
