@@ -34,7 +34,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex flex-col bg-background" style={{ 
+    <div className="flex bg-background" style={{ 
       position: 'fixed',
       top: 0,
       left: 0,
@@ -61,16 +61,16 @@ export default function ChatPage() {
       {/* Desktop Sidebar */}
       <Sidebar onNewChat={handleNewChat} className="hidden md:flex" />
       
-      {/* Main content - flex container (ChatGPT/DeepSeek structure) */}
+      {/* Main content - flex container */}
       <div className="flex-1 flex flex-col min-w-0 p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A]" style={{ 
         overflow: 'hidden',
         minHeight: 0
       }}>
-        {/* Content area - только контент скроллится (ChatGPT/DeepSeek structure) */}
+        {/* Content area - только контент скроллится на mobile */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden bg-background md:rounded-2xl" style={{ 
           minHeight: 0,
           WebkitOverflowScrolling: 'touch',
-          paddingBottom: 'calc(56px + 16px + 16px + 8px)' // отступ снизу: высота инпута (56px) + paddingTop (16px) + paddingBottom (16px) + отступ от браузера (8px)
+          paddingBottom: 'calc(56px + 32px + 8px)' // отступ снизу для fixed инпута на mobile
         }}>
           <div className="flex flex-col items-center px-4 md:px-0 py-8 md:py-14 md:justify-center" style={{ minHeight: 0 }}>
             {/* Content */}
@@ -160,11 +160,11 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Input - fixed at bottom (не скроллится) */}
-      <div className="hidden md:block relative">
+      {/* Input - fixed at bottom for mobile, relative for desktop */}
+      <div className="md:hidden">
         <ChatInput onSubmit={handleSubmit} />
       </div>
-      <div className="md:hidden">
+      <div className="hidden md:block relative">
         <ChatInput onSubmit={handleSubmit} />
       </div>
     </div>
