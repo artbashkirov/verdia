@@ -357,7 +357,7 @@ function NewChatPageContent() {
   const hasContent = response.courtCases || response.shortAnswer || response.legalAnalysis;
 
   return (
-    <div className="flex bg-background" style={{ height: 'var(--viewport-height, 100vh)' }}>
+    <div className="flex bg-background overflow-hidden" style={{ height: '100dvh' }}>
       <MobileHeader 
         onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         isMenuOpen={isMobileMenuOpen}
@@ -371,13 +371,14 @@ function NewChatPageContent() {
       />
       <Sidebar currentChatId={chatId || undefined} onNewChat={handleNewChat} className="hidden md:flex" />
       
-      <div className="flex-1 p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A]">
-        <div className="h-full bg-background md:rounded-2xl relative flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A] overflow-hidden">
+        <div className="flex-1 bg-background md:rounded-2xl relative flex flex-col overflow-hidden">
           {/* Scrollable content */}
           <div 
             ref={contentRef} 
-            className="flex-1 overflow-y-auto pt-6 md:pt-14 pb-[150px] md:pb-36 px-0 relative"
+            className="flex-1 overflow-y-auto overflow-x-hidden pt-6 md:pt-14 px-0 relative"
             style={{
+              paddingBottom: 'calc(56px + 16px + 8px)', // высота input + padding + 8px отступ
               maskImage: 'linear-gradient(to bottom, black 0%, black calc(100% - 120px), rgba(0, 0, 0, 0.9) calc(100% - 112px), rgba(0, 0, 0, 0.6) calc(100% - 96px), rgba(0, 0, 0, 0.3) calc(100% - 80px), transparent calc(100% - 72px))',
               WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black calc(100% - 120px), rgba(0, 0, 0, 0.9) calc(100% - 112px), rgba(0, 0, 0, 0.6) calc(100% - 96px), rgba(0, 0, 0, 0.3) calc(100% - 80px), transparent calc(100% - 72px))'
             }}
@@ -1020,8 +1021,17 @@ function NewChatPageContent() {
               )}
             </div>
           </div>
+        </div>
 
-          {/* Input - disabled while generating */}
+        {/* Input - fixed at bottom for mobile, relative for desktop */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40">
+          <ChatInput 
+            onSubmit={() => {}} 
+            disabled={isGenerating}
+            placeholder={isGenerating ? "Дождитесь завершения анализа..." : "Задайте вопрос"}
+          />
+        </div>
+        <div className="hidden md:block relative">
           <ChatInput 
             onSubmit={() => {}} 
             disabled={isGenerating}
@@ -1029,7 +1039,6 @@ function NewChatPageContent() {
           />
         </div>
       </div>
-      
     </div>
   );
 }

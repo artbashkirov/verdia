@@ -192,12 +192,14 @@ function ResultContent() {
   }
 
   return (
-    <div className="flex bg-background" style={{ height: 'var(--viewport-height, 100vh)' }}>
+    <div className="flex bg-background overflow-hidden" style={{ height: '100dvh' }}>
       <Sidebar onNewChat={handleNewChat} />
       
-        <div className="flex-1 p-0 md:p-2 md:pl-0 md:pb-2 bg-[#17181A]">
-          <div className="h-full bg-background md:rounded-2xl overflow-hidden relative flex flex-col">
-          <div className="flex-1 overflow-y-auto pt-6 md:pt-14 pb-[150px] md:pb-36 px-0 relative">
+        <div className="flex-1 flex flex-col p-0 md:p-2 md:pl-0 md:pb-2 bg-[#17181A] overflow-hidden">
+          <div className="flex-1 bg-background md:rounded-2xl overflow-hidden relative flex flex-col">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden pt-6 md:pt-14 px-0 relative" style={{
+            paddingBottom: 'calc(56px + 16px + 8px)' // высота input + padding + 8px отступ
+          }}>
             <div className="w-full md:max-w-[660px] md:mx-auto flex flex-col gap-8 break-words" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
               <h1 className="text-[20px] lg:text-[32px] font-medium text-foreground leading-[28px] lg:leading-[40px] tracking-tight break-words md:mt-0">
                 {query}
@@ -501,7 +503,13 @@ function ResultContent() {
             </div>
           </div>
 
-          <ChatInput onSubmit={handleSubmit} />
+          {/* Input - fixed at bottom for mobile, relative for desktop */}
+          <div className="md:hidden fixed bottom-0 left-0 right-0 z-40">
+            <ChatInput onSubmit={handleSubmit} />
+          </div>
+          <div className="hidden md:block relative">
+            <ChatInput onSubmit={handleSubmit} />
+          </div>
         </div>
       </div>
     </div>

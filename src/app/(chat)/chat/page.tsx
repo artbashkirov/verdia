@@ -34,8 +34,8 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      {/* Mobile Header */}
+    <div className="flex h-screen bg-background overflow-hidden" style={{ height: '100dvh' }}>
+      {/* Mobile Header - fixed at top */}
       <MobileHeader 
         onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         isMenuOpen={isMobileMenuOpen}
@@ -53,9 +53,11 @@ export default function ChatPage() {
       <Sidebar onNewChat={handleNewChat} className="hidden md:flex" />
       
       {/* Main content - flex container */}
-      <div className="flex-1 flex flex-col min-w-0 p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A]">
-        {/* Scrollable content area */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden bg-background md:rounded-2xl min-h-0">
+      <div className="flex-1 flex flex-col min-w-0 p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A] overflow-hidden">
+        {/* Scrollable content area - only this scrolls on mobile */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden bg-background md:rounded-2xl min-h-0" style={{ 
+          paddingBottom: 'calc(56px + 16px + 8px)' // высота input + padding + 8px отступ
+        }}>
           <div className="flex flex-col items-center justify-center min-h-full px-4 md:px-0 py-8 md:py-14">
             {/* Content */}
             <div className="flex flex-col items-center w-full md:max-w-[920px]">
@@ -144,7 +146,7 @@ export default function ChatPage() {
         </div>
 
         {/* Input - fixed at bottom, outside scrollable area */}
-        <div className="md:hidden">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40">
           <ChatInput onSubmit={handleSubmit} />
         </div>
         <div className="hidden md:block relative">

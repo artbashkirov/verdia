@@ -78,7 +78,7 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
       
       if (isMobile) {
         const browserBarHeight = getBrowserBarHeight();
-        const bottomOffset = browserBarHeight + 8; // 8px отступ от панели
+        const bottomOffset = 8; // 8px отступ от низа экрана (браузерная панель уже учтена в visualViewport)
         
         // Учитываем safe-area-inset-bottom для устройств с вырезом
         let safeAreaBottom = 0;
@@ -100,7 +100,10 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
           // Игнорируем ошибки
         }
         
-        containerRef.current.style.bottom = `${bottomOffset + safeAreaBottom}px`;
+        // Используем visualViewport.height для определения реальной высоты экрана
+        // bottomOffset = 8px от низа видимой области
+        const finalBottom = bottomOffset + safeAreaBottom;
+        containerRef.current.style.bottom = `${finalBottom}px`;
         containerRef.current.style.top = 'auto';
       } else {
         containerRef.current.style.bottom = '0';
