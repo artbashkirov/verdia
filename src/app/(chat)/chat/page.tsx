@@ -54,12 +54,10 @@ export default function ChatPage() {
       
       {/* Main content - скроллится вместе со всем экраном */}
       <div className="flex-1 flex flex-col min-w-0 p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A] min-h-screen" style={{ 
-        minHeight: 0,
         paddingTop: 'calc(56px + 8px)' // отступ сверху для fixed хедера
       }}>
         {/* Content area - скроллится вместе со всем экраном */}
         <div className="flex-1 overflow-x-hidden bg-background md:rounded-2xl" style={{ 
-          minHeight: 0,
           paddingBottom: 'calc(56px + 32px + 8px)' // отступ снизу для fixed инпута
         }}>
           <div className="flex flex-col items-center px-4 md:px-0 py-8 md:py-14 md:justify-center" style={{ minHeight: 0 }}>
