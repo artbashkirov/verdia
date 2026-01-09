@@ -6,13 +6,15 @@ import { EyeIcon, EyeOffIcon } from '@/components/icons';
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
+  variant?: 'light' | 'dark';
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className = '', type = 'text', label, error, ...props }, ref) => {
+  ({ className = '', type = 'text', label, error, variant = 'light', ...props }, ref) => {
     const [showPassword, setShowPassword] = useState(false);
     const isPassword = type === 'password';
     const inputType = isPassword && showPassword ? 'text' : type;
+    const isDark = variant === 'dark';
 
     return (
       <div className="w-full">
@@ -27,11 +29,11 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             type={inputType}
             className={`
               w-full h-[48px] text-base
-              text-foreground
               border-0 rounded-[16px]
               placeholder:text-secondary-text
               focus:outline-none
               transition-colors
+              ${isDark ? 'dark-input text-white placeholder:text-[#9a9a9a]' : 'text-foreground'}
               ${error ? 'border-red-500' : ''}
               ${className}
             `}
@@ -40,7 +42,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
               paddingRight: isPassword ? '48px' : '20px', 
               paddingTop: '16px', 
               paddingBottom: '16px',
-              backgroundColor: 'var(--gray-100)'
+              backgroundColor: isDark ? '#3a3a3a' : 'var(--gray-100)'
             }}
             {...props}
           />

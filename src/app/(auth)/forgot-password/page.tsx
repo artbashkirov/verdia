@@ -131,6 +131,7 @@ export default function ForgotPasswordPage() {
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            variant="dark"
             required
             disabled={isLoading}
           />

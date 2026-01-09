@@ -251,6 +251,15 @@ input:-webkit-autofill:focus {
   transition: background-color 5000s ease-in-out 0s;
 }
 
+/* Dark input autofill (for auth pages) */
+input.dark-input:-webkit-autofill,
+input.dark-input:-webkit-autofill:hover,
+input.dark-input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0px 1000px #3a3a3a inset !important;
+  -webkit-text-fill-color: #ffffff !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
 /* Auth pages - smooth fade-in animations */
 @keyframes fadeIn {
   from {

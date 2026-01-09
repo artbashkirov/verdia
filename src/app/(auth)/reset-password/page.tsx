@@ -150,6 +150,7 @@ function ResetPasswordContent() {
               placeholder="Новый пароль"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              variant="dark"
               required
               minLength={6}
             />
@@ -158,6 +159,7 @@ function ResetPasswordContent() {
               placeholder="Подтвердите пароль"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
+              variant="dark"
               required
               minLength={6}
             />

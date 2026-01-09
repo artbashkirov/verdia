@@ -136,12 +136,14 @@ export default function RegisterPage() {
               placeholder="Имя"
               value={formData.firstName}
               onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+              variant="dark"
               required
             />
             <Input
               placeholder="Фамилия"
               value={formData.lastName}
               onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+              variant="dark"
               required
             />
           </div>
@@ -151,6 +153,7 @@ export default function RegisterPage() {
             placeholder="Email"
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            variant="dark"
             required
           />
           
@@ -159,6 +162,7 @@ export default function RegisterPage() {
             placeholder="Пароль"
             value={formData.password}
             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            variant="dark"
             required
             minLength={6}
           />

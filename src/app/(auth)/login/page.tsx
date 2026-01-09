@@ -81,6 +81,7 @@ function LoginContent() {
             placeholder="Email"
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            variant="dark"
             required
           />
           <Input
@@ -88,6 +89,7 @@ function LoginContent() {
             placeholder="Пароль"
             value={formData.password}
             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            variant="dark"
             required
           />
           <div className="flex items-center justify-center w-full">
