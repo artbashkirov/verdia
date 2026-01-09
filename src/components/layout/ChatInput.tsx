@@ -77,38 +77,27 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
       const isMobile = window.innerWidth < 768;
       
       if (isMobile) {
-        // Определяем реальную высоту видимой области и высоту браузерной панели
-        let browserBottomBarHeight: number = 0;
+        // ПРАВИЛЬНЫЙ РАСЧЕТ: инпут на 8px от видимой нижней границы браузера
+        // Видимая нижняя граница = visualViewport.height (верхний край браузерной панели)
+        // position: fixed позиционируется относительно window.innerHeight
+        // Разница = window.innerHeight - visualViewport.height - offsetTop = высота нижней панели
+        
+        let bottomBarHeight: number = 0;
+        let safeAreaBottom: number = 0;
         
         if (window.visualViewport) {
-          // Для браузеров с visualViewport (Safari, Chrome)
-          // visualViewport.height - это видимая область БЕЗ браузерных панелей
-          // window.innerHeight - это полная высота окна ВКЛЮЧАЯ браузерные панели
+          // Safari, Chrome - используем visualViewport
           const viewportHeight = window.visualViewport.height;
           const windowHeight = window.innerHeight;
           const offsetTop = window.visualViewport.offsetTop || 0;
           const totalBrowserUI = windowHeight - viewportHeight;
-          // Высота нижней браузерной панели = общая высота UI - высота верхней панели
-          browserBottomBarHeight = Math.max(totalBrowserUI - offsetTop, 0);
+          bottomBarHeight = Math.max(totalBrowserUI - offsetTop, 0);
         } else {
-          // Для браузеров без visualViewport (Яндекс браузер)
-          // Используем несколько методов для определения высоты нижней панели
-          const calculatedBarHeight = getBrowserBarHeight();
-          
-          // Альтернативный метод: разница между innerHeight и clientHeight
-          const innerHeight = window.innerHeight;
-          const clientHeight = document.documentElement.clientHeight;
-          const heightDiff = innerHeight - clientHeight;
-          
-          // Берем большее значение из методов, но не больше 150px (разумный максимум)
-          browserBottomBarHeight = Math.min(
-            Math.max(calculatedBarHeight, heightDiff > 0 && heightDiff < 100 ? heightDiff : calculatedBarHeight),
-            150
-          );
+          // Яндекс браузер и другие - используем getBrowserBarHeight()
+          bottomBarHeight = getBrowserBarHeight();
         }
         
-        // Учитываем safe-area-inset-bottom для устройств с вырезом
-        let safeAreaBottom = 0;
+        // Получаем safe-area-inset-bottom
         try {
           const testEl = document.createElement('div');
           testEl.style.position = 'fixed';
@@ -127,35 +116,36 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
           // Игнорируем ошибки
         }
         
-        // Позиционируем инпут на 8px от видимой нижней границы браузера
-        // Видимая нижняя граница = верхний край браузерной панели навигации
-        // Инпут должен быть на 8px от этой границы (от верхнего края панели)
-        const bottomOffset = 8; // 8px отступ от видимой нижней границы браузера
-        
-        // Для всех браузеров: инпут на 8px от видимой нижней границы = browserBottomBarHeight + 8px
-        const finalBottom = browserBottomBarHeight + bottomOffset + safeAreaBottom;
+        // Инпут на 8px от видимой нижней границы = bottomBarHeight + 8px + safeAreaBottom
+        const bottomOffset = 8; // 8px отступ от видимой нижней границы
+        const finalBottom = bottomBarHeight + bottomOffset + safeAreaBottom;
         
         containerRef.current.style.position = 'fixed';
         containerRef.current.style.bottom = `${finalBottom}px`;
         containerRef.current.style.left = '0';
         containerRef.current.style.right = '0';
         containerRef.current.style.width = '100%';
+        containerRef.current.style.display = 'block';
         
-        // Отладка в development режиме
+        // Отладка
         if (process.env.NODE_ENV === 'development') {
           console.log('ChatInput positioning:', {
             hasVisualViewport: !!window.visualViewport,
             visualViewportHeight: window.visualViewport?.height,
             windowInnerHeight: window.innerHeight,
-            clientHeight: document.documentElement.clientHeight,
-            browserBottomBarHeight,
+            bottomBarHeight,
             safeAreaBottom,
             finalBottom: `${finalBottom}px`
           });
         }
       } else {
+        // Desktop
+        containerRef.current.style.position = 'absolute';
         containerRef.current.style.bottom = '0';
         containerRef.current.style.top = 'auto';
+        containerRef.current.style.left = '0';
+        containerRef.current.style.right = '0';
+        containerRef.current.style.width = '100%';
       }
     }
 
@@ -197,7 +187,7 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
   return (
     <div 
       ref={containerRef}
-      className="fixed md:absolute left-0 right-0 z-50"
+      className="left-0 right-0 z-50"
       style={{ 
         paddingTop: '16px',
         paddingBottom: '16px',

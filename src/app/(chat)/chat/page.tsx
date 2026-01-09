@@ -161,12 +161,10 @@ export default function ChatPage() {
       </div>
 
       {/* Input - fixed at bottom, outside scrollable area */}
-      <div className="md:hidden fixed left-0 right-0 z-40">
-        <ChatInput onSubmit={handleSubmit} />
-      </div>
       <div className="hidden md:block relative">
         <ChatInput onSubmit={handleSubmit} />
       </div>
+      <ChatInput onSubmit={handleSubmit} />
     </div>
   );
 }
