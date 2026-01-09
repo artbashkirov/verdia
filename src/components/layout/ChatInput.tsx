@@ -223,7 +223,7 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
   return (
     <div 
       ref={containerRef}
-      className="md:absolute left-0 right-0 z-50"
+      className="fixed md:absolute left-0 right-0 z-50"
       style={{ 
         paddingTop: '16px',
         paddingBottom: '16px',

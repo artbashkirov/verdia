@@ -42,9 +42,7 @@ export default function ChatPage() {
       bottom: 0,
       width: '100%',
       height: '100dvh',
-      overflow: 'hidden',
-      display: 'flex',
-      flexDirection: 'column'
+      overflow: 'hidden'
     }}>
       {/* Mobile Header - fixed at top */}
       <MobileHeader 
@@ -63,19 +61,16 @@ export default function ChatPage() {
       {/* Desktop Sidebar */}
       <Sidebar onNewChat={handleNewChat} className="hidden md:flex" />
       
-      {/* Main content - flex container (ChatGPT style) */}
+      {/* Main content - flex container */}
       <div className="flex-1 flex flex-col min-w-0 p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A]" style={{ 
         overflow: 'hidden',
-        minHeight: 0,
-        display: 'flex',
-        flexDirection: 'column'
+        minHeight: 0
       }}>
-        {/* Scrollable content area - only this scrolls (ChatGPT style) */}
+        {/* Scrollable content area - only this scrolls on mobile */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden bg-background md:rounded-2xl" style={{ 
           minHeight: 0,
-          flex: '1 1 auto',
           WebkitOverflowScrolling: 'touch',
-          paddingBottom: 'calc(56px + 32px + 8px)' // отступ для fixed инпута (высота + padding + отступ от браузера)
+          paddingBottom: 'calc(56px + 32px + 8px)' // отступ для fixed инпута
         }}>
           <div className="flex flex-col items-center px-4 md:px-0 py-8 md:py-14 md:justify-center" style={{ minHeight: 0 }}>
             {/* Content */}
@@ -165,10 +160,7 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Input - fixed at bottom (ChatGPT style: но fixed для позиционирования на 8px от браузера) */}
-      <div className="md:hidden" style={{ flexShrink: 0, height: 0, visibility: 'hidden' }}>
-        {/* Spacer для flex контейнера - инпут fixed, но нужен placeholder */}
-      </div>
+      {/* Input - fixed at bottom, outside scrollable area */}
       <div className="md:hidden fixed left-0 right-0 z-40">
         <ChatInput onSubmit={handleSubmit} />
       </div>
