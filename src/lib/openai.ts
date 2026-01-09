@@ -1,31 +1,11 @@
-import Replicate from 'replicate';
 import OpenAI from 'openai';
 import type { CourtCase, DefendantHistory, CourtStats } from './court-search';
 
-// Lazy initialization for Replicate client to avoid build-time errors
-let replicateInstance: Replicate | null = null;
-function getReplicate(): Replicate {
-  if (!replicateInstance) {
-    const token = process.env.REPLICATE_API_TOKEN;
-    if (!token) {
-      throw new Error('REPLICATE_API_TOKEN is not set');
-    }
-    replicateInstance = new Replicate({
-      auth: token,
-    });
-  }
-  return replicateInstance;
-}
-
 // Lazy initialization for OpenAI client to avoid build-time errors
-// OpenAI client is created only when needed
 let openaiInstance: OpenAI | null = null;
 function getOpenAI(): OpenAI {
   if (!openaiInstance) {
     const apiKey = process.env.OPENAI_API_KEY;
-    // During build on Vercel, env vars may not be available yet
-    // Use a dummy key with valid format to allow build to complete
-    // At runtime, this will fail when actually calling OpenAI API
     const buildApiKey = apiKey || 'sk-000000000000000000000000000000000000000000000000';
     openaiInstance = new OpenAI({
       apiKey: buildApiKey,
@@ -34,24 +14,11 @@ function getOpenAI(): OpenAI {
   return openaiInstance;
 }
 
-// Export instances with lazy initialization using Proxy
-export const replicate = new Proxy({} as Replicate, {
-  get(_target, prop) {
-    const instance = getReplicate();
-    const value = instance[prop as keyof Replicate];
-    // If it's a function, bind it to the instance
-    if (typeof value === 'function') {
-      return value.bind(instance);
-    }
-    return value;
-  }
-});
-
+// Export OpenAI instance with lazy initialization using Proxy
 export const openai = new Proxy({} as OpenAI, {
   get(_target, prop) {
     const instance = getOpenAI();
     const value = instance[prop as keyof OpenAI];
-    // If it's a function, bind it to the instance
     if (typeof value === 'function') {
       return value.bind(instance);
     }
@@ -59,34 +26,58 @@ export const openai = new Proxy({} as OpenAI, {
   }
 });
 
-// Helper function to call Gemini via Replicate
+// Helper function to call Gemini via Cloudflare Worker proxy
+// Worker proxies requests to Replicate API from a non-blocked region
 async function callGemini(prompt: string, systemPrompt?: string, maxTokens: number = 3000): Promise<string> {
+  const workerUrl = process.env.CLOUDFLARE_WORKER_URL;
+  const workerSecret = process.env.CLOUDFLARE_WORKER_SECRET;
+  
+  if (!workerUrl || !workerSecret) {
+    throw new Error('CLOUDFLARE_WORKER_URL and CLOUDFLARE_WORKER_SECRET must be set');
+  }
+
   try {
-    // Get replicate instance at runtime (not at module load time)
-    const replicateClient = getReplicate();
-    
     const fullPrompt = systemPrompt 
       ? `${systemPrompt}\n\n---\n\nUser: ${prompt}`
       : prompt;
     
-    const output = await replicateClient.run(
-      "google/gemini-2.0-flash-001",
-      {
+    const response = await fetch(workerUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Worker-Secret': workerSecret,
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.0-flash-001',
         input: {
           prompt: fullPrompt,
           max_tokens: maxTokens,
           temperature: 0.7,
-        }
-      }
-    );
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        `Worker proxy error: ${response.status} - ${JSON.stringify(errorData)}`
+      );
+    }
+
+    const data = await response.json();
     
-    // Replicate returns output as an array of strings or a single string
+    if (data.error) {
+      throw new Error(data.error);
+    }
+    
+    // Handle Replicate output format
+    const output = data.output;
     if (Array.isArray(output)) {
       return output.join('');
     }
     return String(output || '');
   } catch (error) {
-    console.error('Gemini API error:', error);
+    console.error('Gemini API error (via Worker proxy):', error);
     throw error;
   }
 }
