@@ -85,6 +85,32 @@ label[for],
   cursor: pointer;
 }
 
+/* Mobile-only padding for fixed input */
+@media (max-width: 767px) {
+  .mobile-padding-bottom {
+    padding-bottom: calc(56px + 32px + 8px) !important;
+  }
+  
+  .mobile-fixed-layout {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    height: 100dvh !important;
+    overflow: hidden !important;
+  }
+}
+
+/* Desktop layout */
+@media (min-width: 768px) {
+  .mobile-fixed-layout {
+    position: relative !important;
+    height: 100vh !important;
+    overflow: visible !important;
+  }
+}
+
 /* Prevent any scaling and horizontal overflow */
 @media screen {
   html, body {

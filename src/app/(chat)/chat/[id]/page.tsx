@@ -431,15 +431,8 @@ export default function ChatResultPage() {
   const { query, response } = generation;
 
   return (
-    <div className="flex bg-background max-w-[100vw]" style={{ 
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      width: '100%',
-      height: '100dvh',
-      overflow: 'hidden'
+    <div className="flex bg-background h-screen max-w-[100vw] mobile-fixed-layout" style={{
+      width: '100%'
     }}>
       <MobileHeader 
         onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -455,18 +448,15 @@ export default function ChatResultPage() {
       <Sidebar currentChatId={chatId} onNewChat={handleNewChat} className="hidden md:flex" />
       
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 max-w-[100vw] overflow-x-hidden p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A] overflow-hidden" style={{
-        minHeight: 0,
-        height: 'calc(100dvh - 56px)'
-      }}>
+      <div className="flex-1 flex flex-col min-w-0 max-w-[100vw] overflow-x-hidden p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A] overflow-hidden">
         <div className="flex-1 bg-background md:rounded-2xl overflow-hidden relative flex flex-col" style={{
           minHeight: 0
         }}>
           {/* Scrollable content */}
           <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden pt-6 md:pt-14 px-0 relative" style={{
             minHeight: 0,
-            maxHeight: 'calc(100dvh - 56px - 88px)',
-            WebkitOverflowScrolling: 'touch'
+            WebkitOverflowScrolling: 'touch',
+            paddingBottom: 'calc(56px + 32px)' // Отступ снизу для инпута (56px высота + 32px padding)
           }}>
             <div className="w-full max-w-[660px] mx-auto flex flex-col gap-8 px-4" style={{ position: 'relative', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
               {/* Query */}
@@ -863,23 +853,23 @@ export default function ChatResultPage() {
               )}
             </div>
           </div>
+          
+          {/* Input - fixed at bottom for mobile, absolute for desktop */}
+          <div className="md:hidden fixed left-0 right-0 z-40 bottom-0">
+            <ChatInput 
+              onSubmit={handleSubmit} 
+              placeholder="Задайте вопрос"
+              disabled={isSending}
+            />
+          </div>
+          <div className="hidden md:block relative">
+            <ChatInput 
+              onSubmit={handleSubmit} 
+              placeholder="Задайте вопрос"
+              disabled={isSending}
+            />
+          </div>
         </div>
-      </div>
-
-      {/* Input - fixed at bottom for mobile, relative for desktop */}
-      <div className="md:hidden fixed left-0 right-0 z-40">
-        <ChatInput 
-          onSubmit={handleSubmit} 
-          placeholder="Задайте вопрос"
-          disabled={isSending}
-        />
-      </div>
-      <div className="hidden md:block relative">
-        <ChatInput 
-          onSubmit={handleSubmit} 
-          placeholder="Задайте вопрос"
-          disabled={isSending}
-        />
       </div>
     </div>
   );

@@ -34,15 +34,8 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex bg-background" style={{ 
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      width: '100%',
-      height: '100dvh',
-      overflow: 'hidden'
+    <div className="flex bg-background h-screen mobile-fixed-layout" style={{
+      width: '100%'
     }}>
       {/* Mobile Header - fixed at top (не скроллится) */}
       <MobileHeader 
@@ -69,10 +62,9 @@ export default function ChatPage() {
         {/* Content area - только контент скроллится на mobile */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden bg-background md:rounded-2xl" style={{ 
           minHeight: 0,
-          WebkitOverflowScrolling: 'touch',
-          paddingBottom: 'calc(56px + 32px + 8px)' // отступ снизу для fixed инпута на mobile
+          WebkitOverflowScrolling: 'touch'
         }}>
-          <div className="flex flex-col items-center px-4 md:px-0 py-8 md:py-14 md:justify-center" style={{ minHeight: 0 }}>
+          <div className="flex flex-col items-center justify-center px-4 md:px-0 py-8 md:py-14 min-h-full mobile-padding-bottom">
             {/* Content */}
             <div className="flex flex-col items-center w-full md:max-w-[920px]">
               {/* Logo and tagline */}
