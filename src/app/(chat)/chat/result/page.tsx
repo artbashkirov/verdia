@@ -284,14 +284,20 @@ function ResultContent() {
                       return (
                         <div className="mt-4 p-4 rounded-xl relative" style={{ backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F' }}>
                           <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] mb-2">
-                            Оценка вероятности успеха
+                            {percentage > 0 ? 'Вероятность выиграть дело' : 'Оценка вероятности'}
                           </p>
-                          <p className="text-[24px] lg:text-[32px] font-bold text-foreground">
-                            {percentage}%
-                            <span className="text-[16px] lg:text-[18px] font-medium text-gray-500 ml-2">
-                              ({level})
-                            </span>
-                          </p>
+                          {percentage > 0 ? (
+                            <p className="text-[24px] lg:text-[32px] font-bold text-foreground">
+                              {percentage}%
+                              <span className="text-[16px] lg:text-[18px] font-medium text-gray-500 ml-2">
+                                ({level})
+                              </span>
+                            </p>
+                          ) : (
+                            <p className="text-[16px] lg:text-[18px] font-medium text-gray-500">
+                              Недостаточно данных для расчёта вероятности. Не удалось определить исходы найденных судебных дел.
+                            </p>
+                          )}
                           {/* Info icon with tooltip */}
                           <div className="probability-tooltip-container absolute right-6 top-1/2 -translate-y-1/2 group">
                             <button

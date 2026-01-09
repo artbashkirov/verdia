@@ -721,7 +721,7 @@ export function calculateSatisfactionRate(cases: CourtCase[]): {
       ((stats.satisfied + stats.partial * 0.5) / totalWithResult) * 100
     );
   } else {
-    stats.percentage = 65; // Default average
+    stats.percentage = 0; // 0 означает "не удалось рассчитать"
   }
   
   return stats;

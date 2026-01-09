@@ -375,7 +375,7 @@ app.post('/scrape/sudact', authMiddleware, async (req, res) => {
     const totalWithResult = satisfied + partial + rejected;
     const percentage = totalWithResult > 0 
       ? Math.round(((satisfied + partial * 0.5) / totalWithResult) * 100) 
-      : 65; // Дефолт 65% если нет данных
+      : null; // null если не удалось определить результаты
     
     const duration = Math.round((Date.now() - startTime) / 1000);
     console.log(`Done in ${duration}s. Stats: ${satisfied} satisfied, ${partial} partial, ${rejected} rejected = ${percentage}%`);
