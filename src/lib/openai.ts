@@ -48,7 +48,7 @@ async function callGemini(prompt: string, systemPrompt?: string, maxTokens: numb
         'X-Worker-Secret': workerSecret,
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.0-flash-001',
+        model: 'google/gemini-2.5-flash',
         input: {
           prompt: fullPrompt,
           max_tokens: maxTokens,
