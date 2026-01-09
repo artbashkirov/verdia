@@ -34,19 +34,23 @@ export function AuthLayout({ children, title = "Заголовок", description
 
   return (
     <div 
-      className="fixed inset-0 w-full h-full bg-[#131314] flex items-center justify-center lg:p-0 overflow-hidden"
+      className="w-full bg-[#131314] flex items-center justify-center lg:p-0"
       style={{
         ...darkThemeStyles,
-        height: '100dvh', // Dynamic viewport height для мобильных
+        height: '100dvh',
         overflow: 'hidden',
         position: 'fixed',
         top: 0,
         left: 0,
         right: 0,
-        bottom: 0
+        bottom: 0,
+        width: '100%'
       }}
     >
-      <div className="w-full h-full bg-[#131314] flex flex-col lg:flex-row overflow-hidden" style={{ height: '100%' }}>
+      <div className="w-full h-full bg-[#131314] flex flex-col lg:flex-row" style={{ 
+        height: '100%',
+        overflow: 'hidden'
+      }}>
         {/* Left panel with form - full width on mobile, 50% on desktop */}
         <div className="w-full lg:w-1/2 flex flex-col relative h-full">
           {/* Logo for mobile - centered at top, 63px from top */}

@@ -431,7 +431,16 @@ export default function ChatResultPage() {
   const { query, response } = generation;
 
   return (
-    <div className="flex bg-background max-w-[100vw] overflow-hidden" style={{ height: '100dvh' }}>
+    <div className="flex bg-background max-w-[100vw]" style={{ 
+      height: '100dvh',
+      overflow: 'hidden',
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      width: '100%'
+    }}>
       <MobileHeader 
         onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         isMenuOpen={isMobileMenuOpen}
@@ -850,7 +859,9 @@ export default function ChatResultPage() {
         </div>
 
         {/* Input - fixed at bottom for mobile, relative for desktop */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40">
+        <div className="md:hidden fixed left-0 right-0 z-40" style={{ 
+          bottom: 'calc(8px + env(safe-area-inset-bottom, 0px))'
+        }}>
           <ChatInput 
             onSubmit={handleSubmit} 
             placeholder="Задайте вопрос"

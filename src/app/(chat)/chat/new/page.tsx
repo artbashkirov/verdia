@@ -357,7 +357,16 @@ function NewChatPageContent() {
   const hasContent = response.courtCases || response.shortAnswer || response.legalAnalysis;
 
   return (
-    <div className="flex bg-background overflow-hidden" style={{ height: '100dvh' }}>
+    <div className="flex bg-background" style={{ 
+      height: '100dvh',
+      overflow: 'hidden',
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      width: '100%'
+    }}>
       <MobileHeader 
         onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         isMenuOpen={isMobileMenuOpen}
@@ -1024,7 +1033,9 @@ function NewChatPageContent() {
         </div>
 
         {/* Input - fixed at bottom for mobile, relative for desktop */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40">
+        <div className="md:hidden fixed left-0 right-0 z-40" style={{ 
+          bottom: 'calc(8px + env(safe-area-inset-bottom, 0px))'
+        }}>
           <ChatInput 
             onSubmit={() => {}} 
             disabled={isGenerating}
