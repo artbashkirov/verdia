@@ -37,6 +37,11 @@ export default function ChatPage() {
     <div className="flex bg-background h-screen" style={{ 
       height: '100dvh',
       overflow: 'hidden',
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
       width: '100%'
     }}>
       {/* Mobile Header - fixed at top */}
@@ -59,12 +64,14 @@ export default function ChatPage() {
       {/* Main content - flex container */}
       <div className="flex-1 flex flex-col min-w-0 p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A]" style={{ 
         overflow: 'hidden',
-        height: '100%'
+        height: '100%',
+        paddingBottom: '0' // инпут fixed, не нужно место
       }}>
         {/* Scrollable content area - only this scrolls on mobile */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden bg-background md:rounded-2xl" style={{ 
           minHeight: 0,
-          WebkitOverflowScrolling: 'touch'
+          WebkitOverflowScrolling: 'touch',
+          paddingBottom: 'calc(56px + 16px + 8px)' // высота input + padding + 8px отступ
         }}>
           <div className="flex flex-col items-center justify-center min-h-full px-4 md:px-0 py-8 md:py-14">
             {/* Content */}

@@ -195,13 +195,23 @@ function ResultContent() {
     <div className="flex bg-background h-screen" style={{ 
       height: '100dvh',
       overflow: 'hidden',
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
       width: '100%'
     }}>
       <Sidebar onNewChat={handleNewChat} />
       
-        <div className="flex-1 flex flex-col p-0 md:p-2 md:pl-0 md:pb-2 bg-[#17181A] overflow-hidden">
+        <div className="flex-1 flex flex-col p-0 md:p-2 md:pl-0 md:pb-2 bg-[#17181A] overflow-hidden" style={{
+          height: '100%',
+          paddingBottom: '0'
+        }}>
           <div className="flex-1 bg-background md:rounded-2xl overflow-hidden relative flex flex-col">
           <div className="flex-1 overflow-y-auto overflow-x-hidden pt-6 md:pt-14 px-0 relative" style={{
+            minHeight: 0,
+            WebkitOverflowScrolling: 'touch',
             paddingBottom: 'calc(56px + 16px + 8px)' // высота input + padding + 8px отступ
           }}>
             <div className="w-full md:max-w-[660px] md:mx-auto flex flex-col gap-8 break-words" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
@@ -506,15 +516,15 @@ function ResultContent() {
               )}
             </div>
           </div>
-
-          {/* Input - fixed at bottom for mobile, relative for desktop */}
-          <div className="md:hidden fixed left-0 right-0 z-40">
-            <ChatInput onSubmit={handleSubmit} />
-          </div>
-          <div className="hidden md:block relative">
-            <ChatInput onSubmit={handleSubmit} />
-          </div>
         </div>
+      </div>
+
+      {/* Input - fixed at bottom for mobile, relative for desktop */}
+      <div className="md:hidden fixed left-0 right-0 z-40">
+        <ChatInput onSubmit={handleSubmit} />
+      </div>
+      <div className="hidden md:block relative">
+        <ChatInput onSubmit={handleSubmit} />
       </div>
     </div>
   );
