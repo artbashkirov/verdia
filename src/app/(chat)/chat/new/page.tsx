@@ -388,15 +388,56 @@ function NewChatPageContent() {
                 {query}
               </h1>
 
-              {/* Loading state - only show when no content yet */}
-              {isGenerating && !hasContent && (
-                <div className="flex items-center gap-3 py-4">
-                  <div className="flex gap-1">
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              {/* Loading state - show skeleton cards immediately */}
+              {isGenerating && !response.courtCases && (
+                <div className="flex flex-col gap-4 animate-fadeIn -mx-4">
+                  <div className="flex items-center gap-3 px-4">
+                    <div className="flex gap-1">
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
+                    <span className="text-sm text-gray-400">{statusMessage}</span>
                   </div>
-                  <span className="text-sm text-gray-400">{statusMessage}</span>
+                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px] px-4">
+                    Судебные решения
+                  </p>
+                  <div 
+                    className="overflow-x-auto overflow-y-hidden hide-horizontal-scrollbar pl-4"
+                    style={{ 
+                      display: 'flex',
+                      gap: '8px',
+                      paddingBottom: '4px',
+                      WebkitOverflowScrolling: 'touch'
+                    }}
+                  >
+                    {/* Skeleton cards */}
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <div
+                        key={i}
+                        className="animate-pulse"
+                        style={{ 
+                          backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F',
+                          width: '240px',
+                          minWidth: '240px',
+                          flexShrink: 0,
+                          padding: '12px',
+                          borderRadius: '16px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '12px',
+                        }}
+                      >
+                        <div className="space-y-2">
+                          <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-full" />
+                          <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-4/5" />
+                          <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-3/5" />
+                        </div>
+                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
+                      </div>
+                    ))}
+                    <div className="min-w-4 flex-shrink-0" />
+                  </div>
                 </div>
               )}
 
