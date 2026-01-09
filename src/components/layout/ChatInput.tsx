@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, KeyboardEvent } from 'react';
+import { useState, useRef, useEffect, KeyboardEvent } from 'react';
 import { SendHorizontal } from 'lucide-react';
 
 interface ChatInputProps {
@@ -14,8 +14,91 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // ChatGPT-style: простой CSS подход без JavaScript расчетов
-  // Используем env(safe-area-inset-bottom) + 8px для отступа от видимой нижней границы
+  // Расчет высоты браузерной панели для позиционирования на 8px от видимой нижней границы
+  useEffect(() => {
+    function calculateBottomBarHeight(): number {
+      if (window.visualViewport) {
+        // Safari, Chrome - используем visualViewport
+        const viewportHeight = window.visualViewport.height;
+        const windowHeight = window.innerHeight;
+        const offsetTop = window.visualViewport.offsetTop || 0;
+        const totalBrowserUI = windowHeight - viewportHeight;
+        return Math.max(totalBrowserUI - offsetTop, 0);
+      }
+      
+      // Яндекс браузер и другие - используем разницу innerHeight и clientHeight
+      const innerHeight = window.innerHeight;
+      const clientHeight = document.documentElement.clientHeight;
+      const heightDiff = innerHeight - clientHeight;
+      
+      if (heightDiff > 0 && heightDiff < 100) {
+        return heightDiff;
+      }
+      
+      // Fallback
+      return 0;
+    }
+
+    function updatePosition() {
+      if (!containerRef.current) return;
+      
+      const isMobile = window.innerWidth < 768;
+      
+      if (isMobile) {
+        const bottomBarHeight = calculateBottomBarHeight();
+        
+        // Получаем safe-area-inset-bottom
+        let safeAreaBottom = 0;
+        try {
+          const testEl = document.createElement('div');
+          testEl.style.position = 'fixed';
+          testEl.style.bottom = '0';
+          testEl.style.paddingBottom = 'env(safe-area-inset-bottom)';
+          testEl.style.visibility = 'hidden';
+          testEl.style.pointerEvents = 'none';
+          document.body.appendChild(testEl);
+          const computed = window.getComputedStyle(testEl);
+          const paddingBottom = computed.paddingBottom;
+          if (paddingBottom && paddingBottom !== '0px' && paddingBottom !== 'auto') {
+            safeAreaBottom = parseFloat(paddingBottom) || 0;
+          }
+          document.body.removeChild(testEl);
+        } catch (e) {
+          // Игнорируем ошибки
+        }
+        
+        // Инпут на 8px от видимой нижней границы = bottomBarHeight + 8px + safeAreaBottom
+        const finalBottom = bottomBarHeight + 8 + safeAreaBottom;
+        
+        containerRef.current.style.position = 'fixed';
+        containerRef.current.style.bottom = `${finalBottom}px`;
+        containerRef.current.style.left = '0';
+        containerRef.current.style.right = '0';
+        containerRef.current.style.width = '100%';
+      } else {
+        // Desktop
+        containerRef.current.style.position = 'absolute';
+        containerRef.current.style.bottom = '0';
+      }
+    }
+
+    updatePosition();
+
+    window.addEventListener('resize', updatePosition);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', updatePosition);
+    }
+    window.addEventListener('orientationchange', () => {
+      setTimeout(updatePosition, 200);
+    });
+
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', updatePosition);
+      }
+    };
+  }, []);
 
   const handleSubmit = () => {
     if (message.trim() && !disabled) {
@@ -34,17 +117,11 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
   return (
     <div 
       ref={containerRef}
-      className="left-0 right-0 z-50 fixed md:absolute md:bottom-0"
+      className="left-0 right-0 z-50 md:absolute md:bottom-0"
       style={{ 
         paddingTop: '16px',
-        paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
-        backgroundColor: 'var(--background)',
-        // ChatGPT-style: просто bottom: 8px + safe-area-inset-bottom
-        // Не пытаемся рассчитать высоту браузерной панели - браузер сам обработает это
-        bottom: 'calc(8px + env(safe-area-inset-bottom, 0px))',
-        left: 0,
-        right: 0,
-        width: '100%'
+        paddingBottom: '16px',
+        backgroundColor: 'var(--background)'
       }}
     >
       <div className="flex justify-center relative z-10" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
