@@ -251,20 +251,19 @@ app.post('/scrape/sudact', authMiddleware, async (req, res) => {
       return results;
     }, maxResults);
     
-    console.log('Found', caseLinks.length, 'cases, scraping in PARALLEL...');
+    console.log('Found', caseLinks.length, 'cases, scraping sequentially...');
     
     // Закрываем главную страницу
     await mainPage.close().catch(() => {});
     mainPage = null;
     
-    // ПАРАЛЛЕЛЬНОЕ открытие всех страниц (максимум 5 одновременно)
-    const PARALLEL_LIMIT = 5;
+    // ПОСЛЕДОВАТЕЛЬНОЕ открытие страниц (одна за одной)
     const cases = [];
     
-    for (let i = 0; i < caseLinks.length; i += PARALLEL_LIMIT) {
-      const batch = caseLinks.slice(i, i + PARALLEL_LIMIT);
-      const results = await Promise.all(batch.map(c => scrapeCasePage(browser, c)));
-      cases.push(...results);
+    for (const caseInfo of caseLinks) {
+      const result = await scrapeCasePage(browser, caseInfo);
+      cases.push(result);
+      console.log(`  Case ${cases.length}/${caseLinks.length}: ${result.result}`);
     }
     
     // Подсчёт статистики

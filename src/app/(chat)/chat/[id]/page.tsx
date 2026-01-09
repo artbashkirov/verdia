@@ -15,7 +15,7 @@ function getProbabilityLabel(percentage: number): string {
   if (percentage >= 95) return 'максимальная';
   if (percentage >= 80) return 'очень высокая';
   if (percentage >= 65) return 'высокая';
-  if (percentage >= 50) return 'выше средней';
+  if (percentage >= 51) return 'выше средней';
   if (percentage >= 35) return 'средняя';
   if (percentage >= 20) return 'ниже средней';
   return 'низкая';
