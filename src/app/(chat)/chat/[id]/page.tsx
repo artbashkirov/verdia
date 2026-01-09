@@ -374,7 +374,7 @@ export default function ChatResultPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen bg-background">
+      <div className="flex bg-background" style={{ height: 'var(--viewport-height, 100vh)' }}>
         <MobileHeader 
           onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           isMenuOpen={isMobileMenuOpen}
@@ -398,7 +398,7 @@ export default function ChatResultPage() {
 
   if (error || !generation) {
     return (
-      <div className="flex h-screen bg-background">
+      <div className="flex bg-background" style={{ height: 'var(--viewport-height, 100vh)' }}>
         <MobileHeader 
           onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           isMenuOpen={isMobileMenuOpen}
@@ -431,7 +431,7 @@ export default function ChatResultPage() {
   const { query, response } = generation;
 
   return (
-    <div className="flex h-screen bg-background max-w-[100vw] overflow-x-hidden">
+    <div className="flex bg-background max-w-[100vw] overflow-x-hidden" style={{ height: 'var(--viewport-height, 100vh)' }}>
       <MobileHeader 
         onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         isMenuOpen={isMobileMenuOpen}

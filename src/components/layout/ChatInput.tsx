@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, KeyboardEvent } from 'react';
+import { useState, useRef, useEffect, KeyboardEvent } from 'react';
 import { SendHorizontal } from 'lucide-react';
 
 interface ChatInputProps {
@@ -12,6 +12,56 @@ interface ChatInputProps {
 export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начните писать запрос...' }: ChatInputProps) {
   const [message, setMessage] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Обновляем позицию при изменении viewport (клавиатура, адресная строка)
+  useEffect(() => {
+    function updatePosition() {
+      if (!containerRef.current) return;
+      
+      // Получаем реальную высоту viewport
+      const viewportHeight = window.visualViewport 
+        ? window.visualViewport.height 
+        : window.innerHeight;
+      
+      // На мобильных используем top вместо bottom для надёжного позиционирования
+      const isMobile = window.innerWidth < 768;
+      
+      if (isMobile) {
+        // Высота контейнера инпута (56px инпут + 16px padding сверху + 16px padding снизу)
+        const inputContainerHeight = 88;
+        const topPosition = viewportHeight - inputContainerHeight;
+        
+        containerRef.current.style.top = `${topPosition}px`;
+        containerRef.current.style.bottom = 'auto';
+      } else {
+        containerRef.current.style.top = 'auto';
+        containerRef.current.style.bottom = '0';
+      }
+    }
+
+    updatePosition();
+
+    // Слушаем изменения viewport
+    window.addEventListener('resize', updatePosition);
+    
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', updatePosition);
+      window.visualViewport.addEventListener('scroll', updatePosition);
+    }
+
+    window.addEventListener('orientationchange', () => {
+      setTimeout(updatePosition, 100);
+    });
+
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', updatePosition);
+        window.visualViewport.removeEventListener('scroll', updatePosition);
+      }
+    };
+  }, []);
 
   const handleSubmit = () => {
     if (message.trim() && !disabled) {
@@ -29,33 +79,16 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
 
   return (
     <div 
-      className="fixed md:absolute bottom-0 left-0 right-0 z-10 overflow-hidden"
+      ref={containerRef}
+      className="fixed md:absolute left-0 right-0 z-10 overflow-hidden"
       style={{ 
-        paddingBottom: 'calc(max(16px, env(safe-area-inset-bottom)) + 16px)',
+        bottom: 0, // fallback, будет переопределено через JS на мобильных
+        paddingTop: '16px',
+        paddingBottom: '16px',
         backgroundColor: 'var(--background)'
       }}
     >
-      {/* Black overlay that hides content behind input field */}
-      <div 
-        className="absolute bottom-0 left-0 right-0 pointer-events-none"
-        style={{ 
-          height: '88px',
-          paddingLeft: '16px',
-          paddingRight: '16px',
-          paddingBottom: '16px'
-        }}
-      >
-        <div 
-          className="w-full md:w-[660px] mx-auto"
-          style={{
-            height: '56px',
-            borderRadius: '20px',
-            background: 'var(--background)'
-          }}
-        />
-      </div>
-      
-      <div className="flex justify-center relative z-10" style={{ paddingLeft: '16px', paddingRight: '16px', paddingBottom: '0' }}>
+      <div className="flex justify-center relative z-10" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
         <div 
           className="w-full md:w-[660px] flex items-center overflow-hidden"
           style={{ 
@@ -98,4 +131,3 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
     </div>
   );
 }
-

@@ -34,7 +34,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex bg-background" style={{ height: 'var(--viewport-height, 100vh)' }}>
       {/* Mobile Header */}
       <MobileHeader 
         onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}

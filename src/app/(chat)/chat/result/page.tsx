@@ -172,7 +172,7 @@ function ResultContent() {
 
   if (!response) {
     return (
-      <div className="flex h-screen bg-background">
+      <div className="flex bg-background" style={{ height: 'var(--viewport-height, 100vh)' }}>
         <Sidebar onNewChat={handleNewChat} />
         <div className="flex-1 p-0 md:p-2 md:pl-0 md:pb-2 bg-[#17181A]">
           <div className="h-full bg-background md:rounded-2xl overflow-hidden flex items-center justify-center">
@@ -192,7 +192,7 @@ function ResultContent() {
   }
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex bg-background" style={{ height: 'var(--viewport-height, 100vh)' }}>
       <Sidebar onNewChat={handleNewChat} />
       
         <div className="flex-1 p-0 md:p-2 md:pl-0 md:pb-2 bg-[#17181A]">
@@ -511,7 +511,7 @@ function ResultContent() {
 export default function ResultPage() {
   return (
     <Suspense fallback={
-      <div className="flex h-screen bg-background items-center justify-center">
+      <div className="flex bg-background items-center justify-center" style={{ height: 'var(--viewport-height, 100vh)' }}>
         <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin" />
       </div>
     }>

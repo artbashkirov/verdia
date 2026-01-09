@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/lib/theme-context";
-import { ScrollbarHandler } from "@/components/layout";
+import { ScrollbarHandler, ViewportHandler } from "@/components/layout";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -65,6 +65,7 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <ScrollbarHandler />
+          <ViewportHandler />
           {children}
         </ThemeProvider>
       </body>

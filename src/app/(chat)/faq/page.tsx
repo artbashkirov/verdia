@@ -137,7 +137,7 @@ export default function FAQPage() {
   };
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex bg-background" style={{ height: 'var(--viewport-height, 100vh)' }}>
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">
         <Sidebar />

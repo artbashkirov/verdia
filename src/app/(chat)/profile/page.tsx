@@ -94,7 +94,7 @@ export default function ProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen bg-background">
+      <div className="flex bg-background" style={{ height: 'var(--viewport-height, 100vh)' }}>
         <div className="hidden lg:block">
           <Sidebar />
         </div>
@@ -108,7 +108,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex bg-background" style={{ height: 'var(--viewport-height, 100vh)' }}>
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">
         <Sidebar />

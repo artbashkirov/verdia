@@ -33,6 +33,15 @@ async function callGemini(prompt: string, systemPrompt?: string, maxTokens: numb
   const workerSecret = process.env.CLOUDFLARE_WORKER_SECRET;
   
   if (!workerUrl || !workerSecret) {
+    // В dev режиме показываем понятное сообщение
+    if (process.env.NODE_ENV === 'development') {
+      throw new Error(
+        'Для работы в локальной разработке необходимо добавить в .env.local:\n' +
+        'CLOUDFLARE_WORKER_URL=https://your-worker.workers.dev\n' +
+        'CLOUDFLARE_WORKER_SECRET=your_secret\n\n' +
+        'Значения можно скопировать из Vercel Dashboard → Settings → Environment Variables'
+      );
+    }
     throw new Error('CLOUDFLARE_WORKER_URL and CLOUDFLARE_WORKER_SECRET must be set');
   }
 
