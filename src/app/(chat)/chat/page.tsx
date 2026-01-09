@@ -73,7 +73,7 @@ export default function ChatPage() {
           maxHeight: 'calc(100dvh - 56px - 88px)', // высота экрана - шапка - инпут (56px высота + 32px padding)
           WebkitOverflowScrolling: 'touch'
         }}>
-          <div className="flex flex-col items-center justify-center px-4 md:px-0 py-8 md:py-14">
+          <div className="flex flex-col items-center px-4 md:px-0 py-8 md:py-14 md:justify-center" style={{ minHeight: 0 }}>
             {/* Content */}
             <div className="flex flex-col items-center w-full md:max-w-[920px]">
               {/* Logo and tagline */}
