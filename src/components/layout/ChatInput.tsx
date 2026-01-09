@@ -138,10 +138,12 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
         // Если браузерная панель отсутствует (desktop или скрыта), browserBottomBarHeight будет 0
         const finalBottom = browserBottomBarHeight + bottomOffset + safeAreaBottom;
         
-        containerRef.current.style.bottom = `${finalBottom}px`;
+        // Для мобильных: инпут должен быть fixed на 8px от видимой нижней границы браузера
         containerRef.current.style.position = 'fixed';
+        containerRef.current.style.bottom = `${finalBottom}px`;
         containerRef.current.style.left = '0';
         containerRef.current.style.right = '0';
+        containerRef.current.style.width = '100%';
         
         // Отладка в development режиме
         if (process.env.NODE_ENV === 'development') {

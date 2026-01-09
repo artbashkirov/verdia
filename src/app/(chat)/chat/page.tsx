@@ -65,14 +65,13 @@ export default function ChatPage() {
       <div className="flex-1 flex flex-col min-w-0 p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A]" style={{ 
         overflow: 'hidden',
         minHeight: 0,
-        maxHeight: '100%'
+        height: 'calc(100dvh - 56px)' // высота экрана минус шапка
       }}>
         {/* Scrollable content area - only this scrolls on mobile */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden bg-background md:rounded-2xl" style={{ 
           minHeight: 0,
-          maxHeight: '100%',
-          WebkitOverflowScrolling: 'touch',
-          paddingBottom: 'calc(56px + 16px + 8px)' // отступ снизу для инпута (fixed, но нужен отступ контента)
+          maxHeight: 'calc(100dvh - 56px - 88px)', // высота экрана - шапка - инпут (56px высота + 32px padding)
+          WebkitOverflowScrolling: 'touch'
         }}>
           <div className="flex flex-col items-center justify-center px-4 md:px-0 py-8 md:py-14">
             {/* Content */}

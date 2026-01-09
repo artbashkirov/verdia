@@ -206,15 +206,14 @@ function ResultContent() {
       
         <div className="flex-1 flex flex-col p-0 md:p-2 md:pl-0 md:pb-2 bg-[#17181A] overflow-hidden" style={{
           minHeight: 0,
-          maxHeight: '100%'
+          height: 'calc(100dvh - 0px)' // нет шапки на result странице
         }}>
           <div className="flex-1 bg-background md:rounded-2xl overflow-hidden relative flex flex-col" style={{
-            minHeight: 0,
-            maxHeight: '100%'
+            minHeight: 0
           }}>
           <div className="flex-1 overflow-y-auto overflow-x-hidden pt-6 md:pt-14 px-0 relative" style={{
             minHeight: 0,
-            maxHeight: '100%',
+            maxHeight: 'calc(100dvh - 88px)', // минус инпут
             WebkitOverflowScrolling: 'touch'
           }}>
             <div className="w-full md:max-w-[660px] md:mx-auto flex flex-col gap-8 break-words" style={{ paddingLeft: '16px', paddingRight: '16px' }}>

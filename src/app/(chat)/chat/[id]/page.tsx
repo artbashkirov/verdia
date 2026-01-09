@@ -457,16 +457,15 @@ export default function ChatResultPage() {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 max-w-[100vw] overflow-x-hidden p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A] overflow-hidden" style={{
         minHeight: 0,
-        maxHeight: '100%'
+        height: 'calc(100dvh - 56px)'
       }}>
         <div className="flex-1 bg-background md:rounded-2xl overflow-hidden relative flex flex-col" style={{
-          minHeight: 0,
-          maxHeight: '100%'
+          minHeight: 0
         }}>
           {/* Scrollable content */}
           <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden pt-6 md:pt-14 px-0 relative" style={{
             minHeight: 0,
-            maxHeight: '100%',
+            maxHeight: 'calc(100dvh - 56px - 88px)',
             WebkitOverflowScrolling: 'touch'
           }}>
             <div className="w-full max-w-[660px] mx-auto flex flex-col gap-8 px-4" style={{ position: 'relative', wordBreak: 'break-word', overflowWrap: 'break-word' }}>

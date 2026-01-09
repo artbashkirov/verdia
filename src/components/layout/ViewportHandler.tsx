@@ -77,6 +77,11 @@ export function ViewportHandler() {
       }
       
       document.documentElement.style.setProperty('--safe-area-bottom', `${safeAreaBottom}px`);
+      
+      // Устанавливаем высоту для инпута чата (56px высота + 16px padding сверху + 16px padding снизу = 88px)
+      // Но инпут fixed, поэтому это только для расчета контентной области
+      const chatInputHeight = 56 + 16 + 16; // 88px
+      document.documentElement.style.setProperty('--chat-input-height', `${chatInputHeight}px`);
     }
 
     // Устанавливаем сразу
