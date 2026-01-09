@@ -14,43 +14,93 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Обновляем позицию при изменении viewport (клавиатура, адресная строка)
+  // Определение высоты браузерной панели для всех браузеров
   useEffect(() => {
+    function getBrowserBarHeight(): number {
+      // Метод 1: visualViewport API (Safari, Chrome)
+      if (window.visualViewport) {
+        const viewportHeight = window.visualViewport.height;
+        const windowHeight = window.innerHeight;
+        const offsetTop = window.visualViewport.offsetTop || 0;
+        
+        const totalBrowserUI = windowHeight - viewportHeight;
+        const bottomBarHeight = Math.max(totalBrowserUI - offsetTop, 0);
+        return bottomBarHeight;
+      }
+      
+      // Метод 2: Разница между innerHeight и clientHeight (для Яндекс.Браузера и других)
+      // innerHeight - это высота окна браузера (включая панели)
+      // clientHeight - это высота видимой области документа (без панелей)
+      const innerHeight = window.innerHeight;
+      const clientHeight = document.documentElement.clientHeight;
+      
+      // Разница даёт нам высоту браузерных панелей
+      // Но нужно учесть, что может быть панель сверху и снизу
+      const browserUIHeight = innerHeight - clientHeight;
+      
+      // Для мобильных обычно есть только нижняя панель
+      // Если разница небольшая (до 100px), считаем что это только нижняя панель
+      if (browserUIHeight > 0 && browserUIHeight < 100) {
+        return browserUIHeight;
+      }
+      
+      // Метод 3: Измерение через временный элемент
+      // Создаём элемент внизу экрана и измеряем его позицию
+      const testEl = document.createElement('div');
+      testEl.style.position = 'fixed';
+      testEl.style.bottom = '0';
+      testEl.style.height = '1px';
+      testEl.style.width = '1px';
+      testEl.style.visibility = 'hidden';
+      testEl.style.pointerEvents = 'none';
+      document.body.appendChild(testEl);
+      
+      const rect = testEl.getBoundingClientRect();
+      const screenBottom = window.innerHeight;
+      const elementBottom = rect.bottom;
+      const bottomBarHeight = Math.max(screenBottom - elementBottom, 0);
+      
+      document.body.removeChild(testEl);
+      
+      // Используем результат измерения, если он разумен
+      if (bottomBarHeight > 0 && bottomBarHeight < 150) {
+        return bottomBarHeight;
+      }
+      
+      // Fallback: если ничего не сработало, используем типичное значение
+      return 52; // Типичная высота браузерной панели на мобильных
+    }
+
     function updatePosition() {
       if (!containerRef.current) return;
       
       const isMobile = window.innerWidth < 768;
       
       if (isMobile) {
-        // Используем CSS переменные, установленные ViewportHandler
-        // Эти переменные динамически вычисляются на основе реального viewport
-        const browserBarHeight = parseFloat(
-          getComputedStyle(document.documentElement).getPropertyValue('--browser-bottom-bar-height')
-        ) || 0;
+        const browserBarHeight = getBrowserBarHeight();
+        const bottomOffset = browserBarHeight + 8; // 8px отступ от панели
         
-        const safeAreaBottom = parseFloat(
-          getComputedStyle(document.documentElement).getPropertyValue('--safe-area-bottom')
-        ) || 0;
-        
-        // Если переменная не установлена, вычисляем динамически
-        let totalBottom = browserBarHeight + safeAreaBottom;
-        
-        if (totalBottom === 0 && window.visualViewport) {
-          // Fallback: вычисляем напрямую через visualViewport
-          const viewportHeight = window.visualViewport.height;
-          const windowHeight = window.innerHeight;
-          const offsetTop = window.visualViewport.offsetTop || 0;
-          const totalBrowserUI = windowHeight - viewportHeight;
-          const bottomBarHeight = Math.max(totalBrowserUI - offsetTop, 0);
-          
-          totalBottom = bottomBarHeight + safeAreaBottom;
+        // Учитываем safe-area-inset-bottom для устройств с вырезом
+        let safeAreaBottom = 0;
+        try {
+          const testEl = document.createElement('div');
+          testEl.style.position = 'fixed';
+          testEl.style.bottom = '0';
+          testEl.style.paddingBottom = 'env(safe-area-inset-bottom)';
+          testEl.style.visibility = 'hidden';
+          testEl.style.pointerEvents = 'none';
+          document.body.appendChild(testEl);
+          const computed = window.getComputedStyle(testEl);
+          const paddingBottom = computed.paddingBottom;
+          if (paddingBottom && paddingBottom !== '0px' && paddingBottom !== 'auto') {
+            safeAreaBottom = parseFloat(paddingBottom) || 0;
+          }
+          document.body.removeChild(testEl);
+        } catch (e) {
+          // Игнорируем ошибки
         }
         
-        // Минимальный отступ для надёжности
-        const minBottom = 50;
-        totalBottom = Math.max(totalBottom, minBottom);
-        
-        containerRef.current.style.bottom = `${totalBottom}px`;
+        containerRef.current.style.bottom = `${bottomOffset + safeAreaBottom}px`;
         containerRef.current.style.top = 'auto';
       } else {
         containerRef.current.style.bottom = '0';
@@ -58,42 +108,24 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
       }
     }
 
-    // Устанавливаем позицию сразу
     updatePosition();
 
-    // Слушаем изменения viewport
-    const handleResize = () => {
-      requestAnimationFrame(updatePosition);
-    };
-    
-    window.addEventListener('resize', handleResize);
+    // Обновляем при изменениях
+    window.addEventListener('resize', updatePosition);
     
     if (window.visualViewport) {
       window.visualViewport.addEventListener('resize', updatePosition);
-      window.visualViewport.addEventListener('scroll', updatePosition);
     }
 
     window.addEventListener('orientationchange', () => {
       setTimeout(updatePosition, 200);
     });
 
-    // Также слушаем изменения CSS переменных (когда ViewportHandler обновляет их)
-    const observer = new MutationObserver(() => {
-      updatePosition();
-    });
-    
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['style']
-    });
-
     return () => {
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('resize', updatePosition);
       if (window.visualViewport) {
         window.visualViewport.removeEventListener('resize', updatePosition);
-        window.visualViewport.removeEventListener('scroll', updatePosition);
       }
-      observer.disconnect();
     };
   }, []);
 
@@ -116,7 +148,7 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
       ref={containerRef}
       className="fixed md:absolute left-0 right-0 z-50"
       style={{ 
-        bottom: '0', // fallback, будет переопределено через JS на мобильных
+        bottom: '8px', // fallback для мобильных
         paddingTop: '16px',
         paddingBottom: '16px',
         backgroundColor: 'var(--background)'

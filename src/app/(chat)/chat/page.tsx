@@ -34,7 +34,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex bg-background" style={{ height: 'var(--viewport-height, 100vh)' }}>
+    <div className="flex h-screen bg-background overflow-hidden">
       {/* Mobile Header */}
       <MobileHeader 
         onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -52,94 +52,102 @@ export default function ChatPage() {
       {/* Desktop Sidebar */}
       <Sidebar onNewChat={handleNewChat} className="hidden md:flex" />
       
-      {/* Main content */}
-      <div className="flex-1 p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A]">
-        <div className="h-full bg-background md:rounded-2xl overflow-x-hidden overflow-y-auto relative flex flex-col items-center justify-center md:justify-center min-h-0 px-4 md:px-0 pb-[150px] md:pb-0">
-          {/* Content */}
-          <div className="flex flex-col items-center w-full md:max-w-[920px]">
-            {/* Logo and tagline */}
-            <div className={`flex flex-col items-center transition-all duration-700 ease-out ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-              <h1 className="text-[20px] lg:text-[32px] font-normal text-[#040308] leading-[28px] lg:leading-[40px] text-center">
-                Как я могу помочь?
-              </h1>
-              <h2 className="text-[18px] lg:text-[24px] font-normal text-[#808080] leading-[24px] lg:leading-[30px] text-center" style={{ marginTop: '8px' }}>
-                Иски, ходатайства и анализ судебной практики — за минуты
-              </h2>
-            </div>
-
-            {/* Example queries */}
-            <div className={`flex flex-col items-center w-full transition-all duration-700 ease-out md:mt-14 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`} style={{ marginTop: '32px' }}>
-              <p className="text-[14px] lg:text-[14px] font-medium text-[#808080] text-center leading-[18px] lg:leading-[18px]" style={{ marginBottom: '12px' }}>
-                Примеры вопросов
-              </p>
-              
-              {/* Desktop: 3 columns */}
-              <div className="hidden md:flex gap-3 w-full" style={{ marginTop: '0' }}>
-                {/* Column 1 */}
-                <div className="flex flex-col gap-3 flex-1">
-                  {displayQueries.filter((_, i) => i % 3 === 0).map((query) => (
-                    <button
-                      key={query.id}
-                      onClick={() => handleExampleClick(query.text)}
-                      className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors"
-                    >
-                      <p className="text-[16px] lg:text-[16px] font-normal text-foreground leading-[24px] lg:leading-[24px]">
-                        {query.text}
-                      </p>
-                    </button>
-                  ))}
-                </div>
-                
-                {/* Column 2 */}
-                <div className="flex flex-col gap-3 flex-1">
-                  {displayQueries.filter((_, i) => i % 3 === 1).map((query) => (
-                    <button
-                      key={query.id}
-                      onClick={() => handleExampleClick(query.text)}
-                      className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors"
-                    >
-                      <p className="text-[16px] lg:text-[16px] font-normal text-foreground leading-[24px] lg:leading-[24px]">
-                        {query.text}
-                      </p>
-                    </button>
-                  ))}
-                </div>
-                
-                {/* Column 3 */}
-                <div className="flex flex-col gap-3 flex-1">
-                  {displayQueries.filter((_, i) => i % 3 === 2).map((query) => (
-                    <button
-                      key={query.id}
-                      onClick={() => handleExampleClick(query.text)}
-                      className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors"
-                    >
-                      <p className="text-[16px] lg:text-[16px] font-normal text-foreground leading-[24px] lg:leading-[24px]">
-                        {query.text}
-                      </p>
-                    </button>
-                  ))}
-                </div>
+      {/* Main content - flex container */}
+      <div className="flex-1 flex flex-col min-w-0 p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A]">
+        {/* Scrollable content area */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden bg-background md:rounded-2xl min-h-0">
+          <div className="flex flex-col items-center justify-center min-h-full px-4 md:px-0 py-8 md:py-14">
+            {/* Content */}
+            <div className="flex flex-col items-center w-full md:max-w-[920px]">
+              {/* Logo and tagline */}
+              <div className={`flex flex-col items-center transition-all duration-700 ease-out ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                <h1 className="text-[20px] lg:text-[32px] font-normal text-[#040308] leading-[28px] lg:leading-[40px] text-center">
+                  Как я могу помочь?
+                </h1>
+                <h2 className="text-[18px] lg:text-[24px] font-normal text-[#808080] leading-[24px] lg:leading-[30px] text-center" style={{ marginTop: '8px' }}>
+                  Иски, ходатайства и анализ судебной практики — за минуты
+                </h2>
               </div>
 
-              {/* Mobile: 3 cards, full width, max 400px */}
-              <div className="flex flex-col gap-3 w-full md:hidden">
-                {displayQueries.slice(0, 3).map((query) => (
-                  <button
-                    key={query.id}
-                    onClick={() => handleExampleClick(query.text)}
-                    className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors w-full"
-                    style={{ maxWidth: '400px', margin: '0 auto' }}
-                  >
-                    <p className="text-[16px] font-normal text-foreground leading-[24px]">
-                      {query.text}
-                    </p>
-                  </button>
-                ))}
+              {/* Example queries */}
+              <div className={`flex flex-col items-center w-full transition-all duration-700 ease-out md:mt-14 ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`} style={{ marginTop: '32px' }}>
+                <p className="text-[14px] lg:text-[14px] font-medium text-[#808080] text-center leading-[18px] lg:leading-[18px]" style={{ marginBottom: '12px' }}>
+                  Примеры вопросов
+                </p>
+                
+                {/* Desktop: 3 columns */}
+                <div className="hidden md:flex gap-3 w-full" style={{ marginTop: '0' }}>
+                  {/* Column 1 */}
+                  <div className="flex flex-col gap-3 flex-1">
+                    {displayQueries.filter((_, i) => i % 3 === 0).map((query) => (
+                      <button
+                        key={query.id}
+                        onClick={() => handleExampleClick(query.text)}
+                        className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors"
+                      >
+                        <p className="text-[16px] lg:text-[16px] font-normal text-foreground leading-[24px] lg:leading-[24px]">
+                          {query.text}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                  
+                  {/* Column 2 */}
+                  <div className="flex flex-col gap-3 flex-1">
+                    {displayQueries.filter((_, i) => i % 3 === 1).map((query) => (
+                      <button
+                        key={query.id}
+                        onClick={() => handleExampleClick(query.text)}
+                        className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors"
+                      >
+                        <p className="text-[16px] lg:text-[16px] font-normal text-foreground leading-[24px] lg:leading-[24px]">
+                          {query.text}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                  
+                  {/* Column 3 */}
+                  <div className="flex flex-col gap-3 flex-1">
+                    {displayQueries.filter((_, i) => i % 3 === 2).map((query) => (
+                      <button
+                        key={query.id}
+                        onClick={() => handleExampleClick(query.text)}
+                        className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors"
+                      >
+                        <p className="text-[16px] lg:text-[16px] font-normal text-foreground leading-[24px] lg:leading-[24px]">
+                          {query.text}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Mobile: 3 cards, full width, max 400px */}
+                <div className="flex flex-col gap-3 w-full md:hidden">
+                  {displayQueries.slice(0, 3).map((query) => (
+                    <button
+                      key={query.id}
+                      onClick={() => handleExampleClick(query.text)}
+                      className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors w-full"
+                      style={{ maxWidth: '400px', margin: '0 auto' }}
+                    >
+                      <p className="text-[16px] font-normal text-foreground leading-[24px]">
+                        {query.text}
+                      </p>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Input */}
+        {/* Input - fixed at bottom, outside scrollable area */}
+        <div className="md:hidden">
+          <ChatInput onSubmit={handleSubmit} />
+        </div>
+        <div className="hidden md:block relative">
           <ChatInput onSubmit={handleSubmit} />
         </div>
       </div>
