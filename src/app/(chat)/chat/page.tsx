@@ -42,7 +42,9 @@ export default function ChatPage() {
       bottom: 0,
       width: '100%',
       height: '100dvh',
-      overflow: 'hidden'
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'column'
     }}>
       {/* Mobile Header - fixed at top */}
       <MobileHeader 
@@ -61,17 +63,19 @@ export default function ChatPage() {
       {/* Desktop Sidebar */}
       <Sidebar onNewChat={handleNewChat} className="hidden md:flex" />
       
-      {/* Main content - flex container */}
+      {/* Main content - flex container (ChatGPT style) */}
       <div className="flex-1 flex flex-col min-w-0 p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A]" style={{ 
         overflow: 'hidden',
         minHeight: 0,
-        height: 'calc(100dvh - 56px)' // высота экрана минус шапка
+        display: 'flex',
+        flexDirection: 'column'
       }}>
-        {/* Scrollable content area - only this scrolls on mobile */}
+        {/* Scrollable content area - only this scrolls (ChatGPT style) */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden bg-background md:rounded-2xl" style={{ 
           minHeight: 0,
+          flex: '1 1 auto',
           WebkitOverflowScrolling: 'touch',
-          paddingBottom: 'calc(56px + 32px + 8px)' // отступ снизу: высота инпута (56px) + padding (32px) + отступ от браузера (8px)
+          paddingBottom: 'calc(56px + 32px + 8px)' // отступ для fixed инпута (высота + padding + отступ от браузера)
         }}>
           <div className="flex flex-col items-center px-4 md:px-0 py-8 md:py-14 md:justify-center" style={{ minHeight: 0 }}>
             {/* Content */}
@@ -159,10 +163,12 @@ export default function ChatPage() {
             </div>
           </div>
         </div>
-
       </div>
 
-      {/* Input - fixed at bottom, outside scrollable area */}
+      {/* Input - fixed at bottom (ChatGPT style: но fixed для позиционирования на 8px от браузера) */}
+      <div className="md:hidden" style={{ flexShrink: 0, height: 0, visibility: 'hidden' }}>
+        {/* Spacer для flex контейнера - инпут fixed, но нужен placeholder */}
+      </div>
       <div className="md:hidden fixed left-0 right-0 z-40">
         <ChatInput onSubmit={handleSubmit} />
       </div>

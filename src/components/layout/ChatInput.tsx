@@ -139,6 +139,7 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
         const finalBottom = browserBottomBarHeight + bottomOffset + safeAreaBottom;
         
         // Для мобильных: инпут должен быть fixed на 8px от видимой нижней границы браузера
+        // Используем fixed позиционирование для точного контроля позиции относительно браузерной панели
         containerRef.current.style.position = 'fixed';
         containerRef.current.style.bottom = `${finalBottom}px`;
         containerRef.current.style.left = '0';
@@ -201,7 +202,7 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
   return (
     <div 
       ref={containerRef}
-      className="fixed md:absolute left-0 right-0 z-50"
+      className="md:absolute left-0 right-0 z-50"
       style={{ 
         paddingTop: '16px',
         paddingBottom: '16px',

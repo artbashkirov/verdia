@@ -26,11 +26,13 @@ export function MobileHeader({ onMenuClick, isMenuOpen, onNewChat }: MobileHeade
 
   return (
     <header 
-      className="md:hidden fixed top-0 left-0 right-0 z-50 bg-[#17181A] flex items-center justify-between"
+      className="md:hidden z-50 bg-[#17181A] flex items-center justify-between"
       style={{ 
         height: '56px',
         paddingLeft: '16px',
-        paddingRight: '16px'
+        paddingRight: '16px',
+        flexShrink: 0, // ChatGPT style - фиксированная высота, не сжимается
+        position: 'relative' // В flex контейнере не нужен fixed
       }}
     >
       {/* Menu button */}
