@@ -449,7 +449,7 @@ export default function ChatResultPage() {
       <div className="flex-1 min-w-0 max-w-[100vw] overflow-x-hidden p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A]">
         <div className="h-full bg-background md:rounded-2xl overflow-hidden relative flex flex-col">
           {/* Scrollable content */}
-          <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden pt-6 md:pt-14 pb-36 px-0 relative">
+          <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden pt-6 md:pt-14 pb-[150px] md:pb-36 px-0 relative">
             <div className="w-full max-w-[660px] mx-auto flex flex-col gap-8 px-4" style={{ position: 'relative', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
               {/* Query */}
               <h1 className="text-[20px] lg:text-[32px] font-medium text-foreground leading-[28px] lg:leading-[40px] tracking-tight break-words md:mt-0">

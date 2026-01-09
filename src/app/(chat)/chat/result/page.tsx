@@ -197,7 +197,7 @@ function ResultContent() {
       
         <div className="flex-1 p-0 md:p-2 md:pl-0 md:pb-2 bg-[#17181A]">
           <div className="h-full bg-background md:rounded-2xl overflow-hidden relative flex flex-col">
-          <div className="flex-1 overflow-y-auto pt-6 md:pt-14 pb-36 px-0 relative">
+          <div className="flex-1 overflow-y-auto pt-6 md:pt-14 pb-[150px] md:pb-36 px-0 relative">
             <div className="w-full md:max-w-[660px] md:mx-auto flex flex-col gap-8 break-words" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
               <h1 className="text-[20px] lg:text-[32px] font-medium text-foreground leading-[28px] lg:leading-[40px] tracking-tight break-words md:mt-0">
                 {query}

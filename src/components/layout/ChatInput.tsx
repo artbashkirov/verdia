@@ -19,31 +19,54 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
     function updatePosition() {
       if (!containerRef.current) return;
       
-      // Получаем реальную высоту viewport
-      const viewportHeight = window.visualViewport 
-        ? window.visualViewport.height 
-        : window.innerHeight;
-      
-      // На мобильных используем top вместо bottom для надёжного позиционирования
       const isMobile = window.innerWidth < 768;
       
       if (isMobile) {
-        // Высота контейнера инпута (56px инпут + 16px padding сверху + 16px padding снизу)
-        const inputContainerHeight = 88;
-        const topPosition = viewportHeight - inputContainerHeight;
+        // Используем CSS переменные, установленные ViewportHandler
+        // Эти переменные динамически вычисляются на основе реального viewport
+        const browserBarHeight = parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue('--browser-bottom-bar-height')
+        ) || 0;
         
-        containerRef.current.style.top = `${topPosition}px`;
-        containerRef.current.style.bottom = 'auto';
-      } else {
+        const safeAreaBottom = parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue('--safe-area-bottom')
+        ) || 0;
+        
+        // Если переменная не установлена, вычисляем динамически
+        let totalBottom = browserBarHeight + safeAreaBottom;
+        
+        if (totalBottom === 0 && window.visualViewport) {
+          // Fallback: вычисляем напрямую через visualViewport
+          const viewportHeight = window.visualViewport.height;
+          const windowHeight = window.innerHeight;
+          const offsetTop = window.visualViewport.offsetTop || 0;
+          const totalBrowserUI = windowHeight - viewportHeight;
+          const bottomBarHeight = Math.max(totalBrowserUI - offsetTop, 0);
+          
+          totalBottom = bottomBarHeight + safeAreaBottom;
+        }
+        
+        // Минимальный отступ для надёжности
+        const minBottom = 50;
+        totalBottom = Math.max(totalBottom, minBottom);
+        
+        containerRef.current.style.bottom = `${totalBottom}px`;
         containerRef.current.style.top = 'auto';
+      } else {
         containerRef.current.style.bottom = '0';
+        containerRef.current.style.top = 'auto';
       }
     }
 
+    // Устанавливаем позицию сразу
     updatePosition();
 
     // Слушаем изменения viewport
-    window.addEventListener('resize', updatePosition);
+    const handleResize = () => {
+      requestAnimationFrame(updatePosition);
+    };
+    
+    window.addEventListener('resize', handleResize);
     
     if (window.visualViewport) {
       window.visualViewport.addEventListener('resize', updatePosition);
@@ -51,15 +74,26 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
     }
 
     window.addEventListener('orientationchange', () => {
-      setTimeout(updatePosition, 100);
+      setTimeout(updatePosition, 200);
+    });
+
+    // Также слушаем изменения CSS переменных (когда ViewportHandler обновляет их)
+    const observer = new MutationObserver(() => {
+      updatePosition();
+    });
+    
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['style']
     });
 
     return () => {
-      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('resize', handleResize);
       if (window.visualViewport) {
         window.visualViewport.removeEventListener('resize', updatePosition);
         window.visualViewport.removeEventListener('scroll', updatePosition);
       }
+      observer.disconnect();
     };
   }, []);
 
@@ -80,9 +114,9 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
   return (
     <div 
       ref={containerRef}
-      className="fixed md:absolute left-0 right-0 z-10 overflow-hidden"
+      className="fixed md:absolute left-0 right-0 z-50"
       style={{ 
-        bottom: 0, // fallback, будет переопределено через JS на мобильных
+        bottom: '0', // fallback, будет переопределено через JS на мобильных
         paddingTop: '16px',
         paddingBottom: '16px',
         backgroundColor: 'var(--background)'
