@@ -127,18 +127,37 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
           // Игнорируем ошибки
         }
         
-        // Позиционируем инпут на 8px от нижней границы браузера (window.innerHeight)
-        // Нижняя граница браузера = это нижний край окна браузера (включая браузерную панель навигации)
-        // position: fixed позиционируется относительно window.innerHeight (полная высота окна с панелями)
-        // Структура снизу вверх: [низ окна браузера] -> [8px] -> [инпут] -> [контент]
-        // Если браузерная панель видна, она находится ниже инпута
-        // Если браузерная панель скрыта, инпут на 8px от нижней границы экрана
-        const bottomOffset = 8; // 8px отступ от нижней границы браузера (window.innerHeight)
+        // Позиционируем инпут на 8px от видимой нижней границы браузера
+        // Видимая нижняя граница = это верхний край браузерной панели навигации (когда панель видна)
+        // или нижний край экрана (когда панель скрыта)
+        // position: fixed позиционируется относительно window.innerHeight (полная высота окна)
+        // visualViewport.height - это видимая высота контента БЕЗ браузерных панелей
+        // Структура: [низ окна браузера] -> [браузерная панель] -> [8px] -> [инпут] -> [контент]
+        const bottomOffset = 8; // 8px отступ от видимой нижней границы браузера
         
-        // Для всех браузеров: инпут должен быть на 8px + safe-area от нижней границы окна браузера
-        // browserBottomBarHeight НЕ учитываем, потому что инпут должен быть на 8px от нижней границы браузера,
-        // а не от верхней границы браузерной панели
-        const finalBottom = bottomOffset + safeAreaBottom;
+        let finalBottom: number;
+        
+        if (window.visualViewport) {
+          // Для браузеров с visualViewport (Safari, Chrome)
+          // Видимая нижняя граница = visualViewport.height от верха экрана
+          // Инпут должен быть на 8px от этой границы
+          // Но position: fixed позиционируется относительно window.innerHeight
+          // Разница = window.innerHeight - visualViewport.height - offsetTop
+          // Это и есть высота браузерных панелей (верхняя + нижняя)
+          const viewportHeight = window.visualViewport.height;
+          const windowHeight = window.innerHeight;
+          const offsetTop = window.visualViewport.offsetTop || 0;
+          const totalBrowserUI = windowHeight - viewportHeight;
+          const bottomBarHeight = Math.max(totalBrowserUI - offsetTop, 0);
+          
+          // Инпут на 8px от видимой нижней границы = bottomBarHeight + 8px от низа окна
+          finalBottom = bottomBarHeight + bottomOffset + safeAreaBottom;
+        } else {
+          // Для браузеров без visualViewport (Яндекс браузер и другие)
+          // Используем browserBottomBarHeight, которая уже рассчитана выше
+          // Инпут на 8px от видимой нижней границы = browserBottomBarHeight + 8px от низа окна
+          finalBottom = browserBottomBarHeight + bottomOffset + safeAreaBottom;
+        }
         
         // Для мобильных: инпут должен быть fixed на 8px от нижней границы браузера
         // Используем fixed позиционирование для точного контроля позиции относительно нижней границы окна
