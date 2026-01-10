@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Sidebar, ChatInput, MobileHeader, MobileSidebar } from '@/components/layout';
 import { DownloadIcon } from '@/components/icons';
+import { MarkdownRenderer } from '@/components/ui';
 import { generateDocx, downloadBlob } from '@/lib/docx-generator';
 import { useTheme } from '@/lib/theme-context';
 
@@ -31,6 +32,8 @@ interface GenerationResponse {
     probability?: {
       percentage: number;
       level: string;
+      casesWithResult?: number;
+      totalCases?: number;
     };
   };
   legalAnalysis?: {
@@ -56,6 +59,8 @@ interface GenerationResponse {
     factors?: string[];
     positiveFactors?: string[];
     negativeFactors?: string[];
+    casesWithResult?: number;
+    totalCases?: number;
   };
   recommendations?: string[];
   documents?: Array<{
@@ -133,6 +138,8 @@ function NewChatPageContent() {
   const [visitedUrls, setVisitedUrls] = useState<Set<string>>(new Set());
   const contentRef = useRef<HTMLDivElement>(null);
   const hasStartedGeneration = useRef(false);
+  const [chatMessages, setChatMessages] = useState<Array<{ id: string; role: 'user' | 'assistant'; content: string; created_at: string }>>([]);
+  const [isSendingChat, setIsSendingChat] = useState(false);
 
   // Load visited URLs from localStorage
   useEffect(() => {
@@ -187,6 +194,25 @@ function NewChatPageContent() {
     sessionStorage.removeItem('pendingQuery');
     generateResponseStream(queryToUse);
   }, []);
+
+  // Load existing chat messages when generation is complete
+  useEffect(() => {
+    async function loadChatMessages() {
+      if (!chatId || !isComplete) return;
+      
+      try {
+        const messagesResponse = await fetch(`/api/chat?generationId=${chatId}`);
+        if (messagesResponse.ok) {
+          const messagesData = await messagesResponse.json();
+          setChatMessages(messagesData.messages || []);
+        }
+      } catch (err) {
+        console.error('Error loading chat messages:', err);
+      }
+    }
+
+    loadChatMessages();
+  }, [chatId, isComplete]);
 
   // Streaming generation - shows results as they arrive
   const generateResponseStream = async (queryText: string) => {
@@ -285,6 +311,84 @@ function NewChatPageContent() {
 
   const handleNewChat = () => {
     router.push('/chat');
+  };
+
+  // Handle chat continuation after generation is complete
+  const handleChatSubmit = async (message: string) => {
+    if (!message.trim() || !chatId || isGenerating || isSendingChat) {
+      return;
+    }
+
+    setIsSendingChat(true);
+
+    // Add user message optimistically
+    const userMessage = {
+      id: `temp-user-${Date.now()}`,
+      role: 'user' as const,
+      content: message,
+      created_at: new Date().toISOString(),
+    };
+    setChatMessages(prev => [...prev, userMessage]);
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          generationId: chatId,
+          message,
+        }),
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Не удалось отправить сообщение';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          errorMessage = `Ошибка ${response.status}: ${response.statusText}`;
+        }
+        setChatMessages(prev => prev.filter(m => m.id !== userMessage.id));
+        setError(errorMessage);
+        alert(errorMessage);
+        return;
+      }
+
+      const data = await response.json();
+
+      if (!data.message) {
+        throw new Error('Ответ сервера не содержит сообщения');
+      }
+
+      // Add assistant message
+      const assistantMessage = {
+        id: `temp-assistant-${Date.now()}`,
+        role: 'assistant' as const,
+        content: data.message,
+        created_at: new Date().toISOString(),
+      };
+      setChatMessages(prev => [...prev, assistantMessage]);
+
+      // Reload messages from server
+      try {
+        const messagesResponse = await fetch(`/api/chat?generationId=${chatId}`);
+        if (messagesResponse.ok) {
+          const messagesData = await messagesResponse.json();
+          setChatMessages(messagesData.messages || []);
+        }
+      } catch (reloadErr) {
+        console.error('Error reloading messages:', reloadErr);
+      }
+
+    } catch (err) {
+      console.error('Error sending chat message:', err);
+      setChatMessages(prev => prev.filter(m => m.id !== userMessage.id));
+      const errorMessage = err instanceof Error ? err.message : 'Произошла неизвестная ошибка';
+      setError(errorMessage);
+      alert(`Не удалось отправить сообщение: ${errorMessage}`);
+    } finally {
+      setIsSendingChat(false);
+    }
   };
 
   const handleDownload = async (doc: { id: number; title: string; content?: string; format: string }) => {
@@ -577,14 +681,17 @@ function NewChatPageContent() {
                         <p className="mb-3 text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold break-words">{response.shortAnswer.title}</p>
                         <p className="break-words">{response.shortAnswer.content}</p>
                     {(response.shortAnswer.probability || response.probability) && (() => {
-                      const percentage = response.shortAnswer.probability?.percentage 
-                        || response.probability?.percentage
+                      const probData = response.shortAnswer.probability || response.probability;
+                      const percentage = probData?.percentage 
                         || (response.probability?.level === 'высокая' ? 75 
                           : response.probability?.level === 'выше средней' ? 65 
                           : response.probability?.level === 'средняя' ? 45 
                           : response.probability?.level === 'низкая' ? 25 
                           : 60);
                       const level = getProbabilityLabel(percentage);
+                      const casesWithResult = probData?.casesWithResult;
+                      const totalCases = probData?.totalCases;
+                      const hasCasesInfo = casesWithResult !== undefined && totalCases !== undefined && totalCases > 0;
                       
                       return (
                         <div className="mt-4 p-4 rounded-xl relative" style={{ backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F' }}>
@@ -592,12 +699,19 @@ function NewChatPageContent() {
                             {percentage > 0 ? 'Вероятность выиграть дело' : 'Оценка вероятности'}
                           </p>
                           {percentage > 0 ? (
-                            <p className="text-[24px] lg:text-[32px] font-bold text-foreground">
-                              {percentage}%
-                              <span className="text-[16px] lg:text-[18px] font-medium text-gray-500 ml-2">
-                                ({level})
-                              </span>
-                            </p>
+                            <>
+                              <p className="text-[24px] lg:text-[32px] font-bold text-foreground">
+                                {percentage}%
+                                <span className="text-[16px] lg:text-[18px] font-medium text-gray-500 ml-2">
+                                  ({level})
+                                </span>
+                              </p>
+                              {hasCasesInfo && (
+                                <p className="text-[12px] lg:text-[14px] font-normal text-gray-500 mt-2">
+                                  на основе {casesWithResult} из {totalCases} дел
+                                </p>
+                              )}
+                            </>
                           ) : (
                             <p className="text-[16px] lg:text-[18px] font-medium text-gray-500">
                               Недостаточно данных для расчёта вероятности
@@ -620,7 +734,12 @@ function NewChatPageContent() {
                             </button>
                             <div className="probability-tooltip hidden lg:group-hover:block absolute right-0 bottom-full mb-2 w-72 p-3 bg-white rounded-lg shadow-lg border border-gray-200 text-sm text-gray-600 z-50">
                               <p className="font-medium text-gray-900 mb-1">Как рассчитывается вероятность?</p>
-                              <p>Оценка основана на анализе похожих судебных дел: соотношении удовлетворённых и отклонённых исков, а также ключевых факторов вашей ситуации.</p>
+                              <p className="mb-2">Оценка основана на анализе похожих судебных дел: соотношении удовлетворённых и отклонённых исков, а также ключевых факторов вашей ситуации.</p>
+                              {hasCasesInfo && (
+                                <p className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-200">
+                                  Расчёт основан на {casesWithResult} из {totalCases} найденных дел с известным результатом.
+                                </p>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1012,6 +1131,59 @@ function NewChatPageContent() {
                     </div>
                   )}
               
+              {/* Chat continuation messages */}
+              {chatMessages.length > 0 && (
+                <>
+                  <div className="h-px bg-gray-200" />
+                  <div className="flex flex-col gap-4">
+                    <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
+                      Продолжение диалога
+                    </p>
+                    
+                    {error && (
+                      <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-400 text-sm">
+                        {error}
+                        <button 
+                          onClick={() => setError('')}
+                          className="ml-4 underline"
+                        >
+                          Закрыть
+                        </button>
+                      </div>
+                    )}
+                    
+                    {chatMessages.map((msg) => (
+                      <div key={msg.id}>
+                        {msg.role === 'user' ? (
+                          <div className="flex justify-end">
+                            <div className="max-w-[85%] px-4 py-3 bg-[#212121] text-white rounded-2xl">
+                              <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-4">
+                            <div className="text-base text-foreground leading-[24px] break-words">
+                              <MarkdownRenderer content={msg.content} />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    
+                    {isSendingChat && (
+                      <div className="flex items-center gap-2 text-gray-400">
+                        <div className="flex gap-1">
+                          <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                          <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                          <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </div>
+                        <span className="text-xs">Печатает...</span>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
               {/* Loading indicator at the bottom when still generating */}
               {isGenerating && hasContent && !isComplete && (
                 <div className="flex items-center gap-3 py-4">
@@ -1029,9 +1201,9 @@ function NewChatPageContent() {
           {/* Desktop Input - внутри контента */}
           <div className="hidden md:block relative">
             <ChatInput 
-              onSubmit={() => {}} 
-              disabled={isGenerating}
-              placeholder={isGenerating ? "Дождитесь завершения анализа..." : "Задайте вопрос"}
+              onSubmit={isComplete && chatId ? handleChatSubmit : () => {}} 
+              disabled={isGenerating || isSendingChat || !isComplete || !chatId}
+              placeholder={isGenerating ? "Дождитесь завершения анализа..." : (isComplete && chatId ? "Задайте вопрос" : "Дождитесь завершения анализа...")}
             />
           </div>
         </div>
@@ -1040,9 +1212,9 @@ function NewChatPageContent() {
       {/* Mobile Input - вне overflow контейнера для правильного позиционирования */}
       <div className="md:hidden">
         <ChatInput 
-          onSubmit={() => {}} 
-          disabled={isGenerating}
-          placeholder={isGenerating ? "Дождитесь завершения анализа..." : "Задайте вопрос"}
+          onSubmit={isComplete && chatId ? handleChatSubmit : () => {}} 
+          disabled={isGenerating || isSendingChat || !isComplete || !chatId}
+          placeholder={isGenerating ? "Дождитесь завершения анализа..." : (isComplete && chatId ? "Задайте вопрос" : "Дождитесь завершения анализа...")}
         />
       </div>
     </div>

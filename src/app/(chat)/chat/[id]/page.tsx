@@ -41,6 +41,8 @@ interface GenerationResponse {
     probability?: {
       percentage: number;
       level: string;
+      casesWithResult?: number;
+      totalCases?: number;
     };
   };
   legalAnalysis: {
@@ -66,6 +68,8 @@ interface GenerationResponse {
     factors?: string[];
     positiveFactors?: string[];
     negativeFactors?: string[];
+    casesWithResult?: number;
+    totalCases?: number;
   };
   recommendations: string[];
   documents: Array<{
@@ -258,9 +262,19 @@ export default function ChatResultPage() {
   };
 
   const handleSubmit = async (message: string) => {
-    if (!message.trim() || isSending || !params.id) return;
+    if (!message || !message.trim()) {
+      return;
+    }
+    
+    if (isSending) {
+      return;
+    }
+    
+    if (!chatId || chatId.trim() === '') {
+      setError('ID чата не найден. Пожалуйста, обновите страницу.');
+      return;
+    }
 
-    const id = Array.isArray(params.id) ? params.id[0] : params.id;
     setIsSending(true);
 
     // Optimistically add user message
@@ -277,32 +291,76 @@ export default function ChatResultPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          generationId: id,
+          generationId: chatId,
           message,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send message');
+        // Try to get error message from response
+        let errorMessage = 'Не удалось отправить сообщение';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          errorMessage = `Ошибка ${response.status}: ${response.statusText}`;
+        }
+        
+        // Remove optimistic message on error
+        setChatMessages(prev => prev.filter(m => m.id !== userMessage.id));
+        setError(errorMessage);
+        alert(errorMessage);
+        return;
       }
 
       const data = await response.json();
 
-      // Add assistant message with documents if any
-      const assistantMessage: ChatMessage = {
-        id: `temp-assistant-${Date.now()}`,
-        role: 'assistant',
-        content: data.message,
-        created_at: new Date().toISOString(),
-        documents: data.documents || [],
-      };
-      setChatMessages(prev => [...prev, assistantMessage]);
+      if (!data.message) {
+        throw new Error('Ответ сервера не содержит сообщения');
+      }
+
+      // Clear any previous errors
+      setError('');
+      
+      // Reload messages from server to get actual data with proper IDs
+      // This ensures we have the correct data from the database
+      try {
+        const messagesResponse = await fetch(`/api/chat?generationId=${chatId}`);
+        if (messagesResponse.ok) {
+          const messagesData = await messagesResponse.json();
+          // Replace all messages with fresh data from server
+          setChatMessages(messagesData.messages || []);
+        } else {
+          // If reload fails, add assistant message optimistically
+          const assistantMessage: ChatMessage = {
+            id: `temp-assistant-${Date.now()}`,
+            role: 'assistant',
+            content: data.message,
+            created_at: new Date().toISOString(),
+            documents: data.documents || [],
+          };
+          setChatMessages(prev => [...prev, assistantMessage]);
+        }
+      } catch (reloadErr) {
+        console.error('Error reloading messages:', reloadErr);
+        // If reload fails, add assistant message optimistically
+        const assistantMessage: ChatMessage = {
+          id: `temp-assistant-${Date.now()}`,
+          role: 'assistant',
+          content: data.message,
+          created_at: new Date().toISOString(),
+          documents: data.documents || [],
+        };
+        setChatMessages(prev => [...prev, assistantMessage]);
+      }
 
     } catch (err) {
       console.error('Error sending message:', err);
       // Remove optimistic message on error
       setChatMessages(prev => prev.filter(m => m.id !== userMessage.id));
-      alert('Не удалось отправить сообщение. Попробуйте еще раз.');
+      const errorMessage = err instanceof Error ? err.message : 'Произошла неизвестная ошибка';
+      setError(errorMessage);
+      alert(`Не удалось отправить сообщение: ${errorMessage}`);
     } finally {
       setIsSending(false);
     }
@@ -531,15 +589,18 @@ export default function ChatResultPage() {
                     <p className="mb-3 text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold break-words">{response.shortAnswer.title}</p>
                     <p className="break-words">{response.shortAnswer.content}</p>
                     {(response.shortAnswer.probability || response.probability) && (() => {
+                      const probData = response.shortAnswer.probability || response.probability;
                       // Get percentage from available sources
-                      const percentage = response.shortAnswer.probability?.percentage 
-                        || response.probability?.percentage
+                      const percentage = probData?.percentage 
                         || (response.probability?.level === 'высокая' ? 75 
                           : response.probability?.level === 'выше средней' ? 65 
                           : response.probability?.level === 'средняя' ? 45 
                           : response.probability?.level === 'низкая' ? 25 
                           : 60);
                       const level = getProbabilityLabel(percentage);
+                      const casesWithResult = probData?.casesWithResult;
+                      const totalCases = probData?.totalCases;
+                      const hasCasesInfo = casesWithResult !== undefined && totalCases !== undefined && totalCases > 0;
                       
                       return (
                         <div className="mt-4 p-4 rounded-xl relative" style={{ backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F' }}>
@@ -547,12 +608,19 @@ export default function ChatResultPage() {
                             {percentage > 0 ? 'Вероятность выиграть дело' : 'Оценка вероятности'}
                           </p>
                           {percentage > 0 ? (
-                            <p className="text-[24px] lg:text-[32px] font-bold text-foreground">
-                              {percentage}%
-                              <span className="text-[16px] lg:text-[18px] font-medium text-gray-500 ml-2">
-                                ({level})
-                              </span>
-                            </p>
+                            <>
+                              <p className="text-[24px] lg:text-[32px] font-bold text-foreground">
+                                {percentage}%
+                                <span className="text-[16px] lg:text-[18px] font-medium text-gray-500 ml-2">
+                                  ({level})
+                                </span>
+                              </p>
+                              {hasCasesInfo && (
+                                <p className="text-[12px] lg:text-[14px] font-normal text-gray-500 mt-2">
+                                  на основе {casesWithResult} из {totalCases} дел
+                                </p>
+                              )}
+                            </>
                           ) : (
                             <p className="text-[16px] lg:text-[18px] font-medium text-gray-500">
                               Недостаточно данных для расчёта вероятности
@@ -575,7 +643,12 @@ export default function ChatResultPage() {
                             </button>
                             <div className="probability-tooltip hidden lg:group-hover:block absolute right-0 bottom-full mb-2 w-72 p-3 bg-white rounded-lg shadow-lg border border-gray-200 text-sm text-gray-600 z-50">
                               <p className="font-medium text-gray-900 mb-1">Как рассчитывается вероятность?</p>
-                              <p>Оценка основана на анализе похожих судебных дел: соотношении удовлетворённых и отклонённых исков, а также ключевых факторов вашей ситуации.</p>
+                              <p className="mb-2">Оценка основана на анализе похожих судебных дел: соотношении удовлетворённых и отклонённых исков, а также ключевых факторов вашей ситуации.</p>
+                              {hasCasesInfo && (
+                                <p className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-200">
+                                  Расчёт основан на {casesWithResult} из {totalCases} найденных дел с известным результатом.
+                                </p>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -786,14 +859,32 @@ export default function ChatResultPage() {
                 </div>
               )}
 
-              {/* Chat continuation section */}
-              {chatMessages.length > 0 && (
+              {/* Chat continuation section - always show after initial generation is loaded */}
+              {!isLoading && generation && (
                 <>
                   <div className="h-px bg-gray-200" />
                   <div className="flex flex-col gap-4">
                     <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                       Продолжение диалога
                     </p>
+                    
+                    {error && (
+                      <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-400 text-sm">
+                        {error}
+                        <button 
+                          onClick={() => setError('')}
+                          className="ml-4 underline"
+                        >
+                          Закрыть
+                        </button>
+                      </div>
+                    )}
+                    
+                    {chatMessages.length === 0 && !error && (
+                      <div className="text-sm text-gray-400 italic">
+                        Задайте вопрос для продолжения диалога
+                      </div>
+                    )}
                     
                     {chatMessages.map((msg) => (
                       <div key={msg.id}>

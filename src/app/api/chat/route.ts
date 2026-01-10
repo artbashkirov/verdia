@@ -118,15 +118,28 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
+      console.error('Chat API: Auth error', authError);
       return NextResponse.json(
         { error: 'Необходима авторизация' },
         { status: 401 }
       );
     }
 
-    const { generationId, message } = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      console.error('Chat API: JSON parse error', parseError);
+      return NextResponse.json(
+        { error: 'Неверный формат запроса' },
+        { status: 400 }
+      );
+    }
+
+    const { generationId, message } = body;
     
     if (!generationId || !message) {
+      console.error('Chat API: Missing required fields', { generationId: !!generationId, message: !!message });
       return NextResponse.json(
         { error: 'Не указан ID чата или сообщение' },
         { status: 400 }
