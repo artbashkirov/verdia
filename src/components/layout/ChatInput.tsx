@@ -151,7 +151,7 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
   return (
     <div 
       ref={containerRef}
-      className="left-0 right-0 z-50"
+      className="left-0 right-0 z-40 md:z-50"
       style={{ 
         paddingTop: '0',
         paddingBottom: '16px',
