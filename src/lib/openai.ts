@@ -181,6 +181,7 @@ export async function generateLegalResponse(
       partial: number;
       rejected: number;
       total: number;
+      casesWithResult: number;
       percentage: number;
     };
     courtInfo?: CourtStats | null;
@@ -258,6 +259,7 @@ export async function generateLegalResponseSimple(
       partial: 0,
       rejected: 0,
       total: courtCases.length,
+      casesWithResult: 0,
       percentage: 65,
     },
     courtInfo: null,
