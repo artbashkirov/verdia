@@ -395,8 +395,8 @@ function NewChatPageContent() {
 
               {/* Loading state - show skeleton cards immediately */}
               {isGenerating && !response.courtCases && (
-                <div className="flex flex-col gap-4 animate-fadeIn -mx-4">
-                  <div className="flex items-center gap-3 px-4">
+                <div className="flex flex-col gap-4 animate-fadeIn -mx-4 md:mx-0">
+                  <div className="flex items-center gap-3 px-4 md:px-0">
                     <div className="flex gap-1">
                       <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                       <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -404,11 +404,11 @@ function NewChatPageContent() {
                     </div>
                     <span className="text-sm text-gray-400">{statusMessage}</span>
                   </div>
-                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px] px-4">
+                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px] px-4 md:px-0">
                     Судебные решения
                   </p>
                   <div 
-                    className="overflow-x-auto overflow-y-hidden hide-horizontal-scrollbar pl-4"
+                    className="overflow-x-auto overflow-y-hidden hide-horizontal-scrollbar pl-4 pr-4 md:pl-0 md:pr-0"
                     style={{ 
                       display: 'flex',
                       gap: '8px',
@@ -495,12 +495,12 @@ function NewChatPageContent() {
 
               {/* Court cases - appears first (fast) */}
                   {response.courtCases && response.courtCases.length > 0 && (
-                <div className="flex flex-col gap-4 animate-fadeIn -mx-4">
-                      <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px] px-4">
+                <div className="flex flex-col gap-4 animate-fadeIn -mx-4 md:mx-0">
+                      <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px] px-4 md:px-0">
                         Судебные решения
                       </p>
                       <div 
-                        className="overflow-x-auto overflow-y-hidden hide-horizontal-scrollbar pl-4"
+                        className="overflow-x-auto overflow-y-hidden hide-horizontal-scrollbar pl-4 pr-4 md:pl-0 md:pr-0"
                         style={{ 
                           display: 'flex',
                           gap: '8px',

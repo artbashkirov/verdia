@@ -222,18 +222,15 @@ function ResultContent() {
               </h1>
 
               {response.courtCases && response.courtCases.length > 0 && (
-                <div className="flex flex-col gap-4" style={{ marginLeft: '-16px', marginRight: '-16px' }}>
-                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
+                <div className="flex flex-col gap-4 -mx-4 md:mx-0">
+                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px] px-4 md:px-0">
                     Судебные решения
                   </p>
                   <div 
+                    className="hide-horizontal-scrollbar overflow-x-auto overflow-y-hidden pl-4 pr-4 md:pl-0 md:pr-0"
                     style={{ 
                       display: 'flex',
                       gap: '8px',
-                      overflowX: 'auto',
-                      overflowY: 'hidden',
-                      paddingLeft: '16px',
-                      paddingRight: '16px',
                       paddingBottom: '4px',
                       WebkitOverflowScrolling: 'touch',
                       msOverflowStyle: 'none',
