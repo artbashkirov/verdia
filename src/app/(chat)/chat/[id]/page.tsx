@@ -854,14 +854,7 @@ export default function ChatResultPage() {
             </div>
           </div>
           
-          {/* Input - fixed at bottom for mobile, absolute for desktop */}
-          <div className="md:hidden fixed left-0 right-0 z-40 bottom-0">
-            <ChatInput 
-              onSubmit={handleSubmit} 
-              placeholder="Задайте вопрос"
-              disabled={isSending}
-            />
-          </div>
+          {/* Desktop Input - внутри контента */}
           <div className="hidden md:block relative">
             <ChatInput 
               onSubmit={handleSubmit} 
@@ -870,6 +863,15 @@ export default function ChatResultPage() {
             />
           </div>
         </div>
+      </div>
+
+      {/* Mobile Input - вне overflow контейнера для правильного позиционирования */}
+      <div className="md:hidden">
+        <ChatInput 
+          onSubmit={handleSubmit} 
+          placeholder="Задайте вопрос"
+          disabled={isSending}
+        />
       </div>
     </div>
   );

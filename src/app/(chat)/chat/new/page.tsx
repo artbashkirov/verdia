@@ -1026,14 +1026,7 @@ function NewChatPageContent() {
             </div>
           </div>
           
-          {/* Input - fixed at bottom for mobile, absolute for desktop */}
-          <div className="md:hidden fixed left-0 right-0 z-40 bottom-0">
-            <ChatInput 
-              onSubmit={() => {}} 
-              disabled={isGenerating}
-              placeholder={isGenerating ? "Дождитесь завершения анализа..." : "Задайте вопрос"}
-            />
-          </div>
+          {/* Desktop Input - внутри контента */}
           <div className="hidden md:block relative">
             <ChatInput 
               onSubmit={() => {}} 
@@ -1042,6 +1035,15 @@ function NewChatPageContent() {
             />
           </div>
         </div>
+      </div>
+
+      {/* Mobile Input - вне overflow контейнера для правильного позиционирования */}
+      <div className="md:hidden">
+        <ChatInput 
+          onSubmit={() => {}} 
+          disabled={isGenerating}
+          placeholder={isGenerating ? "Дождитесь завершения анализа..." : "Задайте вопрос"}
+        />
       </div>
     </div>
   );

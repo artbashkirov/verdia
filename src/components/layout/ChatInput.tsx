@@ -11,6 +11,7 @@ interface ChatInputProps {
 
 export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начните писать запрос...' }: ChatInputProps) {
   const [message, setMessage] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -19,9 +20,10 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
     function updatePosition() {
       if (!containerRef.current) return;
       
-      const isMobile = window.innerWidth < 768;
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
       
-      if (isMobile) {
+      if (mobile) {
         // ChatGPT/DeepSeek/Perplexity подход: инпут на 8px от видимой нижней границы браузера
         // Видимая нижняя граница = верхний край браузерной панели навигации
         // position: fixed позиционируется относительно window.innerHeight
@@ -149,9 +151,9 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
   return (
     <div 
       ref={containerRef}
-      className="left-0 right-0 z-50 md:absolute md:bottom-0"
+      className="left-0 right-0 z-50"
       style={{ 
-        paddingTop: '16px',
+        paddingTop: '0',
         paddingBottom: '16px',
         backgroundColor: 'var(--background)'
       }}
