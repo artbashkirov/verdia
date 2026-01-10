@@ -169,6 +169,16 @@ export async function POST(request: NextRequest) {
         
         const { cases, stats, courtInfo, category } = searchResults;
         
+        // Debug: log stats to verify they're correct
+        console.log('Search results stats:', {
+          total: stats.total,
+          satisfied: stats.satisfied,
+          partial: stats.partial,
+          rejected: stats.rejected,
+          casesWithResult: stats.casesWithResult,
+          percentage: stats.percentage
+        });
+        
         // Step 3: Send court cases immediately
         sendEvent('courtCases', {
           cases: cases.slice(0, 5).map((c, i) => ({
@@ -216,9 +226,76 @@ export async function POST(request: NextRequest) {
             return;
           }
           
-          // Ensure probability
-          if (response.probability && typeof response.probability.percentage !== 'number') {
-            response.probability.percentage = stats.percentage;
+          // Ensure probability with full stats info - ВСЕГДА используем реальные данные из stats
+          // Устанавливаем процент только если есть дела с известным результатом
+          const probabilityPercentage = stats.casesWithResult > 0 ? stats.percentage : 0;
+          const probabilityLevel = stats.casesWithResult > 0 && stats.percentage > 0
+            ? (stats.percentage >= 95 ? 'максимальная' 
+              : stats.percentage >= 80 ? 'очень высокая'
+              : stats.percentage >= 65 ? 'высокая'
+              : stats.percentage >= 51 ? 'выше средней'
+              : stats.percentage >= 35 ? 'средняя'
+              : stats.percentage >= 20 ? 'ниже средней'
+              : 'низкая')
+            : 'недостаточно данных';
+          
+          // Создаем или обновляем probability объект с реальными данными
+          if (!response.probability) {
+            response.probability = {
+              level: probabilityLevel,
+              positiveFactors: [],
+              negativeFactors: [],
+            };
+          }
+          // Всегда перезаписываем реальными данными из статистики (не доверяем AI)
+          response.probability.percentage = probabilityPercentage;
+          response.probability.totalCases = stats.total;
+          response.probability.casesWithResult = stats.casesWithResult;
+          response.probability.satisfied = stats.satisfied;
+          response.probability.partial = stats.partial;
+          response.probability.rejected = stats.rejected;
+          response.probability.unknown = stats.total - stats.casesWithResult;
+          response.probability.level = probabilityLevel;
+          
+          console.log('Updated response.probability with stats:', {
+            percentage: response.probability.percentage,
+            totalCases: response.probability.totalCases,
+            casesWithResult: response.probability.casesWithResult,
+            satisfied: response.probability.satisfied,
+            partial: response.probability.partial,
+            rejected: response.probability.rejected,
+            unknown: response.probability.unknown,
+            level: response.probability.level
+          });
+          
+          // Also update shortAnswer.probability if present - ВСЕГДА перезаписываем реальными данными
+          if (response.shortAnswer) {
+            if (!response.shortAnswer.probability) {
+              response.shortAnswer.probability = {
+                percentage: probabilityPercentage,
+                level: probabilityLevel,
+              };
+            }
+            // Всегда перезаписываем реальными данными из статистики (не доверяем AI)
+            response.shortAnswer.probability.percentage = probabilityPercentage;
+            response.shortAnswer.probability.totalCases = stats.total;
+            response.shortAnswer.probability.casesWithResult = stats.casesWithResult;
+            response.shortAnswer.probability.satisfied = stats.satisfied;
+            response.shortAnswer.probability.partial = stats.partial;
+            response.shortAnswer.probability.rejected = stats.rejected;
+            response.shortAnswer.probability.unknown = stats.total - stats.casesWithResult;
+            response.shortAnswer.probability.level = probabilityLevel;
+            
+            console.log('Updated response.shortAnswer.probability with stats:', {
+              percentage: response.shortAnswer.probability.percentage,
+              totalCases: response.shortAnswer.probability.totalCases,
+              casesWithResult: response.shortAnswer.probability.casesWithResult,
+              satisfied: response.shortAnswer.probability.satisfied,
+              partial: response.shortAnswer.probability.partial,
+              rejected: response.shortAnswer.probability.rejected,
+              unknown: response.shortAnswer.probability.unknown,
+              level: response.shortAnswer.probability.level
+            });
           }
         } catch {
           sendEvent('error', { message: 'Ошибка обработки ответа' });

@@ -1,0 +1,28 @@
+# ============================================
+# Команды для настройки переменных на VPS
+# Скопируйте и выполните эти команды на VPS
+# ============================================
+
+# 1. Перейдите в директорию проекта
+cd /opt/verdia-app
+
+# 2. Создайте файл .env.production
+cat > .env.production << 'EOF'
+CLOUDFLARE_WORKER_URL=https://verdia-replicate-proxy.artbashkirov.workers.dev
+CLOUDFLARE_WORKER_SECRET=b4MXM42!
+EOF
+
+# 3. Проверьте, что файл создан правильно
+cat .env.production
+
+# 4. Перезапустите приложение через PM2
+pm2 restart verdia
+
+# 5. Сохраните конфигурацию PM2
+pm2 save
+
+# 6. Проверьте логи (должна исчезнуть ошибка о переменных)
+pm2 logs verdia --lines 30
+
+# 7. Проверьте переменные окружения в PM2
+pm2 env verdia | grep CLOUDFLARE

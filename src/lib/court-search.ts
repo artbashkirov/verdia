@@ -197,6 +197,7 @@ interface VpsScraperResponse {
     satisfied: number;
     partial: number;
     rejected: number;
+    casesWithResult: number;
     percentage: number;
   };
 }
@@ -204,8 +205,8 @@ interface VpsScraperResponse {
 // Store last VPS response stats
 let lastVpsStats: VpsScraperResponse['stats'] | null = null;
 
-// Call VPS scraper API
-async function callVpsScraper(searchTerms: string, maxResults: number = 5): Promise<CourtCase[]> {
+// Call VPS scraper API - возвращает дела и статистику
+async function callVpsScraper(searchTerms: string, maxResults: number = 5): Promise<{ cases: CourtCase[]; stats: VpsScraperResponse['stats'] | null }> {
   try {
     console.log(`Calling VPS scraper at ${VPS_SCRAPER_URL} for: ${searchTerms}`);
     
@@ -220,27 +221,51 @@ async function callVpsScraper(searchTerms: string, maxResults: number = 5): Prom
     
     if (!response.ok) {
       console.error('VPS scraper error:', response.status, response.statusText);
-      return [];
+      return { cases: [], stats: null };
     }
     
     const data = await response.json() as VpsScraperResponse;
     console.log(`VPS scraper returned ${data.cases?.length || 0} cases`);
     console.log(`VPS scraper stats: satisfied=${data.stats?.satisfied}, partial=${data.stats?.partial}, rejected=${data.stats?.rejected}, percentage=${data.stats?.percentage}%`);
     
-    // Store stats for later use
-    if (data.stats) {
-      lastVpsStats = data.stats;
+    // Log individual case results for debugging
+    if (data.cases && data.cases.length > 0) {
+      console.log('VPS scraper case results:');
+      data.cases.forEach((c, i) => {
+        console.log(`  Case ${i + 1}: ${c.title?.slice(0, 50)}... - result: ${c.result}`);
+      });
     }
     
-    return (data.cases || []).map((c: { title: string; url: string; snippet: string; court?: string; date?: string; result?: string }) => ({
+    // Обрабатываем статистику - вычисляем casesWithResult если отсутствует
+    let processedStats: VpsScraperResponse['stats'] | null = null;
+    if (data.stats) {
+      // Вычисляем casesWithResult если отсутствует (для обратной совместимости)
+      const casesWithResult = data.stats.casesWithResult !== undefined 
+        ? data.stats.casesWithResult 
+        : (data.stats.satisfied + data.stats.partial + data.stats.rejected);
+      
+      processedStats = {
+        ...data.stats,
+        casesWithResult: casesWithResult,
+      };
+      
+      // Сохраняем для обратной совместимости
+      lastVpsStats = processedStats;
+      
+      console.log(`Processed VPS stats: total=${processedStats.total}, casesWithResult=${processedStats.casesWithResult}, satisfied=${processedStats.satisfied}, partial=${processedStats.partial}, rejected=${processedStats.rejected}, percentage=${processedStats.percentage}%`);
+    }
+    
+    const cases = (data.cases || []).map((c: { title: string; url: string; snippet: string; court?: string; date?: string; result?: string }) => ({
       ...c,
       caseNumber: extractCaseNumber(c.title),
       result: c.result as CourtCase['result'],
       isSearchLink: false,
     }));
+    
+    return { cases, stats: processedStats };
   } catch (error) {
     console.error('Failed to call VPS scraper:', error);
-    return [];
+    return { cases: [], stats: null };
   }
 }
 
@@ -250,11 +275,13 @@ export function getLastVpsStats(): VpsScraperResponse['stats'] | null {
 }
 
 // Scrape court cases from sudact.ru using Puppeteer
+// Возвращает дела (для обратной совместимости, но статистика сохраняется в lastVpsStats)
 async function scrapeSudact(searchTerms: string, maxResults: number = 5): Promise<CourtCase[]> {
   // In production, use VPS scraper
   if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
     console.log('Using VPS scraper for production');
-    return callVpsScraper(searchTerms, maxResults);
+    const result = await callVpsScraper(searchTerms, maxResults);
+    return result.cases;
   }
   
   // Check cache first
@@ -694,6 +721,7 @@ export function calculateSatisfactionRate(cases: CourtCase[]): {
   partial: number;
   rejected: number;
   total: number;
+  casesWithResult: number;
   percentage: number;
 } {
   const stats = {
@@ -701,16 +729,20 @@ export function calculateSatisfactionRate(cases: CourtCase[]): {
     partial: 0,
     rejected: 0,
     total: cases.length,
+    casesWithResult: 0,
     percentage: 0,
   };
   
   for (const c of cases) {
     if (c.result === 'удовлетворен') {
       stats.satisfied++;
+      stats.casesWithResult++;
     } else if (c.result === 'частично удовлетворен') {
       stats.partial++;
+      stats.casesWithResult++;
     } else if (c.result === 'отказано') {
       stats.rejected++;
+      stats.casesWithResult++;
     }
   }
   
@@ -775,11 +807,22 @@ export async function searchCourtCases(
   console.log('Search terms:', searchTerms, 'Category:', category);
   
   let allCases: CourtCase[] = [];
+  let vpsStatsFromCall: VpsScraperResponse['stats'] | null = null;
   
   try {
-    // Search only on sudact.ru (mos-gorsud.ru is too slow/unreliable)
-    // This significantly reduces response time from 3+ min to ~30 sec
-    allCases = await scrapeSudact(searchTerms, maxResults);
+    // ВСЕГДА используем VPS scraper (если доступен), так как локальный скрапер медленный и ненадежный
+    // VPS scraper работает и в продакшене, и в разработке
+    console.log('Using VPS scraper (production or development)');
+    const vpsResult = await callVpsScraper(searchTerms, maxResults);
+    allCases = vpsResult.cases;
+    vpsStatsFromCall = vpsResult.stats;
+    console.log(`VPS scraper returned: ${allCases.length} cases, stats available: ${!!vpsStatsFromCall}`);
+    if (vpsStatsFromCall) {
+      const casesWithResult = vpsStatsFromCall.casesWithResult !== undefined 
+        ? vpsStatsFromCall.casesWithResult 
+        : (vpsStatsFromCall.satisfied + vpsStatsFromCall.partial + vpsStatsFromCall.rejected);
+      console.log(`VPS stats: ${vpsStatsFromCall.total} total, ${casesWithResult} with result (${vpsStatsFromCall.satisfied} satisfied, ${vpsStatsFromCall.partial} partial, ${vpsStatsFromCall.rejected} rejected)`);
+    }
     
     // Remove duplicates by case number
     const seen = new Set<string>();
@@ -803,21 +846,50 @@ export async function searchCourtCases(
   }
   
   // Use VPS stats if available (more accurate), otherwise calculate locally
-  const vpsStats = getLastVpsStats();
+  // Приоритет: статистика от текущего вызова VPS scraper > сохраненная lastVpsStats > локальный расчет
   let stats: ReturnType<typeof calculateSatisfactionRate>;
   
+  const vpsStats = vpsStatsFromCall || getLastVpsStats();
+  
   if (vpsStats && vpsStats.total > 0) {
-    console.log(`Using VPS stats: ${vpsStats.percentage}%`);
+    // Вычисляем casesWithResult из статистики, если поле отсутствует (для обратной совместимости)
+    const casesWithResult = vpsStats.casesWithResult !== undefined 
+      ? vpsStats.casesWithResult 
+      : (vpsStats.satisfied + vpsStats.partial + vpsStats.rejected);
+    
+    // ВАЖНО: Пересчитываем процент локально на основе только дел с известным результатом
+    // Неизвестные дела НЕ учитываются в расчете процента
+    let recalculatedPercentage = 0;
+    if (casesWithResult > 0) {
+      recalculatedPercentage = Math.round(
+        ((vpsStats.satisfied + vpsStats.partial * 0.5) / casesWithResult) * 100
+      );
+    }
+    
+    console.log(`Using VPS stats: ${recalculatedPercentage}% (${casesWithResult} из ${vpsStats.total} дел: ${vpsStats.satisfied} удовлетворено, ${vpsStats.partial} частично, ${vpsStats.rejected} отказано, ${vpsStats.total - casesWithResult} неизвестно)`);
+    
     stats = {
       satisfied: vpsStats.satisfied,
       partial: vpsStats.partial,
       rejected: vpsStats.rejected,
       total: vpsStats.total,
-      percentage: vpsStats.percentage,
+      casesWithResult: casesWithResult,
+      percentage: recalculatedPercentage, // Используем пересчитанный процент
     };
   } else {
-    // Fallback to local calculation
-    stats = calculateSatisfactionRate(allCases.filter(c => !c.isSearchLink));
+    // Fallback to local calculation - пересчитываем на основе реальных дел
+    console.log('VPS stats not available, calculating locally from cases');
+    const filteredCases = allCases.filter(c => !c.isSearchLink);
+    stats = calculateSatisfactionRate(filteredCases);
+    console.log(`Local calculation: total=${stats.total}, casesWithResult=${stats.casesWithResult}, satisfied=${stats.satisfied}, partial=${stats.partial}, rejected=${stats.rejected}, percentage=${stats.percentage}%`);
+    
+    // Логируем результаты каждого дела для отладки
+    if (filteredCases.length > 0) {
+      console.log('Local cases results:');
+      filteredCases.forEach((c, i) => {
+        console.log(`  Case ${i + 1}: ${c.title?.slice(0, 50)}... - result: ${c.result || 'неизвестно'}`);
+      });
+    }
   }
   
   // Get court info based on location

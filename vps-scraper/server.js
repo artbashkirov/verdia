@@ -280,11 +280,11 @@ app.post('/scrape/sudact', authMiddleware, async (req, res) => {
       : 0;
     
     const duration = Math.round((Date.now() - startTime) / 1000);
-    console.log(`Done in ${duration}s. Stats: ${satisfied}/${partial}/${rejected} = ${percentage}%`);
+    console.log(`Done in ${duration}s. Stats: ${satisfied}/${partial}/${rejected} = ${percentage}% (${totalWithResult} из ${cases.length} дел)`);
     
     const response = { 
       cases, 
-      stats: { total: cases.length, satisfied, partial, rejected, percentage, hasData: totalWithResult > 0 } 
+      stats: { total: cases.length, satisfied, partial, rejected, casesWithResult: totalWithResult, percentage, hasData: totalWithResult > 0 } 
     };
     
     setCache(searchTerms, response);

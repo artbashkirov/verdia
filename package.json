@@ -8,7 +8,12 @@
     "start": "next start",
     "lint": "eslint",
     "setup-env": "node scripts/setup-env.js",
-    "check-supabase": "node scripts/check-supabase.js"
+    "check-supabase": "node scripts/check-supabase.js",
+    "check-cloudflare": "node scripts/check-cloudflare-env.js",
+    "fix-cloudflare-env": "node scripts/fix-cloudflare-env.js",
+    "find-all-env": "node scripts/find-all-env.js",
+    "kill-port": "lsof -ti:3000 | xargs kill -9 2>/dev/null || echo 'Порт 3000 свободен'",
+    "reinstall": "rm -rf node_modules package-lock.json && npm install"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

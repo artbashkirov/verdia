@@ -20,6 +20,147 @@ function getProbabilityLabel(percentage: number): string {
   return 'низкая';
 }
 
+// Probability block component with expand/collapse
+function ProbabilityBlock({ probData, resolvedTheme }: { probData: any; resolvedTheme: string }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  const totalCases = probData?.totalCases || 0;
+  // Если поля не переданы, считаем их 0 (не undefined)
+  const satisfied = probData?.satisfied ?? 0;
+  const partial = probData?.partial ?? 0;
+  const rejected = probData?.rejected ?? 0;
+  const unknown = probData?.unknown ?? 0;
+  
+  // Вычисляем casesWithResult: либо из поля, либо из суммы (но только если поля определены)
+  const casesWithResult = probData?.casesWithResult !== undefined 
+    ? probData.casesWithResult 
+    : (probData?.satisfied !== undefined || probData?.partial !== undefined || probData?.rejected !== undefined)
+      ? (satisfied + partial + rejected)
+      : 0;
+  
+  const hasFullStats = totalCases > 0 && (
+    probData?.satisfied !== undefined || 
+    probData?.partial !== undefined || 
+    probData?.rejected !== undefined || 
+    probData?.unknown !== undefined
+  );
+  
+  // Если все результаты неизвестны, нельзя рассчитывать вероятность
+  const percentage = casesWithResult > 0 ? (probData?.percentage ?? 0) : 0;
+  const hasValidPercentage = casesWithResult > 0 && percentage > 0;
+  const level = hasValidPercentage ? getProbabilityLabel(percentage) : null;
+
+  if (!hasValidPercentage || casesWithResult === 0) {
+    return (
+      <div className="mt-4 p-4 rounded-xl relative" style={{ backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F' }}>
+        <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] mb-3">
+          Вероятность выиграть дело
+        </p>
+        <p className="text-[16px] lg:text-[18px] font-medium text-gray-500">
+          {casesWithResult === 0 && totalCases > 0 
+            ? 'Не удалось рассчитать вероятность: все найденные дела имеют неизвестный результат'
+            : 'Недостаточно данных для расчёта вероятности'}
+        </p>
+        {/* Info icon with tooltip - always in top right */}
+        <div className="probability-tooltip-container absolute right-6 top-4 group">
+          <button
+            className="w-4 h-4 rounded-full border border-gray-400 text-gray-400 flex items-center justify-center text-[10px] font-medium hover:border-gray-500 hover:text-gray-500 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              const tooltip = e.currentTarget.nextElementSibling;
+              if (tooltip) {
+                tooltip.classList.toggle('hidden');
+                tooltip.classList.toggle('block');
+              }
+            }}
+          >
+            i
+          </button>
+          <div className="probability-tooltip hidden lg:group-hover:block absolute right-0 bottom-full mb-2 w-72 p-3 bg-white rounded-lg shadow-lg border border-gray-200 text-sm text-gray-600 z-50">
+            <p className="font-medium text-gray-900 mb-1">Как рассчитывается вероятность?</p>
+            <p className="mb-2">Оценка основана на анализе похожих судебных дел: соотношении удовлетворённых и отклонённых исков, а также ключевых факторов вашей ситуации.</p>
+            <p className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-200">
+              Для расчёта вероятности требуется хотя бы одно дело с известным результатом.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4 p-4 rounded-xl relative" style={{ backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F' }}>
+      <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] mb-3">
+        Вероятность выиграть дело
+      </p>
+      
+      <div className="flex items-baseline gap-2 flex-wrap">
+        <p className="text-[24px] lg:text-[32px] font-bold text-foreground">
+          {percentage}%
+          <span className="text-[16px] lg:text-[18px] font-medium text-gray-500 ml-2">
+            ({level})
+          </span>
+        </p>
+        {hasFullStats && (
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="text-[13px] lg:text-[14px] font-normal text-gray-500 underline hover:text-gray-700 transition-colors"
+            style={{ marginTop: '0' }}
+          >
+            {isExpanded ? 'Свернуть' : 'Подробнее'}
+          </button>
+        )}
+      </div>
+
+      {isExpanded && hasFullStats && (
+        <div className="mt-3">
+          <p className="text-[13px] lg:text-[14px] font-normal text-gray-600 mb-3">
+            На основе аналогичных {totalCases} дел из которых:
+          </p>
+          <ul className="space-y-1.5 text-[13px] lg:text-[14px] font-normal text-gray-700">
+            <li>• Удовлетворено: {satisfied}</li>
+            <li>• Частично удовлетворено: {partial}</li>
+            <li>• Отказано: {rejected}</li>
+            <li>• Неизвестно: {unknown}</li>
+          </ul>
+        </div>
+      )}
+
+      {!hasFullStats && totalCases > 0 && (
+        <p className="text-[12px] lg:text-[14px] font-normal text-gray-500 mt-2">
+          на основе {casesWithResult || totalCases} из {totalCases} дел
+        </p>
+      )}
+
+      {/* Info icon with tooltip - always in top right */}
+      <div className="probability-tooltip-container absolute right-6 top-4 group">
+        <button
+          className="w-4 h-4 rounded-full border border-gray-400 text-gray-400 flex items-center justify-center text-[10px] font-medium hover:border-gray-500 hover:text-gray-500 transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            const tooltip = e.currentTarget.nextElementSibling;
+            if (tooltip) {
+              tooltip.classList.toggle('hidden');
+              tooltip.classList.toggle('block');
+            }
+          }}
+        >
+          i
+        </button>
+        <div className="probability-tooltip hidden lg:group-hover:block absolute right-0 bottom-full mb-2 w-72 p-3 bg-white rounded-lg shadow-lg border border-gray-200 text-sm text-gray-600 z-50">
+          <p className="font-medium text-gray-900 mb-1">Как рассчитывается вероятность?</p>
+          <p className="mb-2">Оценка основана на анализе похожих судебных дел: соотношении удовлетворённых и отклонённых исков, а также ключевых факторов вашей ситуации.</p>
+          {hasFullStats && (
+            <p className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-200">
+              Расчёт основан на {casesWithResult} из {totalCases} найденных дел с известным результатом.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface GenerationResponse {
   courtCases?: Array<{
     id: number;
@@ -34,6 +175,10 @@ interface GenerationResponse {
       level: string;
       casesWithResult?: number;
       totalCases?: number;
+      satisfied?: number;
+      partial?: number;
+      rejected?: number;
+      unknown?: number;
     };
   };
   legalAnalysis?: {
@@ -61,6 +206,10 @@ interface GenerationResponse {
     negativeFactors?: string[];
     casesWithResult?: number;
     totalCases?: number;
+    satisfied?: number;
+    partial?: number;
+    rejected?: number;
+    unknown?: number;
   };
   recommendations?: string[];
   documents?: Array<{
@@ -137,8 +286,9 @@ function NewChatPageContent() {
   const [courtCasesData, setCourtCasesData] = useState<CourtCasesData | null>(null);
   const [visitedUrls, setVisitedUrls] = useState<Set<string>>(new Set());
   const contentRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const hasStartedGeneration = useRef(false);
-  const [chatMessages, setChatMessages] = useState<Array<{ id: string; role: 'user' | 'assistant'; content: string; created_at: string }>>([]);
+  const [chatMessages, setChatMessages] = useState<Array<{ id: string; role: 'user' | 'assistant'; content: string; created_at: string; documents?: Array<{ title: string; content: string }> }>>([]);
   const [isSendingChat, setIsSendingChat] = useState(false);
 
   // Load visited URLs from localStorage
@@ -213,6 +363,55 @@ function NewChatPageContent() {
 
     loadChatMessages();
   }, [chatId, isComplete]);
+
+  // Scroll to bottom when new messages arrive
+  const scrollToBottom = () => {
+    if (contentRef.current) {
+      // Используем прямой контроль scrollTop для более точной прокрутки
+      const container = contentRef.current;
+      // Прокручиваем до самого низа - scrollHeight содержит полную высоту контента
+      const scrollHeight = container.scrollHeight;
+      
+      // Плавная прокрутка до самого низа
+      // Используем requestAnimationFrame для более плавной прокрутки после обновления DOM
+      requestAnimationFrame(() => {
+        container.scrollTo({
+          top: scrollHeight, // Прокручиваем до самого низа
+          behavior: 'smooth'
+        });
+        // Дополнительная прокрутка через небольшую задержку на случай, если DOM еще обновляется
+        setTimeout(() => {
+          const newScrollHeight = container.scrollHeight;
+          if (newScrollHeight > scrollHeight) {
+            container.scrollTo({
+              top: newScrollHeight,
+              behavior: 'smooth'
+            });
+          }
+        }, 100);
+      });
+    }
+  };
+
+  useEffect(() => {
+    // Прокручиваем вниз при добавлении новых сообщений
+    if (chatMessages.length > 0) {
+      // Увеличиваем задержку для того, чтобы DOM успел полностью обновиться
+      setTimeout(() => {
+        scrollToBottom();
+      }, 200);
+    }
+  }, [chatMessages]);
+
+  // Также прокручиваем при изменении состояния отправки (когда приходит ответ)
+  useEffect(() => {
+    if (!isSendingChat && chatMessages.length > 0) {
+      // Когда отправка завершена и есть сообщения, прокручиваем вниз
+      setTimeout(() => {
+        scrollToBottom();
+      }, 300);
+    }
+  }, [isSendingChat, chatMessages.length]);
 
   // Streaming generation - shows results as they arrive
   const generateResponseStream = async (queryText: string) => {
@@ -329,6 +528,11 @@ function NewChatPageContent() {
       created_at: new Date().toISOString(),
     };
     setChatMessages(prev => [...prev, userMessage]);
+    
+    // Прокручиваем сразу после добавления сообщения пользователя
+    setTimeout(() => {
+      scrollToBottom();
+    }, 100);
 
     try {
       const response = await fetch('/api/chat', {
@@ -366,8 +570,14 @@ function NewChatPageContent() {
         role: 'assistant' as const,
         content: data.message,
         created_at: new Date().toISOString(),
+        documents: data.documents || [],
       };
       setChatMessages(prev => [...prev, assistantMessage]);
+      
+      // Прокручиваем после добавления ответа ассистента
+      setTimeout(() => {
+        scrollToBottom();
+      }, 150);
 
       // Reload messages from server
       try {
@@ -417,6 +627,28 @@ function NewChatPageContent() {
       downloadBlob(blob, `${doc.title}.txt`);
     } finally {
       setDownloadingId(null);
+    }
+  };
+
+  // Download chat-generated document
+  const handleChatDocDownload = async (doc: { title: string; content: string }) => {
+    try {
+      const blob = await generateDocx({
+        title: doc.title,
+        content: doc.content,
+      });
+      
+      const filename = doc.title
+        .replace(/[^\w\sа-яА-ЯёЁ]/g, '')
+        .replace(/\s+/g, '_')
+        .slice(0, 50) + '.docx';
+      
+      downloadBlob(blob, filename);
+    } catch (err) {
+      console.error('Error generating DOCX:', err);
+      // Fallback to text
+      const blob = new Blob([doc.content], { type: 'text/plain;charset=utf-8' });
+      downloadBlob(blob, `${doc.title}.txt`);
     }
   };
 
@@ -680,71 +912,12 @@ function NewChatPageContent() {
                       <div className="text-base text-foreground leading-[24px] break-words">
                         <p className="mb-3 text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold break-words">{response.shortAnswer.title}</p>
                         <p className="break-words">{response.shortAnswer.content}</p>
-                    {(response.shortAnswer.probability || response.probability) && (() => {
-                      const probData = response.shortAnswer.probability || response.probability;
-                      const percentage = probData?.percentage 
-                        || (response.probability?.level === 'высокая' ? 75 
-                          : response.probability?.level === 'выше средней' ? 65 
-                          : response.probability?.level === 'средняя' ? 45 
-                          : response.probability?.level === 'низкая' ? 25 
-                          : 60);
-                      const level = getProbabilityLabel(percentage);
-                      const casesWithResult = probData?.casesWithResult;
-                      const totalCases = probData?.totalCases;
-                      const hasCasesInfo = casesWithResult !== undefined && totalCases !== undefined && totalCases > 0;
-                      
-                      return (
-                        <div className="mt-4 p-4 rounded-xl relative" style={{ backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F' }}>
-                          <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] mb-2">
-                            {percentage > 0 ? 'Вероятность выиграть дело' : 'Оценка вероятности'}
-                          </p>
-                          {percentage > 0 ? (
-                            <>
-                              <p className="text-[24px] lg:text-[32px] font-bold text-foreground">
-                                {percentage}%
-                                <span className="text-[16px] lg:text-[18px] font-medium text-gray-500 ml-2">
-                                  ({level})
-                                </span>
-                              </p>
-                              {hasCasesInfo && (
-                                <p className="text-[12px] lg:text-[14px] font-normal text-gray-500 mt-2">
-                                  на основе {casesWithResult} из {totalCases} дел
-                                </p>
-                              )}
-                            </>
-                          ) : (
-                            <p className="text-[16px] lg:text-[18px] font-medium text-gray-500">
-                              Недостаточно данных для расчёта вероятности
-                            </p>
-                          )}
-                          {/* Info icon with tooltip */}
-                          <div className="probability-tooltip-container absolute right-6 top-1/2 -translate-y-1/2 group">
-                            <button
-                              className="w-4 h-4 rounded-full border border-gray-400 text-gray-400 flex items-center justify-center text-[10px] font-medium hover:border-gray-500 hover:text-gray-500 transition-colors"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const tooltip = e.currentTarget.nextElementSibling;
-                                if (tooltip) {
-                                  tooltip.classList.toggle('hidden');
-                                  tooltip.classList.toggle('block');
-                                }
-                              }}
-                            >
-                              i
-                            </button>
-                            <div className="probability-tooltip hidden lg:group-hover:block absolute right-0 bottom-full mb-2 w-72 p-3 bg-white rounded-lg shadow-lg border border-gray-200 text-sm text-gray-600 z-50">
-                              <p className="font-medium text-gray-900 mb-1">Как рассчитывается вероятность?</p>
-                              <p className="mb-2">Оценка основана на анализе похожих судебных дел: соотношении удовлетворённых и отклонённых исков, а также ключевых факторов вашей ситуации.</p>
-                              {hasCasesInfo && (
-                                <p className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-200">
-                                  Расчёт основан на {casesWithResult} из {totalCases} найденных дел с известным результатом.
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })()}
+                    {(response.shortAnswer.probability || response.probability) && (
+                      <ProbabilityBlock 
+                        probData={response.shortAnswer.probability || response.probability} 
+                        resolvedTheme={resolvedTheme} 
+                      />
+                    )}
                       </div>
                     </div>
                   )}
@@ -1165,6 +1338,27 @@ function NewChatPageContent() {
                             <div className="text-base text-foreground leading-[24px] break-words">
                               <MarkdownRenderer content={msg.content} />
                             </div>
+                            
+                            {/* Document download buttons */}
+                            {msg.documents && msg.documents.length > 0 && (
+                              <div className="flex flex-col gap-2 mt-2">
+                                {msg.documents.map((doc, idx) => (
+                                  <button
+                                    key={idx}
+                                    onClick={() => handleChatDocDownload(doc)}
+                                    className="w-full flex items-center justify-between px-4 py-3 border border-gray-200 rounded-xl bg-white hover:bg-gray-100 transition-colors"
+                                  >
+                                    <div className="flex flex-col items-start min-w-0 flex-1 mr-4">
+                                      <p className="text-sm font-medium text-foreground truncate w-full text-left">
+                                        {doc.title}
+                                      </p>
+                                      <p className="text-xs text-gray-400 uppercase">docx</p>
+                                    </div>
+                                    <DownloadIcon className="w-5 h-5 text-foreground shrink-0" strokeWidth="1.75" />
+                                  </button>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1180,6 +1374,7 @@ function NewChatPageContent() {
                         <span className="text-xs">Печатает...</span>
                       </div>
                     )}
+                    <div ref={messagesEndRef} />
                   </div>
                 </>
               )}

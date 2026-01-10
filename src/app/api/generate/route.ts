@@ -115,9 +115,54 @@ export async function POST(request: NextRequest) {
     try {
       response = JSON.parse(responseJson);
       
-      // Ensure probability has a percentage
-      if (response.probability && typeof response.probability.percentage !== 'number') {
-        response.probability.percentage = stats.percentage;
+      // Ensure probability with full stats info - ВСЕГДА используем реальные данные из stats
+      // Устанавливаем процент только если есть дела с известным результатом
+      const probabilityPercentage = stats.casesWithResult > 0 ? stats.percentage : 0;
+      const probabilityLevel = stats.casesWithResult > 0 && stats.percentage > 0
+        ? (stats.percentage >= 95 ? 'максимальная' 
+          : stats.percentage >= 80 ? 'очень высокая'
+          : stats.percentage >= 65 ? 'высокая'
+          : stats.percentage >= 51 ? 'выше средней'
+          : stats.percentage >= 35 ? 'средняя'
+          : stats.percentage >= 20 ? 'ниже средней'
+          : 'низкая')
+        : 'недостаточно данных';
+      
+      // Создаем или обновляем probability объект с реальными данными
+      if (!response.probability) {
+        response.probability = {
+          level: probabilityLevel,
+          positiveFactors: [],
+          negativeFactors: [],
+        };
+      }
+      // Всегда перезаписываем реальными данными из статистики (не доверяем AI)
+      response.probability.percentage = probabilityPercentage;
+      response.probability.totalCases = stats.total;
+      response.probability.casesWithResult = stats.casesWithResult;
+      response.probability.satisfied = stats.satisfied;
+      response.probability.partial = stats.partial;
+      response.probability.rejected = stats.rejected;
+      response.probability.unknown = stats.total - stats.casesWithResult;
+      response.probability.level = probabilityLevel;
+      
+      // Also update shortAnswer.probability if present - ВСЕГДА перезаписываем реальными данными
+      if (response.shortAnswer) {
+        if (!response.shortAnswer.probability) {
+          response.shortAnswer.probability = {
+            percentage: probabilityPercentage,
+            level: probabilityLevel,
+          };
+        }
+        // Всегда перезаписываем реальными данными из статистики (не доверяем AI)
+        response.shortAnswer.probability.percentage = probabilityPercentage;
+        response.shortAnswer.probability.totalCases = stats.total;
+        response.shortAnswer.probability.casesWithResult = stats.casesWithResult;
+        response.shortAnswer.probability.satisfied = stats.satisfied;
+        response.shortAnswer.probability.partial = stats.partial;
+        response.shortAnswer.probability.rejected = stats.rejected;
+        response.shortAnswer.probability.unknown = stats.total - stats.casesWithResult;
+        response.shortAnswer.probability.level = probabilityLevel;
       }
       
       // Ensure nextSteps is present

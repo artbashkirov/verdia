@@ -7,6 +7,11 @@ import { AuthLayout } from '@/components/layout';
 import { Button, Input } from '@/components/ui';
 import { createClient } from '@/lib/supabase/client';
 
+// Проверка что клиент загружен
+if (typeof window === 'undefined') {
+  console.log('Login page loading on server');
+}
+
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -47,8 +52,8 @@ function LoginContent() {
       return;
     }
     
-    router.push('/chat');
-    router.refresh();
+    // Используем window.location для более надежного редиректа
+    window.location.href = '/chat';
   };
 
   return (

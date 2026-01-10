@@ -29,20 +29,55 @@ export const openai = new Proxy({} as OpenAI, {
 // Helper function to call Gemini via Cloudflare Worker proxy
 // Worker proxies requests to Replicate API from a non-blocked region
 async function callGemini(prompt: string, systemPrompt?: string, maxTokens: number = 3000): Promise<string> {
-  const workerUrl = process.env.CLOUDFLARE_WORKER_URL;
-  const workerSecret = process.env.CLOUDFLARE_WORKER_SECRET;
+  const workerUrl = process.env.CLOUDFLARE_WORKER_URL?.trim();
+  const workerSecret = process.env.CLOUDFLARE_WORKER_SECRET?.trim();
   
-  if (!workerUrl || !workerSecret) {
-    // В dev режиме показываем понятное сообщение
-    if (process.env.NODE_ENV === 'development') {
-      throw new Error(
-        'Для работы в локальной разработке необходимо добавить в .env.local:\n' +
-        'CLOUDFLARE_WORKER_URL=https://your-worker.workers.dev\n' +
-        'CLOUDFLARE_WORKER_SECRET=your_secret\n\n' +
-        'Значения можно скопировать из Vercel Dashboard → Settings → Environment Variables'
-      );
+  // Детальное логирование для отладки
+  if (process.env.NODE_ENV === 'development') {
+    const allCloudflareKeys = Object.keys(process.env).filter(k => k.includes('CLOUDFLARE'));
+    console.log('[callGemini] Environment check:', {
+      hasWorkerUrl: !!workerUrl,
+      hasWorkerSecret: !!workerSecret,
+      workerUrlLength: workerUrl?.length || 0,
+      workerSecretLength: workerSecret?.length || 0,
+      workerUrlValue: workerUrl || 'undefined',
+      workerSecretPreview: workerSecret ? `${workerSecret.substring(0, 3)}***` : 'undefined',
+      nodeEnv: process.env.NODE_ENV,
+      isServer: typeof window === 'undefined',
+      allCloudflareEnvKeys: allCloudflareKeys,
+      cloudflareValues: allCloudflareKeys.reduce((acc, key) => {
+        acc[key] = process.env[key] ? 'present' : 'missing';
+        return acc;
+      }, {} as Record<string, string>),
+    });
+  }
+  
+  // Мягкая проверка - не выбрасываем ошибку сразу, даем возможность работать
+  if (!workerUrl || workerUrl.length === 0 || !workerSecret || workerSecret.length === 0) {
+    const isVercel = !!process.env.VERCEL;
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    
+    let envHint = '';
+    if (isVercel) {
+      envHint = 'Проверьте переменные окружения в Vercel Dashboard → Settings → Environment Variables';
+    } else if (isDevelopment) {
+      envHint = 'Перезапустите dev-сервер после добавления переменных в .env.local (npm run dev)';
+    } else {
+      envHint = 'Для production на VPS установите переменные через процесс-менеджер (pm2/systemd) или создайте .env.production файл';
     }
-    throw new Error('CLOUDFLARE_WORKER_URL and CLOUDFLARE_WORKER_SECRET must be set');
+    
+    const errorMsg = `CLOUDFLARE_WORKER_URL and CLOUDFLARE_WORKER_SECRET must be set. ${envHint}`;
+    console.error('[callGemini] Configuration error:', {
+      workerUrl: workerUrl ? 'present but empty' : 'not set',
+      workerSecret: workerSecret ? 'present but empty' : 'not set',
+      isVercel,
+      isDevelopment,
+      nodeEnv: process.env.NODE_ENV,
+      allEnvKeys: Object.keys(process.env).filter(k => k.includes('CLOUDFLARE')),
+    });
+    
+    // В development режиме выбрасываем ошибку, чтобы пользователь увидел проблему
+    throw new Error(errorMsg);
   }
 
   try {
@@ -174,13 +209,14 @@ export async function generateLegalResponse(
   const context = `ЗАПРОС: "${userQuery}"
 КАТЕГОРИЯ: ${category}
 СТАТИСТИКА: ${stats.percentage}% успешных (${stats.satisfied} удовлетворено, ${stats.partial} частично, ${stats.rejected} отказано)
+ИСТОЧНИК: ${stats.casesWithResult} из ${stats.total} дел с известным результатом
 ${courtInfo ? `СУД: ${courtInfo.name}` : ''}
 
 НАЙДЕННЫЕ ДЕЛА:
 ${courtCasesFormatted.map(c => `- ${c.title} [${c.result}]`).join('\n')}
 
 ВАЖНО:
-- probability.percentage = ${stats.percentage} (это реальные данные из анализа дел)
+- probability.percentage = ${stats.percentage} (это реальные данные из анализа ${stats.casesWithResult} из ${stats.total} дел)
 - Если percentage = 0, значит не удалось определить исходы дел
 - Ответ строго в формате JSON`;
 

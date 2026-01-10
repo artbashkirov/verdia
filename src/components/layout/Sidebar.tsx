@@ -41,30 +41,47 @@ export function Sidebar({
   const historyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const supabase = createClient();
-    
-    // Get current user
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user);
-      if (user) {
-        loadChatHistory(user.id);
-      } else {
+    try {
+      const supabase = createClient();
+      
+      // Get current user
+      supabase.auth.getUser().then(({ data: { user }, error }) => {
+        if (error) {
+          console.error('Error getting user:', error);
+          setIsLoadingHistory(false);
+          return;
+        }
+        setUser(user);
+        if (user) {
+          loadChatHistory(user.id);
+        } else {
+          setIsLoadingHistory(false);
+        }
+      }).catch((error) => {
+        console.error('Error in getUser:', error);
         setIsLoadingHistory(false);
-      }
-    });
+      });
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadChatHistory(session.user.id);
-      } else {
-        setChatHistory([]);
-        setIsLoadingHistory(false);
-      }
-    });
+      // Listen for auth changes
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          loadChatHistory(session.user.id);
+        } else {
+          setChatHistory([]);
+          setIsLoadingHistory(false);
+        }
+      });
 
-    return () => subscription.unsubscribe();
+      return () => {
+        if (subscription) {
+          subscription.unsubscribe();
+        }
+      };
+    } catch (error) {
+      console.error('Error initializing Supabase client:', error);
+      setIsLoadingHistory(false);
+    }
   }, []);
 
   // Close dropdown when clicking outside
@@ -98,25 +115,32 @@ export function Sidebar({
   }, [chatHistory, isCollapsed]);
 
   const loadChatHistory = async (userId: string) => {
-    setIsLoadingHistory(true);
-    const supabase = createClient();
-    
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase.from('generations') as any)
-      .select('id, query, created_at')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
+    try {
+      setIsLoadingHistory(true);
+      const supabase = createClient();
+      
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from('generations') as any)
+        .select('id, query, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error loading chat history:', error);
+      if (error) {
+        console.error('Error loading chat history:', error);
+        setChatHistory([]);
+      } else {
+        setChatHistory(
+          (data || []).map((item: { id: string; query: string }) => ({
+            id: item.id,
+            title: item.query.slice(0, 50) + (item.query.length > 50 ? '...' : ''),
+          }))
+        );
+      }
+    } catch (error) {
+      console.error('Error in loadChatHistory:', error);
       setChatHistory([]);
-    } else {
-      setChatHistory(
-        (data || []).map((item: { id: string; query: string }) => ({
-          id: item.id,
-          title: item.query.slice(0, 50) + (item.query.length > 50 ? '...' : ''),
-        }))
-      );
+    } finally {
+      setIsLoadingHistory(false);
     }
     setIsLoadingHistory(false);
   };

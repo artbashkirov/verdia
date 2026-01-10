@@ -27,6 +27,12 @@ export interface GenerationResponse {
     probability?: {
       percentage: number;
       level: string;
+      casesWithResult?: number;
+      totalCases?: number;
+      satisfied?: number;
+      partial?: number;
+      rejected?: number;
+      unknown?: number;
     };
   };
   legalAnalysis: {
@@ -52,6 +58,12 @@ export interface GenerationResponse {
     factors?: string[];
     positiveFactors?: string[];
     negativeFactors?: string[];
+    casesWithResult?: number;
+    totalCases?: number;
+    satisfied?: number;
+    partial?: number;
+    rejected?: number;
+    unknown?: number;
   };
   recommendations: string[];
   documents: Document[];
