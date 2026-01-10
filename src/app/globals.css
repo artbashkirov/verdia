@@ -88,7 +88,7 @@ label[for],
 /* Mobile-only padding for fixed input */
 @media (max-width: 767px) {
   .mobile-padding-bottom {
-    padding-bottom: calc(56px + 32px + 8px) !important;
+    padding-bottom: 72px !important; /* 56px (input height) + 16px (input paddingBottom) */
   }
   
   .mobile-fixed-layout {

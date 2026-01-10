@@ -12,6 +12,7 @@ interface ChatInputProps {
 export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начните писать запрос...' }: ChatInputProps) {
   const [message, setMessage] = useState('');
   const [isMobile, setIsMobile] = useState(false);
+  const [containerBottom, setContainerBottom] = useState<number>(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -69,7 +70,7 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
         }
         
         // Safe area для iPhone (вырез внизу)
-        let safeAreaBottom = 0;
+        let safeAreaBottomValue = 0;
         try {
           const testEl = document.createElement('div');
           testEl.style.position = 'fixed';
@@ -81,7 +82,7 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
           const computed = window.getComputedStyle(testEl);
           const paddingBottom = computed.paddingBottom;
           if (paddingBottom && paddingBottom !== '0px' && paddingBottom !== 'auto') {
-            safeAreaBottom = parseFloat(paddingBottom) || 0;
+            safeAreaBottomValue = parseFloat(paddingBottom) || 0;
           }
           document.body.removeChild(testEl);
         } catch (e) {
@@ -91,7 +92,9 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
         // Инпут на 8px от видимой нижней границы браузера (верхний край браузерной панели)
         // Структура: [низ окна] -> [браузерная панель высотой bottomBarHeight] -> [8px отступ] -> [инпут]
         const bottomOffset = 8; // 8px отступ от видимой нижней границы
-        const finalBottom = bottomBarHeight + bottomOffset + safeAreaBottom;
+        const finalBottom = bottomBarHeight + bottomOffset + safeAreaBottomValue;
+        
+        setContainerBottom(finalBottom);
         
         containerRef.current.style.position = 'fixed';
         containerRef.current.style.bottom = `${finalBottom}px`;
@@ -99,6 +102,10 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
         containerRef.current.style.right = '0';
         containerRef.current.style.width = '100%';
         containerRef.current.style.display = 'block';
+        // Убеждаемся, что контейнер закрывает всю область до самого низа экрана
+        containerRef.current.style.top = 'auto';
+        // Минимальная высота: высота контента инпута
+        containerRef.current.style.minHeight = '72px'; // 56px инпут + 16px padding
         
         // Отладка в development
         if (process.env.NODE_ENV === 'development') {
@@ -109,7 +116,7 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
             clientHeight: document.documentElement.clientHeight,
             offsetTop: window.visualViewport?.offsetTop,
             bottomBarHeight,
-            safeAreaBottom,
+            safeAreaBottom: safeAreaBottomValue,
             finalBottom: `${finalBottom}px`
           });
         }
@@ -149,55 +156,81 @@ export function ChatInput({ onSubmit, disabled = false, placeholder = 'Начн�
   };
 
   return (
-    <div 
-      ref={containerRef}
-      className="left-0 right-0 z-40 md:z-50"
-      style={{ 
-        paddingTop: '0',
-        paddingBottom: '16px',
-        backgroundColor: 'var(--background)'
-      }}
-    >
-      <div className="flex justify-center relative z-10" style={{ paddingLeft: '16px', paddingRight: '16px' }}>
+    <>
+      {/* Подложка на мобильных - закрывает всю область от низа контейнера до самого низа экрана */}
+      {isMobile && containerBottom > 0 && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '0',
+            left: '0',
+            right: '0',
+            height: `${containerBottom + 72}px`,
+            backgroundColor: 'var(--background)',
+            zIndex: 38,
+            pointerEvents: 'none'
+          }}
+        />
+      )}
+      <div 
+        ref={containerRef}
+        className="left-0 right-0 z-40 md:z-50 chat-input-container"
+        style={{ 
+          paddingTop: '0',
+          paddingBottom: isMobile ? 'max(16px, env(safe-area-inset-bottom, 0px))' : '16px',
+          backgroundColor: 'var(--background)'
+        }}
+      >
         <div 
-          className="w-full md:w-[660px] flex items-center overflow-hidden"
+          className="flex justify-center relative z-10" 
           style={{ 
-            height: '56px',
-            borderRadius: '20px',
-            paddingLeft: '20px',
-            paddingRight: '20px',
-            gap: '8px',
-            backgroundColor: 'var(--input-bg)',
-            border: '1px solid #CCCCCC',
-            boxSizing: 'border-box'
+            paddingLeft: '16px', 
+            paddingRight: '16px',
+            paddingBottom: isMobile ? 'max(16px, env(safe-area-inset-bottom, 0px))' : '0',
+            backgroundColor: 'var(--background)',
+            position: 'relative'
           }}
         >
-          <input
-            ref={inputRef}
-            type="text"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder === 'Начните писать запрос...' ? 'Задайте вопрос' : placeholder}
-            disabled={disabled}
-            className="flex-1 bg-transparent outline-none text-base font-normal text-foreground placeholder:text-[#808080]"
-          />
-          
-          {/* Send button */}
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={!message.trim() || disabled}
-            className={`flex items-center justify-center transition-colors disabled:cursor-not-allowed ${
-              message.trim() ? 'text-foreground' : 'text-gray-400'
-            }`}
-            style={{ width: '28px', height: '28px' }}
-            title="Отправить"
+          <div 
+            className="w-full md:w-[660px] flex items-center overflow-hidden"
+            style={{ 
+              height: '56px',
+              borderRadius: '20px',
+              paddingLeft: '20px',
+              paddingRight: '20px',
+              gap: '8px',
+              backgroundColor: 'var(--input-bg)',
+              border: '1px solid #CCCCCC',
+              boxSizing: 'border-box'
+            }}
           >
-            <SendHorizontal style={{ width: '20px', height: '20px' }} strokeWidth={2} />
-          </button>
+            <input
+              ref={inputRef}
+              type="text"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder === 'Начните писать запрос...' ? 'Задайте вопрос' : placeholder}
+              disabled={disabled}
+              className="flex-1 bg-transparent outline-none text-base font-normal text-foreground placeholder:text-[#808080]"
+            />
+            
+            {/* Send button */}
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={!message.trim() || disabled}
+              className={`flex items-center justify-center transition-colors disabled:cursor-not-allowed ${
+                message.trim() ? 'text-foreground' : 'text-gray-400'
+              }`}
+              style={{ width: '28px', height: '28px' }}
+              title="Отправить"
+            >
+              <SendHorizontal style={{ width: '20px', height: '20px' }} strokeWidth={2} />
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
