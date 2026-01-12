@@ -21,5 +21,5 @@ jobs:
             git pull origin main
             npm install --production=false
             npm run build
-            pm2 restart verdia
-            echo "Deploy completed at $(date)"
+            pm2 restart verdia --update-env
+            pm2 save
