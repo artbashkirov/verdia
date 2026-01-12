@@ -227,6 +227,7 @@ _Услуга станет доступна после оплаты подгот
         user_id: user.id,
         role: 'assistant',
         content: repResponse,
+        documents: [],
       } as any);
 
       return NextResponse.json({
@@ -273,10 +274,14 @@ _Услуга станет доступна после оплаты подгот
         user_id: user.id,
         role: 'user',
         content: message,
+        documents: [],
       } as any);
 
       // Generate documents using Gemini
       const responseText = await geminiChatCompletion(messages, { maxTokens: 5000, jsonMode: true });
+      
+      console.log('🔍 Gemini raw response length:', responseText.length);
+      console.log('🔍 Gemini response (first 1000 chars):', responseText.slice(0, 1000));
       
       let parsed;
       try {
@@ -291,33 +296,77 @@ _Услуга станет доступна после оплаты подгот
         const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           parsed = JSON.parse(jsonMatch[0]);
+          console.log('✅ Parsed JSON successfully. Documents count:', parsed.documents?.length || 0);
+          if (parsed.documents && parsed.documents.length > 0) {
+            console.log('📄 First document keys:', Object.keys(parsed.documents[0]));
+            console.log('📄 First document has content?', !!parsed.documents[0].content);
+          }
         } else {
+          console.warn('⚠️ No JSON object found in response');
           parsed = { message: 'Документы готовы.', documents: [] };
         }
       } catch (parseError) {
-        console.error('JSON parse error:', parseError, 'Response:', responseText.slice(0, 500));
+        console.error('❌ JSON parse error:', parseError);
+        console.error('❌ Response (first 500 chars):', responseText.slice(0, 500));
         parsed = { message: 'Документы готовы.', documents: [] };
       }
 
-      const assistantMessage = parsed.message || 'Документы готовы для скачивания.';
-      const documents = parsed.documents || [];
+      let assistantMessage = parsed.message || '';
+      let documents = parsed.documents || [];
 
-      // Add representative offer to the message
-      const fullMessage = `${assistantMessage}
+      console.log('📋 Documents before validation:', documents.length);
+      
+      // Validate documents - ensure they have content field
+      documents = documents.map((doc: any, index: number) => {
+        if (!doc.content && doc.title) {
+          console.warn(`⚠️ Document ${index} missing content field, title: ${doc.title}`);
+          console.warn(`⚠️ Document ${index} has keys:`, Object.keys(doc));
+          // If content is missing, try to use description or create placeholder
+          return {
+            ...doc,
+            content: doc.description || doc.text || `Содержимое документа "${doc.title}" недоступно.`,
+          };
+        }
+        return doc;
+      }).filter((doc: any) => doc && doc.title); // Remove invalid documents
+      
+      console.log('✅ Documents after validation:', documents.length);
 
----
+      // Формируем сообщение с правильным числом
+      if (!assistantMessage) {
+        if (documents.length === 1) {
+          assistantMessage = 'Документ готов для скачивания.';
+        } else if (documents.length > 1) {
+          assistantMessage = 'Документы готовы для скачивания.';
+        } else {
+          assistantMessage = 'Документы готовы.';
+        }
+      }
+
+      // Add representative offer to the message (отдельно, чтобы документы показывались между ними)
+      const representativeText = `
 
 **Нужна помощь представителя в суде?**
 
-После подготовки документов я могу помочь найти квалифицированного юриста для представительства ваших интересов в судебном заседании. Напишите "нужен представитель" или "помощь в суде", чтобы узнать подробнее.`;
+После подготовки ${documents.length === 1 ? 'документа' : 'документов'} я могу помочь найти квалифицированного юриста для представительства ваших интересов в судебном заседании. Напишите "нужен представитель" или "помощь в суде", чтобы узнать подробнее.`;
 
-      // Save assistant message
-      await supabase.from('chat_messages').insert({
+      const fullMessage = assistantMessage + representativeText;
+
+      // Save assistant message with documents
+      console.log('💾 Saving message with documents:', documents.length);
+      const { error: insertError } = await supabase.from('chat_messages').insert({
         generation_id: generationId as string,
         user_id: user.id,
         role: 'assistant',
         content: fullMessage,
+        documents: documents.length > 0 ? documents : [],
       } as any);
+      
+      if (insertError) {
+        console.error('❌ Error saving message with documents:', insertError);
+      } else {
+        console.log('✅ Message with documents saved successfully');
+      }
 
       return NextResponse.json({
         message: fullMessage,
@@ -352,6 +401,7 @@ _Услуга станет доступна после оплаты подгот
         user_id: user.id,
         role: 'user',
         content: message,
+        documents: [],
       } as any);
 
       // Generate response
@@ -359,15 +409,16 @@ _Услуга станет доступна после оплаты подгот
 
       // Check if this looks like a question about documents and add offer
       if (/что дальше|как подать|следующ|документ|куда обращ/i.test(message)) {
-        assistantMessage += `\n\n---\n\n**Хотите, чтобы я подготовил необходимые документы?**\n\nМогу составить исковое заявление, претензию или ходатайство на основе вашей ситуации. Напишите "да" или "составь документы", чтобы начать.`;
+        assistantMessage += `\n\n**Хотите, чтобы я подготовил необходимые документы?**\n\nМогу составить исковое заявление, претензию или ходатайство на основе вашей ситуации. Напишите "да" или "составь документы", чтобы начать.`;
       }
 
-      // Save assistant message
+      // Save assistant message (no documents for regular chat)
       await supabase.from('chat_messages').insert({
         generation_id: generationId as string,
         user_id: user.id,
         role: 'assistant',
         content: assistantMessage,
+        documents: [],
       } as any);
 
       return NextResponse.json({
@@ -410,7 +461,7 @@ export async function GET(request: NextRequest) {
 
     const { data: messages, error } = await supabase
       .from('chat_messages')
-      .select('id, role, content, created_at')
+      .select('id, role, content, documents, created_at')
       .eq('generation_id', generationId)
       .eq('user_id', user.id)
       .order('created_at', { ascending: true });
@@ -423,7 +474,31 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ messages: messages || [] });
+    // Normalize documents field - ensure it's always an array
+    const normalizedMessages = (messages || []).map((msg: any) => {
+      let documents = msg.documents;
+      
+      // Handle different formats from database
+      if (!documents) {
+        documents = [];
+      } else if (typeof documents === 'string') {
+        try {
+          documents = JSON.parse(documents);
+        } catch (e) {
+          console.warn('Failed to parse documents string:', e);
+          documents = [];
+        }
+      } else if (!Array.isArray(documents)) {
+        documents = [];
+      }
+      
+      return {
+        ...msg,
+        documents: documents || [],
+      };
+    });
+
+    return NextResponse.json({ messages: normalizedMessages });
 
   } catch (error) {
     console.error('Get messages error:', error);

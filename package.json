@@ -9,6 +9,7 @@
     "lint": "eslint",
     "setup-env": "node scripts/setup-env.js",
     "check-supabase": "node scripts/check-supabase.js",
+    "run-migration": "node scripts/run-migration.mjs",
     "check-cloudflare": "node scripts/check-cloudflare-env.js",
     "fix-cloudflare-env": "node scripts/fix-cloudflare-env.js",
     "find-all-env": "node scripts/find-all-env.js",

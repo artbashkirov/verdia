@@ -290,6 +290,7 @@ function NewChatPageContent() {
   const hasStartedGeneration = useRef(false);
   const [chatMessages, setChatMessages] = useState<Array<{ id: string; role: 'user' | 'assistant'; content: string; created_at: string; documents?: Array<{ title: string; content: string }> }>>([]);
   const [isSendingChat, setIsSendingChat] = useState(false);
+  const [lastUserMessage, setLastUserMessage] = useState<string>('');
 
   // Load visited URLs from localStorage
   useEffect(() => {
@@ -354,7 +355,16 @@ function NewChatPageContent() {
         const messagesResponse = await fetch(`/api/chat?generationId=${chatId}`);
         if (messagesResponse.ok) {
           const messagesData = await messagesResponse.json();
-          setChatMessages(messagesData.messages || []);
+          const messages = messagesData.messages || [];
+          
+          // Ensure documents are properly formatted
+          const normalizedMessages = messages.map((msg: any) => ({
+            ...msg,
+            documents: Array.isArray(msg.documents) ? msg.documents : [],
+          }));
+          
+          setChatMessages(normalizedMessages);
+          console.log('📥 Loaded messages with documents:', normalizedMessages.filter((m: any) => m.documents?.length > 0).length);
         }
       } catch (err) {
         console.error('Error loading chat messages:', err);
@@ -512,6 +522,27 @@ function NewChatPageContent() {
     router.push('/chat');
   };
 
+  // Определяем тип документа по сообщению
+  const getDocumentType = (message: string): string => {
+    const lowerMessage = message.toLowerCase();
+    if (lowerMessage.includes('ходатайств')) {
+      return 'Составляю ходатайство';
+    }
+    if (lowerMessage.includes('исков') || lowerMessage.includes('иск')) {
+      return 'Составляю исковое заявление';
+    }
+    if (lowerMessage.includes('претензи')) {
+      return 'Составляю претензию';
+    }
+    if (lowerMessage.includes('возражени')) {
+      return 'Составляю возражения на иск';
+    }
+    if (lowerMessage.includes('документ')) {
+      return 'Составляю документ';
+    }
+    return 'Печатает...';
+  };
+
   // Handle chat continuation after generation is complete
   const handleChatSubmit = async (message: string) => {
     if (!message.trim() || !chatId || isGenerating || isSendingChat) {
@@ -519,6 +550,7 @@ function NewChatPageContent() {
     }
 
     setIsSendingChat(true);
+    setLastUserMessage(message);
 
     // Add user message optimistically
     const userMessage = {
@@ -603,7 +635,8 @@ function NewChatPageContent() {
 
   const handleDownload = async (doc: { id: number; title: string; content?: string; format: string }) => {
     if (!doc.content) {
-      alert('Содержимое документа недоступно');
+      alert('Содержимое документа недоступно. Пожалуйста, попробуйте обновить страницу или обратитесь в поддержку.');
+      console.error('Document missing content:', doc);
       return;
     }
     
@@ -623,8 +656,14 @@ function NewChatPageContent() {
       downloadBlob(blob, filename);
     } catch (err) {
       console.error('Error generating DOCX:', err);
-      const blob = new Blob([doc.content], { type: 'text/plain;charset=utf-8' });
-      downloadBlob(blob, `${doc.title}.txt`);
+      // Fallback to text file
+      try {
+        const blob = new Blob([doc.content], { type: 'text/plain;charset=utf-8' });
+        downloadBlob(blob, `${doc.title}.txt`);
+      } catch (fallbackErr) {
+        console.error('Error creating fallback text file:', fallbackErr);
+        alert('Не удалось создать файл. Пожалуйста, попробуйте еще раз.');
+      }
     } finally {
       setDownloadingId(null);
     }
@@ -632,6 +671,12 @@ function NewChatPageContent() {
 
   // Download chat-generated document
   const handleChatDocDownload = async (doc: { title: string; content: string }) => {
+    if (!doc.content) {
+      alert('Содержимое документа недоступно. Пожалуйста, попробуйте обновить страницу.');
+      console.error('Chat document missing content:', doc);
+      return;
+    }
+    
     try {
       const blob = await generateDocx({
         title: doc.title,
@@ -647,8 +692,13 @@ function NewChatPageContent() {
     } catch (err) {
       console.error('Error generating DOCX:', err);
       // Fallback to text
-      const blob = new Blob([doc.content], { type: 'text/plain;charset=utf-8' });
-      downloadBlob(blob, `${doc.title}.txt`);
+      try {
+        const blob = new Blob([doc.content], { type: 'text/plain;charset=utf-8' });
+        downloadBlob(blob, `${doc.title}.txt`);
+      } catch (fallbackErr) {
+        console.error('Error creating fallback text file:', fallbackErr);
+        alert('Не удалось создать файл. Пожалуйста, попробуйте еще раз.');
+      }
     }
   };
 
@@ -716,11 +766,10 @@ function NewChatPageContent() {
           {/* Scrollable content */}
           <div 
             ref={contentRef} 
-            className="flex-1 overflow-y-auto overflow-x-hidden pt-6 md:pt-14 px-0 relative"
+            className="flex-1 overflow-y-auto overflow-x-hidden pt-6 md:pt-14 px-0 relative pb-[calc(56px+48px)] md:pb-[calc(56px+64px)]"
             style={{
               minHeight: 0,
               WebkitOverflowScrolling: 'touch',
-              paddingBottom: 'calc(56px + 32px)' // Отступ снизу для инпута (56px высота + 32px padding)
             }}
           >
             <div className="w-full max-w-[660px] mx-auto flex flex-col gap-8 break-words px-4" style={{ position: 'relative' }}>
@@ -740,9 +789,6 @@ function NewChatPageContent() {
                     </div>
                     <span className="text-sm text-gray-400">{statusMessage}</span>
                   </div>
-                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px] px-4 md:px-0">
-                    Судебные решения
-                  </p>
                   <div 
                     className="overflow-x-auto overflow-y-hidden hide-horizontal-scrollbar pl-4 pr-4 md:pl-0 md:pr-0"
                     style={{ 
@@ -833,7 +879,7 @@ function NewChatPageContent() {
                   {response.courtCases && response.courtCases.length > 0 && (
                 <div className="flex flex-col gap-4 animate-fadeIn -mx-4 md:mx-0">
                       <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px] px-4 md:px-0">
-                        Судебные решения
+                        Судебные дела
                       </p>
                       <div 
                         className="overflow-x-auto overflow-y-hidden hide-horizontal-scrollbar pl-4 pr-4 md:pl-0 md:pr-0"
@@ -1335,30 +1381,54 @@ function NewChatPageContent() {
                           </div>
                         ) : (
                           <div className="flex flex-col gap-4">
-                            <div className="text-base text-foreground leading-[24px] break-words">
-                              <MarkdownRenderer content={msg.content} />
-                            </div>
-                            
-                            {/* Document download buttons */}
-                            {msg.documents && msg.documents.length > 0 && (
-                              <div className="flex flex-col gap-2 mt-2">
-                                {msg.documents.map((doc, idx) => (
-                                  <button
-                                    key={idx}
-                                    onClick={() => handleChatDocDownload(doc)}
-                                    className="w-full flex items-center justify-between px-4 py-3 border border-gray-200 rounded-xl bg-white hover:bg-gray-100 transition-colors"
-                                  >
-                                    <div className="flex flex-col items-start min-w-0 flex-1 mr-4">
-                                      <p className="text-sm font-medium text-foreground truncate w-full text-left">
-                                        {doc.title}
-                                      </p>
-                                      <p className="text-xs text-gray-400 uppercase">docx</p>
+                            {(() => {
+                              // Разделяем сообщение: текст до "Нужна помощь представителя" и после
+                              const representativeMatch = msg.content.match(/\*\*Нужна помощь представителя/);
+                              let mainText = msg.content;
+                              let representativeText = '';
+                              
+                              if (representativeMatch && representativeMatch.index !== undefined) {
+                                mainText = msg.content.slice(0, representativeMatch.index).trim();
+                                representativeText = msg.content.slice(representativeMatch.index).trim();
+                              }
+                              
+                              return (
+                                <>
+                                  {/* Основной текст (например, "Документ готов для скачивания") */}
+                                  <div className="text-base text-foreground leading-[24px] break-words">
+                                    <MarkdownRenderer content={mainText} />
+                                  </div>
+                                  
+                                  {/* Документы для скачивания - сразу после основного текста */}
+                                  {msg.documents && msg.documents.length > 0 && (
+                                    <div className="flex flex-col gap-2">
+                                      {msg.documents.map((doc, idx) => (
+                                        <button
+                                          key={idx}
+                                          onClick={() => handleChatDocDownload(doc)}
+                                          className="w-full flex items-center justify-between px-4 py-3 border border-gray-200 rounded-xl bg-white hover:bg-gray-100 transition-colors"
+                                        >
+                                          <div className="flex flex-col items-start min-w-0 flex-1 mr-4">
+                                            <p className="text-sm font-medium text-foreground truncate w-full text-left">
+                                              {doc.title}
+                                            </p>
+                                            <p className="text-xs text-gray-400 uppercase">docx</p>
+                                          </div>
+                                          <DownloadIcon className="w-5 h-5 text-foreground shrink-0" strokeWidth="1.75" />
+                                        </button>
+                                      ))}
                                     </div>
-                                    <DownloadIcon className="w-5 h-5 text-foreground shrink-0" strokeWidth="1.75" />
-                                  </button>
-                                ))}
-                              </div>
-                            )}
+                                  )}
+                                  
+                                  {/* Текст про представителя - после документов */}
+                                  {representativeText && (
+                                    <div className="text-base text-foreground leading-[24px] break-words">
+                                      <MarkdownRenderer content={representativeText} />
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </div>
                         )}
                       </div>
@@ -1371,7 +1441,7 @@ function NewChatPageContent() {
                           <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                           <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                         </div>
-                        <span className="text-xs">Печатает...</span>
+                        <span className="text-xs">{getDocumentType(lastUserMessage)}</span>
                       </div>
                     )}
                     <div ref={messagesEndRef} />

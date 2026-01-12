@@ -287,7 +287,8 @@ function ResultContent() {
 
   const handleDownload = async (doc: { id: number; title: string; content?: string; format: string }) => {
     if (!doc.content) {
-      alert('Содержимое документа недоступно');
+      alert('Содержимое документа недоступно. Пожалуйста, попробуйте обновить страницу или обратитесь в поддержку.');
+      console.error('Document missing content:', doc);
       return;
     }
     
@@ -307,8 +308,13 @@ function ResultContent() {
       downloadBlob(blob, filename);
     } catch (err) {
       console.error('Error generating DOCX:', err);
-      const blob = new Blob([doc.content], { type: 'text/plain;charset=utf-8' });
-      downloadBlob(blob, `${doc.title}.txt`);
+      try {
+        const blob = new Blob([doc.content], { type: 'text/plain;charset=utf-8' });
+        downloadBlob(blob, `${doc.title}.txt`);
+      } catch (fallbackErr) {
+        console.error('Error creating fallback text file:', fallbackErr);
+        alert('Не удалось создать файл. Пожалуйста, попробуйте еще раз.');
+      }
     } finally {
       setDownloadingId(null);
     }
@@ -364,7 +370,7 @@ function ResultContent() {
           <div className="flex-1 bg-background md:rounded-2xl overflow-hidden relative flex flex-col" style={{
             minHeight: 0
           }}>
-          <div className="flex-1 overflow-y-auto overflow-x-hidden pt-6 md:pt-14 px-0 relative" style={{
+          <div className="flex-1 overflow-y-auto overflow-x-hidden pt-6 md:pt-14 px-0 relative pb-[calc(56px+48px)] md:pb-[calc(56px+64px)]" style={{
             minHeight: 0,
             WebkitOverflowScrolling: 'touch'
           }}>
@@ -376,7 +382,7 @@ function ResultContent() {
               {response.courtCases && response.courtCases.length > 0 && (
                 <div className="flex flex-col gap-4 -mx-4 md:mx-0">
                   <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px] px-4 md:px-0">
-                    Судебные решения
+                    Судебные дела
                   </p>
                   <div 
                     className="hide-horizontal-scrollbar overflow-x-auto overflow-y-hidden pl-4 pr-4 md:pl-0 md:pr-0"
