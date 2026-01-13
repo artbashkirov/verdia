@@ -462,23 +462,25 @@ export default function ChatResultPage() {
   };
 
   // Определяем тип документа по сообщению
+  // Лоадер показывается только при явном запросе на составление документа
   const getDocumentType = (message: string): string => {
     const lowerMessage = message.toLowerCase();
-    if (lowerMessage.includes('ходатайств')) {
-      return 'Составляю ходатайство';
+    
+    // Проверяем явные запросы на составление документа
+    const documentPatterns = [
+      { pattern: /(?:составь|создай|подготовь|сформируй|сделай)\s+(?:ходатайств|ходатайство)/i, text: 'Составляю ходатайство' },
+      { pattern: /(?:составь|создай|подготовь|сформируй|сделай)\s+(?:исков|иск|исковое\s+заявление)/i, text: 'Составляю исковое заявление' },
+      { pattern: /(?:составь|создай|подготовь|сформируй|сделай)\s+(?:претензи|претензию)/i, text: 'Составляю претензию' },
+      { pattern: /(?:составь|создай|подготовь|сформируй|сделай)\s+(?:возражени|возражения)/i, text: 'Составляю возражения на иск' },
+      { pattern: /(?:составь|создай|подготовь|сформируй|сделай)\s+документ/i, text: 'Составляю документ' },
+    ];
+    
+    for (const { pattern, text } of documentPatterns) {
+      if (pattern.test(lowerMessage)) {
+        return text;
+      }
     }
-    if (lowerMessage.includes('исков') || lowerMessage.includes('иск')) {
-      return 'Составляю исковое заявление';
-    }
-    if (lowerMessage.includes('претензи')) {
-      return 'Составляю претензию';
-    }
-    if (lowerMessage.includes('возражени')) {
-      return 'Составляю возражения на иск';
-    }
-    if (lowerMessage.includes('документ')) {
-      return 'Составляю документ';
-    }
+    
     return 'Печатает...';
   };
 
@@ -682,7 +684,8 @@ export default function ChatResultPage() {
     }
   };
 
-  if (isLoading) {
+  // Показываем полноэкранный лоадер только при первой загрузке, не при отправке сообщений
+  if (isLoading && !generation && chatMessages.length === 0) {
     return (
       <div className="flex bg-background" style={{ height: 'var(--viewport-height, 100vh)' }}>
         <MobileHeader 

@@ -36,13 +36,20 @@
 
 ## Шаг 4: Настройка аутентификации
 
-### 4.1. Настройка Redirect URLs
+### 4.1. Настройка URL Configuration
+
+**ВАЖНО**: Эти настройки критичны для правильной работы подтверждения регистрации по email!
 
 1. Перейдите в **Authentication** → **URL Configuration**
-2. В разделе **Redirect URLs** добавьте:
+2. В поле **Site URL** установите:
+   - Для разработки: `http://localhost:3000`
+   - Для production: `https://ai-verdia.ru` (или ваш production домен)
+3. В разделе **Redirect URLs** добавьте (можно несколько, каждую с новой строки):
    - Для разработки: `http://localhost:3000/auth/callback`
-   - Для production: `https://ваш-домен.com/auth/callback`
-3. Нажмите **"Save"**
+   - Для production: `https://ai-verdia.ru/auth/callback` (или ваш production домен)
+4. Нажмите **"Save"**
+
+**Примечание**: Если после подтверждения регистрации вас перенаправляет на localhost вместо production домена, проверьте, что **Site URL** установлен на правильный production домен!
 
 ### 4.2. Настройка Email (опционально, но рекомендуется)
 
