@@ -1,6 +1,23 @@
 import OpenAI from 'openai';
 import type { CourtCase, DefendantHistory, CourtStats } from './court-search';
 
+// AI Provider type
+export type AIProvider = 'openai' | 'gemini';
+
+// Get current AI provider from env
+export function getAIProvider(): AIProvider {
+  const provider = process.env.AI_PROVIDER?.toLowerCase();
+  if (provider === 'openai') return 'openai';
+  if (provider === 'gemini') return 'gemini';
+  
+  // Auto-detect: prefer OpenAI if configured, fall back to Gemini
+  if (process.env.OPENAI_API_KEY) return 'openai';
+  if (process.env.CLOUDFLARE_WORKER_URL) return 'gemini';
+  
+  // Default to OpenAI
+  return 'openai';
+}
+
 // Lazy initialization for OpenAI client to avoid build-time errors
 let openaiInstance: OpenAI | null = null;
 function getOpenAI(): OpenAI {
@@ -25,6 +42,95 @@ export const openai = new Proxy({} as OpenAI, {
     return value;
   }
 });
+
+// Helper function to call OpenAI directly
+async function callOpenAI(
+  prompt: string, 
+  systemPrompt?: string, 
+  maxTokens: number = 3000,
+  jsonMode: boolean = false
+): Promise<string> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error('OPENAI_API_KEY is not configured');
+  }
+  
+  const client = getOpenAI();
+  
+  const messages: Array<{ role: 'system' | 'user'; content: string }> = [];
+  
+  if (systemPrompt) {
+    messages.push({ role: 'system', content: systemPrompt });
+  }
+  messages.push({ role: 'user', content: prompt });
+  
+  try {
+    const response = await client.chat.completions.create({
+      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+      messages,
+      max_tokens: maxTokens,
+      temperature: 0.7,
+      ...(jsonMode && { response_format: { type: 'json_object' } }),
+    });
+    
+    const result = response.choices[0]?.message?.content || '';
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[callOpenAI] Response (first 500 chars):', result.slice(0, 500));
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('OpenAI API error:', error);
+    throw error;
+  }
+}
+
+// Universal function to call AI (OpenAI or Gemini based on provider setting)
+async function callAI(
+  prompt: string, 
+  systemPrompt?: string, 
+  maxTokens: number = 3000,
+  jsonMode: boolean = false
+): Promise<string> {
+  const provider = getAIProvider();
+  
+  console.log(`[callAI] Using provider: ${provider}`);
+  
+  if (provider === 'openai') {
+    return callOpenAI(prompt, systemPrompt, maxTokens, jsonMode);
+  } else {
+    return callGemini(prompt, systemPrompt, maxTokens);
+  }
+}
+
+// Helper function for OpenAI chat completions
+async function openaiChatCompletion(
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+  options: { maxTokens?: number; temperature?: number; jsonMode?: boolean } = {}
+): Promise<string> {
+  const { maxTokens = 4000, temperature = 0.7, jsonMode = false } = options;
+  
+  const client = getOpenAI();
+  
+  try {
+    const response = await client.chat.completions.create({
+      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+      messages,
+      max_tokens: maxTokens,
+      temperature,
+      ...(jsonMode && { response_format: { type: 'json_object' } }),
+    });
+    
+    const result = response.choices[0]?.message?.content || '';
+    console.log('OpenAI response (first 500 chars):', result.slice(0, 500));
+    return result;
+  } catch (error) {
+    console.error('OpenAI chat completion error:', error);
+    throw error;
+  }
+}
 
 // Helper function to call Gemini via Cloudflare Worker proxy
 // Worker proxies requests to Replicate API from a non-blocked region
@@ -126,8 +232,8 @@ async function callGemini(prompt: string, systemPrompt?: string, maxTokens: numb
   }
 }
 
-// Helper function for chat completions (used by chat route)
-export async function geminiChatCompletion(
+// Helper function for Gemini chat completions (converts messages to prompt)
+async function geminiChatCompletionInternal(
   messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
   options: { maxTokens?: number; temperature?: number; jsonMode?: boolean } = {}
 ): Promise<string> {
@@ -159,11 +265,36 @@ export async function geminiChatCompletion(
   return result;
 }
 
+// Universal chat completion function (chooses provider automatically)
+export async function chatCompletion(
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+  options: { maxTokens?: number; temperature?: number; jsonMode?: boolean } = {}
+): Promise<string> {
+  const provider = getAIProvider();
+  
+  console.log(`[chatCompletion] Using provider: ${provider}`);
+  
+  if (provider === 'openai') {
+    return openaiChatCompletion(messages, options);
+  } else {
+    return geminiChatCompletionInternal(messages, options);
+  }
+}
+
+// Legacy export for backward compatibility
+export async function geminiChatCompletion(
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+  options: { maxTokens?: number; temperature?: number; jsonMode?: boolean } = {}
+): Promise<string> {
+  // Use universal function instead
+  return chatCompletion(messages, options);
+}
+
 export async function generateSearchQuery(userQuery: string): Promise<string> {
   const { SEARCH_QUERY_PROMPT } = await import('./prompts');
   
   try {
-    const result = await callGemini(userQuery, SEARCH_QUERY_PROMPT, 50);
+    const result = await callAI(userQuery, SEARCH_QUERY_PROMPT, 50, false);
     return result.trim() || userQuery;
   } catch (error) {
     console.error('Search query generation error:', error);
@@ -222,7 +353,7 @@ ${courtCasesFormatted.map(c => `- ${c.title} [${c.result}]`).join('\n')}
 - Ответ строго в формате JSON`;
 
   try {
-    const result = await callGemini(context, SYSTEM_PROMPT, 2500);
+    const result = await callAI(context, SYSTEM_PROMPT, 2500, true);
     
     // Try to extract JSON from response
     const jsonMatch = result.match(/\{[\s\S]*\}/);

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { geminiChatCompletion } from '@/lib/openai';
+import { chatCompletion, getAIProvider } from '@/lib/openai';
 import { DOCUMENT_GENERATION_PROMPT, CHAT_CONTINUATION_PROMPT } from '@/lib/prompts';
 import type { UserProfile } from '@/types/database';
 
@@ -277,11 +277,11 @@ _Услуга станет доступна после оплаты подгот
         documents: [],
       } as any);
 
-      // Generate documents using Gemini
-      const responseText = await geminiChatCompletion(messages, { maxTokens: 5000, jsonMode: true });
+      // Generate documents using AI (OpenAI or Gemini based on config)
+      const responseText = await chatCompletion(messages, { maxTokens: 5000, jsonMode: true });
       
-      console.log('🔍 Gemini raw response length:', responseText.length);
-      console.log('🔍 Gemini response (first 1000 chars):', responseText.slice(0, 1000));
+      console.log(`🔍 [${getAIProvider()}] raw response length:`, responseText.length);
+      console.log(`🔍 [${getAIProvider()}] response (first 1000 chars):`, responseText.slice(0, 1000));
       
       let parsed;
       try {
@@ -404,8 +404,8 @@ _Услуга станет доступна после оплаты подгот
         documents: [],
       } as any);
 
-      // Generate response
-      let assistantMessage = await geminiChatCompletion(messages, { maxTokens: 1500 }) || 'Извините, произошла ошибка.';
+      // Generate response using AI (OpenAI or Gemini based on config)
+      let assistantMessage = await chatCompletion(messages, { maxTokens: 1500 }) || 'Извините, произошла ошибка.';
 
       // Check if this looks like a question about documents and add offer
       if (/что дальше|как подать|следующ|документ|куда обращ/i.test(message)) {
