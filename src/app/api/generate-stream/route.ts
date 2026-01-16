@@ -123,8 +123,26 @@ export async function POST(request: NextRequest) {
   // Create a readable stream
   const stream = new ReadableStream({
     async start(controller) {
+      let isClosed = false;
+      
       const sendEvent = (event: string, data: any) => {
-        controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+        if (isClosed) return;
+        try {
+          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+        } catch (e) {
+          console.error('Error sending event:', e);
+        }
+      };
+      
+      const closeController = () => {
+        if (!isClosed) {
+          isClosed = true;
+          try {
+            controller.close();
+          } catch (e) {
+            // Already closed, ignore
+          }
+        }
       };
 
       try {
@@ -134,7 +152,7 @@ export async function POST(request: NextRequest) {
         
         if (authError || !user) {
           sendEvent('error', { message: 'Необходима авторизация' });
-          controller.close();
+          closeController();
           return;
         }
 
@@ -222,7 +240,7 @@ export async function POST(request: NextRequest) {
               question: response.clarificationQuestion,
               options: response.options || [],
             });
-            controller.close();
+            closeController();
             return;
           }
           
@@ -299,7 +317,7 @@ export async function POST(request: NextRequest) {
           }
         } catch {
           sendEvent('error', { message: 'Ошибка обработки ответа' });
-          controller.close();
+          closeController();
           return;
         }
 
@@ -384,7 +402,7 @@ export async function POST(request: NextRequest) {
           message: error instanceof Error ? error.message : 'Произошла ошибка' 
         });
       } finally {
-        controller.close();
+        closeController();
       }
     },
   });

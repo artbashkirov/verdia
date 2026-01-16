@@ -23,6 +23,30 @@ function LoginContent() {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
+  // Слушаем изменения состояния авторизации для автоматического редиректа
+  useEffect(() => {
+    const supabase = createClient();
+    
+    // Проверяем, авторизован ли уже пользователь
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        window.location.href = '/chat';
+      }
+    });
+
+    // Подписка на изменения авторизации
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        // Пользователь авторизовался - редиректим
+        window.location.href = '/chat';
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
   useEffect(() => {
     const passwordReset = searchParams.get('password_reset');
     if (passwordReset === 'success') {
@@ -39,15 +63,23 @@ function LoginContent() {
     
     const supabase = createClient();
     
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email: formData.email,
       password: formData.password,
     });
 
-    if (error) {
-      setError(error.message === 'Invalid login credentials' 
+    if (signInError) {
+      // Проверяем, может пользователь всё же авторизовался несмотря на ошибку
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Авторизация успешна - редиректим
+        window.location.href = '/chat';
+        return;
+      }
+      
+      setError(signInError.message === 'Invalid login credentials' 
         ? 'Неверный email или пароль' 
-        : error.message);
+        : signInError.message);
       setIsLoading(false);
       return;
     }
