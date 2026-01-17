@@ -21,6 +21,7 @@ interface MobileSidebarProps {
   currentChatId?: string;
   onNewChat?: () => void;
   onClearHistory?: () => void;
+  refreshTrigger?: number;
 }
 
 export function MobileSidebar({
@@ -30,6 +31,7 @@ export function MobileSidebar({
   currentChatId,
   onNewChat,
   onClearHistory,
+  refreshTrigger = 0,
 }: MobileSidebarProps) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -114,6 +116,13 @@ export function MobileSidebar({
     window.addEventListener('resize', checkOverflow);
     return () => window.removeEventListener('resize', checkOverflow);
   }, [chatHistory, isOpen]);
+
+  // Refresh history when trigger changes
+  useEffect(() => {
+    if (refreshTrigger > 0 && user) {
+      loadChatHistory(user.id);
+    }
+  }, [refreshTrigger]);
 
   const loadChatHistory = async (userId: string) => {
     setIsLoadingHistory(true);

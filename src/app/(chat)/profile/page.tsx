@@ -26,32 +26,32 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Partial<UserProfile>>({});
 
   useEffect(() => {
+    const loadProfile = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (data) {
+        const profileData = data as UserProfile;
+        setProfile(profileData);
+        setPersonType(profileData.person_type || 'individual');
+      }
+      
+      setIsLoading(false);
+    };
+
     loadProfile();
-  }, []);
-
-  const loadProfile = async () => {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
-
-    if (data) {
-      const profileData = data as UserProfile;
-      setProfile(profileData);
-      setPersonType(profileData.person_type || 'individual');
-    }
-    
-    setIsLoading(false);
-  };
+  }, [router]);
 
   const handleSave = async () => {
     setIsSaving(true);

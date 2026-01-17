@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { chatCompletion, getAIProvider } from '@/lib/openai';
-import { DOCUMENT_GENERATION_PROMPT, CHAT_CONTINUATION_PROMPT } from '@/lib/prompts';
+import { DOCUMENT_GENERATION_PROMPT } from '@/lib/prompts';
 import type { UserProfile } from '@/types/database';
 
 // Format plaintiff info for document generation
@@ -286,7 +286,7 @@ _Услуга станет доступна после оплаты подгот
       let parsed;
       try {
         // Remove markdown code block wrappers if present
-        let cleanedText = responseText
+        const cleanedText = responseText
           .replace(/^```json\s*/i, '')
           .replace(/^```\s*/i, '')
           .replace(/\s*```$/i, '')

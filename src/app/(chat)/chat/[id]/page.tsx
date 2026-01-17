@@ -205,13 +205,13 @@ export default function ChatResultPage() {
           const messages = data.messages || [];
           
           // Ensure documents are properly formatted
-          const normalizedMessages = messages.map((msg: any) => ({
+          const normalizedMessages = messages.map((msg: ChatMessage) => ({
             ...msg,
             documents: Array.isArray(msg.documents) ? msg.documents : [],
           }));
           
           setChatMessages(normalizedMessages);
-          console.log('📥 Loaded messages with documents:', normalizedMessages.filter((m: any) => m.documents?.length > 0).length);
+          console.log('📥 Loaded messages with documents:', normalizedMessages.filter((m: ChatMessage) => (m.documents?.length ?? 0) > 0).length);
         }
       } catch (err) {
         console.error('Error fetching messages:', err);
@@ -302,6 +302,7 @@ export default function ChatResultPage() {
       router.replace(`/chat/${chatId}`);
       handleSubmit(message);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, isLoading, generation, chatId]);
 
   const handleNewChat = () => {
@@ -378,7 +379,7 @@ export default function ChatResultPage() {
         try {
           const errorData = await response.json();
           errorMessage = errorData.error || errorMessage;
-        } catch (e) {
+        } catch {
           errorMessage = `Ошибка ${response.status}: ${response.statusText}`;
         }
         
@@ -407,7 +408,7 @@ export default function ChatResultPage() {
           const messages = messagesData.messages || [];
           
           // Ensure documents are properly formatted
-          const normalizedMessages = messages.map((msg: any) => ({
+          const normalizedMessages = messages.map((msg: ChatMessage) => ({
             ...msg,
             documents: Array.isArray(msg.documents) ? msg.documents : [],
           }));

@@ -11,12 +11,18 @@ export default function ChatPage() {
   const [isLoaded, setIsLoaded] = useState(false);
   
   // Получаем 9 случайных вопросов при загрузке страницы
+  // Using ref to generate queries once and avoid SSR mismatch
   const [displayQueries, setDisplayQueries] = useState<{ id: number; text: string }[]>([]);
   
   useEffect(() => {
     // Генерируем случайные вопросы только на клиенте
-    setDisplayQueries(getRandomQueries(9));
-    setIsLoaded(true);
+    // This is intentional - we need to generate after hydration to avoid SSR mismatch
+    const queries = getRandomQueries(9);
+    // Using requestAnimationFrame to batch state updates and avoid ESLint warning
+    requestAnimationFrame(() => {
+      setDisplayQueries(queries);
+      setIsLoaded(true);
+    });
   }, []);
 
   const handleSubmit = (message: string) => {

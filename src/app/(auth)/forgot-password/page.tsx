@@ -60,7 +60,7 @@ export default function ForgotPasswordPage() {
         ? `${window.location.protocol}//${window.location.host}/auth/callback?next=/reset-password&type=recovery`
         : 'http://localhost:3000/auth/callback?next=/reset-password&type=recovery';
       
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectUrl,
       });
 

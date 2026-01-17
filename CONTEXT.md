@@ -441,15 +441,52 @@ npm run check-supabase
 
 ## 📦 Деплой
 
-### VPS (основной)
+### VPS (основной) — автоматический через GitHub Actions
 
-1. Push в `main` ветку
-2. GitHub Actions автоматически:
-   - SSH на VPS
-   - `git pull`
-   - `npm install`
-   - `npm run build`
-   - `pm2 restart verdia`
+**Файл:** `.github/workflows/deploy.yml`
+
+**Триггер:** Push в ветку `main`
+
+**Процесс:**
+```bash
+1. GitHub Actions подключается к VPS по SSH
+   - host: ${{ secrets.VPS_HOST }}
+   - key: ${{ secrets.VPS_SSH_KEY }}
+
+2. Выполняются команды на VPS:
+   cd /opt/verdia-app
+   git pull origin main
+   npm install --production=false
+   npm run build
+   pm2 restart verdia --update-env
+   pm2 save
+```
+
+**GitHub Secrets (настроены в репозитории):**
+- `VPS_HOST` — IP адрес VPS сервера
+- `VPS_SSH_KEY` — Приватный SSH ключ для подключения
+
+**На VPS:**
+- Путь приложения: `/opt/verdia-app`
+- Процесс-менеджер: PM2
+- Имя процесса: `verdia`
+- Reverse proxy: Nginx
+
+**Полезные команды на VPS:**
+```bash
+# Подключение
+ssh root@<VPS_HOST>
+
+# Проверка статуса
+pm2 list
+pm2 logs verdia --lines 50
+
+# Ручной перезапуск
+pm2 restart verdia --update-env
+
+# Проверка текущего коммита
+cd /opt/verdia-app && git log -1 --oneline
+```
 
 ### Vercel (альтернативный)
 
@@ -510,10 +547,8 @@ AI-генерации ответов
 - `TECH_STACK.md` — Технологический стек
 - `DESIGN_STYLES.md` — Дизайн-стили
 - `TYPOGRAPHY_STANDARDS.md` — Стандарты типографики
-- `SUPABASE_SETUP.md` — Настройка Supabase
-- `VERCEL_SETUP.md` — Настройка Vercel
-- `VPS_COMMANDS.md` — Команды VPS
+- `.github/workflows/deploy.yml` — GitHub Actions деплой
 
 ---
 
-*Документ обновлён: 2026-01-14*
+*Документ обновлён: 2026-01-17*

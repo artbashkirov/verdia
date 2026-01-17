@@ -21,7 +21,13 @@ function LoginContent() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  // Get initial success message from URL params
+  const passwordResetParam = searchParams.get('password_reset');
+  const [successMessage] = useState(
+    passwordResetParam === 'success' 
+      ? 'Пароль успешно изменен. Теперь вы можете войти с новым паролем.' 
+      : ''
+  );
 
   // Слушаем изменения состояния авторизации для автоматического редиректа
   useEffect(() => {
@@ -47,14 +53,12 @@ function LoginContent() {
     };
   }, []);
 
+  // Clean URL after showing password reset success message
   useEffect(() => {
-    const passwordReset = searchParams.get('password_reset');
-    if (passwordReset === 'success') {
-      setSuccessMessage('Пароль успешно изменен. Теперь вы можете войти с новым паролем.');
-      // Очищаем URL от параметра
+    if (passwordResetParam === 'success') {
       router.replace('/login', { scroll: false });
     }
-  }, [searchParams, router]);
+  }, [passwordResetParam, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

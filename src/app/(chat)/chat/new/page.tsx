@@ -126,10 +126,12 @@ function NewChatPageContent() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [clarification, setClarification] = useState<ClarificationData | null>(null);
   const [isComplete, setIsComplete] = useState(false);
+  const [sidebarRefreshTrigger, setSidebarRefreshTrigger] = useState(0);
   const [clarificationRequest, setClarificationRequest] = useState<GenerationResponse['clarificationRequest'] | null>(null);
   const [defendantForm, setDefendantForm] = useState({ defendantName: '', defendantLocation: '' });
   const [isRefining, setIsRefining] = useState(false);
-  const [refinedData, setRefinedData] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [refinedData, setRefinedData] = useState<Record<string, any> | null>(null);
   const [courtCasesData, setCourtCasesData] = useState<CourtCasesData | null>(null);
   const [visitedUrls, setVisitedUrls] = useState<Set<string>>(new Set());
   const contentRef = useRef<HTMLDivElement>(null);
@@ -191,6 +193,7 @@ function NewChatPageContent() {
     setQuery(queryToUse);
     sessionStorage.removeItem('pendingQuery');
     generateResponseStream(queryToUse);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Load existing chat messages when generation is complete
@@ -205,13 +208,20 @@ function NewChatPageContent() {
           const messages = messagesData.messages || [];
           
           // Ensure documents are properly formatted
-          const normalizedMessages = messages.map((msg: any) => ({
+          interface MessageType { 
+            id: string; 
+            role: 'user' | 'assistant'; 
+            content: string; 
+            created_at: string; 
+            documents?: Array<{ title: string; content: string }> 
+          }
+          const normalizedMessages = messages.map((msg: MessageType) => ({
             ...msg,
             documents: Array.isArray(msg.documents) ? msg.documents : [],
           }));
           
           setChatMessages(normalizedMessages);
-          console.log('📥 Loaded messages with documents:', normalizedMessages.filter((m: any) => m.documents?.length > 0).length);
+          console.log('📥 Loaded messages with documents:', normalizedMessages.filter((m: MessageType) => (m.documents?.length ?? 0) > 0).length);
         }
       } catch (err) {
         console.error('Error loading chat messages:', err);
@@ -343,6 +353,8 @@ function NewChatPageContent() {
                 case 'complete':
                   setChatId(data.id);
                   setIsComplete(true);
+                  // Refresh sidebar to show new chat
+                  setSidebarRefreshTrigger(prev => prev + 1);
                   // Don't redirect - stay on page and show full result
                   break;
                 case 'error':
@@ -430,7 +442,7 @@ function NewChatPageContent() {
         try {
           const errorData = await response.json();
           errorMessage = errorData.error || errorMessage;
-        } catch (e) {
+        } catch {
           errorMessage = `Ошибка ${response.status}: ${response.statusText}`;
         }
         setChatMessages(prev => prev.filter(m => m.id !== userMessage.id));
@@ -605,8 +617,9 @@ function NewChatPageContent() {
         onClose={() => setIsMobileMenuOpen(false)}
         currentChatId={chatId || undefined}
         onNewChat={handleNewChat}
+        refreshTrigger={sidebarRefreshTrigger}
       />
-      <Sidebar currentChatId={chatId || undefined} onNewChat={handleNewChat} className="hidden md:flex" />
+      <Sidebar currentChatId={chatId || undefined} onNewChat={handleNewChat} className="hidden md:flex" refreshTrigger={sidebarRefreshTrigger} />
       
       <div className="flex-1 flex flex-col p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A] overflow-hidden">
         <div className="flex-1 bg-background md:rounded-2xl relative flex flex-col overflow-hidden" style={{

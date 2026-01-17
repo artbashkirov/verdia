@@ -128,7 +128,7 @@ function ResultContent() {
     router.push('/chat');
   };
 
-  const handleSubmit = async (message: string) => {
+  const handleSubmit = async () => {
     router.push('/chat');
   };
 

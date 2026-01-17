@@ -20,6 +20,7 @@ interface SidebarProps {
   onNewChat?: () => void;
   onClearHistory?: () => void;
   className?: string;
+  refreshTrigger?: number;
 }
 
 export function Sidebar({
@@ -28,6 +29,7 @@ export function Sidebar({
   onNewChat,
   onClearHistory,
   className = '',
+  refreshTrigger = 0,
 }: SidebarProps) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -113,6 +115,13 @@ export function Sidebar({
     window.addEventListener('resize', checkOverflow);
     return () => window.removeEventListener('resize', checkOverflow);
   }, [chatHistory, isCollapsed]);
+
+  // Refresh history when trigger changes
+  useEffect(() => {
+    if (refreshTrigger > 0 && user) {
+      loadChatHistory(user.id);
+    }
+  }, [refreshTrigger]);
 
   const loadChatHistory = async (userId: string) => {
     try {
