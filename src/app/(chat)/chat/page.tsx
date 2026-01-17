@@ -9,6 +9,7 @@ export default function ChatPage() {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [checkingCache, setCheckingCache] = useState<number | null>(null);
   
   // Получаем 9 случайных вопросов при загрузке страницы
   // Using ref to generate queries once and avoid SSR mismatch
@@ -28,11 +29,41 @@ export default function ChatPage() {
   const handleSubmit = (message: string) => {
     // Store query and redirect immediately
     sessionStorage.setItem('pendingQuery', message);
+    // Clear any cached data
+    sessionStorage.removeItem('cachedResponse');
     router.push(`/chat/new?q=${encodeURIComponent(message)}`);
   };
 
-  const handleExampleClick = (text: string) => {
-    handleSubmit(text);
+  const handleExampleClick = async (questionId: number, text: string) => {
+    // Show loading state
+    setCheckingCache(questionId);
+    
+    try {
+      // Check cache first
+      const response = await fetch(`/api/cached-response?questionId=${questionId}`);
+      const data = await response.json();
+      
+      if (data.cached && data.response) {
+        // Cache hit - store cached data and redirect
+        sessionStorage.setItem('pendingQuery', text);
+        sessionStorage.setItem('cachedResponse', JSON.stringify({
+          questionId,
+          response: data.response,
+          courtCases: data.courtCases,
+          createdAt: data.createdAt,
+        }));
+        router.push(`/chat/new?q=${encodeURIComponent(text)}&cached=1`);
+      } else {
+        // Cache miss - normal flow
+        handleSubmit(text);
+      }
+    } catch (error) {
+      console.error('Cache check failed:', error);
+      // Fallback to normal flow
+      handleSubmit(text);
+    } finally {
+      setCheckingCache(null);
+    }
   };
 
   const handleNewChat = () => {
@@ -96,11 +127,12 @@ export default function ChatPage() {
                     {displayQueries.filter((_, i) => i % 3 === 0).map((query) => (
                       <button
                         key={query.id}
-                        onClick={() => handleExampleClick(query.text)}
-                        className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors"
+                        onClick={() => handleExampleClick(query.id, query.text)}
+                        disabled={checkingCache === query.id}
+                        className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors disabled:opacity-70"
                       >
                         <p className="text-[16px] lg:text-[16px] font-normal text-foreground leading-[24px] lg:leading-[24px]">
-                          {query.text}
+                          {checkingCache === query.id ? 'Загрузка...' : query.text}
                         </p>
                       </button>
                     ))}
@@ -111,11 +143,12 @@ export default function ChatPage() {
                     {displayQueries.filter((_, i) => i % 3 === 1).map((query) => (
                       <button
                         key={query.id}
-                        onClick={() => handleExampleClick(query.text)}
-                        className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors"
+                        onClick={() => handleExampleClick(query.id, query.text)}
+                        disabled={checkingCache === query.id}
+                        className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors disabled:opacity-70"
                       >
                         <p className="text-[16px] lg:text-[16px] font-normal text-foreground leading-[24px] lg:leading-[24px]">
-                          {query.text}
+                          {checkingCache === query.id ? 'Загрузка...' : query.text}
                         </p>
                       </button>
                     ))}
@@ -126,11 +159,12 @@ export default function ChatPage() {
                     {displayQueries.filter((_, i) => i % 3 === 2).map((query) => (
                       <button
                         key={query.id}
-                        onClick={() => handleExampleClick(query.text)}
-                        className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors"
+                        onClick={() => handleExampleClick(query.id, query.text)}
+                        disabled={checkingCache === query.id}
+                        className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors disabled:opacity-70"
                       >
                         <p className="text-[16px] lg:text-[16px] font-normal text-foreground leading-[24px] lg:leading-[24px]">
-                          {query.text}
+                          {checkingCache === query.id ? 'Загрузка...' : query.text}
                         </p>
                       </button>
                     ))}
@@ -142,12 +176,13 @@ export default function ChatPage() {
                   {displayQueries.slice(0, 3).map((query) => (
                     <button
                       key={query.id}
-                      onClick={() => handleExampleClick(query.text)}
-                      className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors w-full"
+                      onClick={() => handleExampleClick(query.id, query.text)}
+                      disabled={checkingCache === query.id}
+                      className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors w-full disabled:opacity-70"
                       style={{ maxWidth: '400px', margin: '0 auto' }}
                     >
                       <p className="text-[16px] font-normal text-foreground leading-[24px]">
-                        {query.text}
+                        {checkingCache === query.id ? 'Загрузка...' : query.text}
                       </p>
                     </button>
                   ))}

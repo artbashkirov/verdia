@@ -127,3 +127,15 @@ export function getRandomQueries(count: number): { id: number; text: string }[] 
   
   return shuffled;
 }
+
+// Функция для получения ID вопроса по тексту (для кэширования)
+export function getQuestionId(questionText: string): number | null {
+  const index = exampleQueries.findIndex(q => q === questionText);
+  return index !== -1 ? index + 1 : null;
+}
+
+// Функция для получения текста вопроса по ID
+export function getQuestionText(questionId: number): string | null {
+  if (questionId < 1 || questionId > exampleQueries.length) return null;
+  return exampleQueries[questionId - 1];
+}

@@ -107,6 +107,14 @@ interface CourtCasesData {
   defendantHistory?: { name: string; totalCases: number; casesLost: number };
 }
 
+// Cached response data
+interface CachedResponseData {
+  questionId: number;
+  response: GenerationResponse;
+  courtCases?: Array<{ id: number; title: string; url: string; court?: string; isSearchLink?: boolean }>;
+  createdAt: string;
+}
+
 interface ClarificationData {
   question: string;
   options: string[];
@@ -141,6 +149,7 @@ function NewChatPageContent() {
   const [chatMessages, setChatMessages] = useState<Array<{ id: string; role: 'user' | 'assistant'; content: string; created_at: string; documents?: Array<{ title: string; content: string }> }>>([]);
   const [isSendingChat, setIsSendingChat] = useState(false);
   const [lastUserMessage, setLastUserMessage] = useState<string>('');
+  const [cachedResponseInfo, setCachedResponseInfo] = useState<{ createdAt: string } | null>(null);
 
   // Load visited URLs from localStorage
   useEffect(() => {
@@ -182,6 +191,7 @@ function NewChatPageContent() {
     if (hasStartedGeneration.current) return;
 
     const urlQuery = searchParams.get('q');
+    const isCached = searchParams.get('cached') === '1';
     const storedQuery = sessionStorage.getItem('pendingQuery');
     const queryToUse = urlQuery || storedQuery;
     
@@ -199,6 +209,24 @@ function NewChatPageContent() {
       id: 'pending-' + Date.now(),
       title: queryToUse.slice(0, 50) + (queryToUse.length > 50 ? '...' : ''),
     });
+    
+    // Check for cached response
+    if (isCached) {
+      const cachedData = sessionStorage.getItem('cachedResponse');
+      if (cachedData) {
+        try {
+          const cached: CachedResponseData = JSON.parse(cachedData);
+          sessionStorage.removeItem('cachedResponse');
+          
+          // Use cached data - instant display!
+          loadCachedResponse(queryToUse, cached);
+          return;
+        } catch (e) {
+          console.error('Failed to parse cached response:', e);
+          // Fall through to normal generation
+        }
+      }
+    }
     
     generateResponseStream(queryToUse);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -287,6 +315,98 @@ function NewChatPageContent() {
       }, 300);
     }
   }, [isSendingChat, chatMessages.length]);
+
+  // Load cached response instantly
+  const loadCachedResponse = async (queryText: string, cached: CachedResponseData) => {
+    console.log('Loading cached response for question #' + cached.questionId);
+    
+    // Set cached response info for UI
+    setCachedResponseInfo({ createdAt: cached.createdAt });
+    
+    // Show court cases first
+    if (cached.courtCases && cached.courtCases.length > 0) {
+      setResponse(prev => ({ ...prev, courtCases: cached.courtCases }));
+      setCourtCasesData({
+        cases: cached.courtCases,
+        stats: { total: cached.courtCases.length, percentage: 0 },
+      });
+    }
+    
+    // Load all response data instantly
+    const resp = cached.response;
+    if (resp.shortAnswer) {
+      setResponse(prev => ({ ...prev, shortAnswer: resp.shortAnswer }));
+    }
+    if (resp.legalAnalysis) {
+      setResponse(prev => ({ ...prev, legalAnalysis: resp.legalAnalysis }));
+    }
+    if (resp.practiceAnalysis) {
+      setResponse(prev => ({ ...prev, practiceAnalysis: resp.practiceAnalysis }));
+    }
+    if (resp.probability) {
+      setResponse(prev => ({ ...prev, probability: resp.probability }));
+    }
+    if (resp.courtPrediction) {
+      setResponse(prev => ({ ...prev, courtPrediction: resp.courtPrediction }));
+    }
+    if (resp.defendantAnalysis) {
+      setResponse(prev => ({ ...prev, defendantAnalysis: resp.defendantAnalysis }));
+    }
+    if (resp.recommendations) {
+      setResponse(prev => ({ ...prev, recommendations: resp.recommendations }));
+    }
+    
+    // Create a new generation record for the user (so they can continue chat)
+    try {
+      const res = await fetch('/api/generate-stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          query: queryText,
+          useCachedResponse: true, // Flag to indicate we're using cached data
+        }),
+      });
+      
+      // We still need to read the stream to get the generation ID
+      const reader = res.body?.getReader();
+      if (reader) {
+        const decoder = new TextDecoder();
+        let buffer = '';
+        
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          
+          let currentEvent = '';
+          for (const line of lines) {
+            if (line.startsWith('event: ')) {
+              currentEvent = line.slice(7);
+            } else if (line.startsWith('data: ') && currentEvent === 'complete') {
+              try {
+                const data = JSON.parse(line.slice(6));
+                setChatId(data.id);
+                setIsComplete(true);
+                setPendingChat(prev => prev ? { ...prev, id: data.id } : undefined);
+                setSidebarRefreshTrigger(prev => prev + 1);
+              } catch (e) {
+                console.error('Parse error:', e);
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error creating generation record:', err);
+      // Still show cached content even if generation record fails
+    }
+    
+    setIsGenerating(false);
+    setIsComplete(true);
+  };
 
   // Streaming generation - shows results as they arrive
   const generateResponseStream = async (queryText: string) => {
@@ -652,6 +772,34 @@ function NewChatPageContent() {
               <h1 className="text-[20px] lg:text-[32px] font-medium text-foreground leading-[28px] lg:leading-[40px] tracking-tight break-words md:mt-0">
                 {query}
               </h1>
+
+              {/* Cached response indicator */}
+              {cachedResponseInfo && (
+                <div className="flex items-center gap-2 text-xs text-gray-400 -mt-4">
+                  <span>⚡ Быстрый ответ</span>
+                  <span>•</span>
+                  <span>Сгенерирован {new Date(cachedResponseInfo.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                  <button
+                    onClick={() => {
+                      setCachedResponseInfo(null);
+                      setResponse({});
+                      setCourtCasesData(null);
+                      setIsGenerating(true);
+                      setIsComplete(false);
+                      hasStartedGeneration.current = false;
+                      // Clear cached flag from URL
+                      const newUrl = new URL(window.location.href);
+                      newUrl.searchParams.delete('cached');
+                      window.history.replaceState({}, '', newUrl.toString());
+                      // Regenerate
+                      generateResponseStream(query);
+                    }}
+                    className="text-blue-500 hover:text-blue-600 underline"
+                  >
+                    Обновить
+                  </button>
+                </div>
+              )}
 
               {/* Loading state - show skeleton cards immediately */}
               {isGenerating && !response.courtCases && (

@@ -30,6 +30,22 @@ export function AuthLayout({ children, title = "Заголовок", description
   useEffect(() => {
     // Триггерим анимацию после монтирования
     setIsLoaded(true);
+    
+    // Устанавливаем тёмный фон на html и body для предотвращения "второго слоя" при скролле
+    const originalHtmlBg = document.documentElement.style.backgroundColor;
+    const originalBodyBg = document.body.style.backgroundColor;
+    const originalOverscroll = document.body.style.overscrollBehavior;
+    
+    document.documentElement.style.backgroundColor = '#131314';
+    document.body.style.backgroundColor = '#131314';
+    document.body.style.overscrollBehavior = 'none';
+    
+    return () => {
+      // Восстанавливаем оригинальные значения при размонтировании
+      document.documentElement.style.backgroundColor = originalHtmlBg;
+      document.body.style.backgroundColor = originalBodyBg;
+      document.body.style.overscrollBehavior = originalOverscroll;
+    };
   }, []);
 
   return (
@@ -44,12 +60,15 @@ export function AuthLayout({ children, title = "Заголовок", description
         left: 0,
         right: 0,
         bottom: 0,
-        width: '100%'
+        width: '100%',
+        overscrollBehavior: 'none',
+        WebkitOverflowScrolling: 'touch',
       }}
     >
       <div className="w-full h-full bg-[#131314] flex flex-col lg:flex-row" style={{ 
         height: '100%',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        overscrollBehavior: 'none',
       }}>
         {/* Left panel with form - full width on mobile, 50% on desktop */}
         <div className="w-full lg:w-1/2 flex flex-col relative h-full">

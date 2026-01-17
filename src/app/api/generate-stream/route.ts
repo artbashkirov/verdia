@@ -2,7 +2,14 @@ import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { generateLegalResponse } from '@/lib/openai';
 import { searchCourtCases } from '@/lib/court-search';
+import { exampleQueries } from '@/lib/example-queries';
 import type { UserProfile, PersonType } from '@/types/database';
+
+// Check if query is an example question and return its ID (1-based)
+function getExampleQuestionId(query: string): number | null {
+  const index = exampleQueries.findIndex(q => q === query);
+  return index !== -1 ? index + 1 : null;
+}
 
 // Determine if the query is about individual (physical person) or legal entity
 function getDefendantPlaceholder(query: string): { namePlaceholder: string; label: string } {
@@ -105,17 +112,100 @@ export async function POST(request: NextRequest) {
   let query: string;
   let defendantName: string | undefined;
   let defendantLocation: string | undefined;
+  let useCachedResponse: boolean = false;
   try {
     const body = await request.json();
     query = body.query;
     defendantName = body.defendantName;
     defendantLocation = body.defendantLocation;
+    useCachedResponse = body.useCachedResponse || false;
   } catch {
     return new Response(JSON.stringify({ error: 'Invalid request' }), { status: 400 });
   }
 
   if (!query) {
     return new Response(JSON.stringify({ error: 'Query required' }), { status: 400 });
+  }
+
+  // If using cached response, just create generation record and return ID
+  if (useCachedResponse) {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        const sendEvent = (event: string, data: unknown) => {
+          try {
+            controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+          } catch (e) {
+            console.error('Error sending event:', e);
+          }
+        };
+
+        try {
+          const supabase = await createClient();
+          const { data: { user }, error: authError } = await supabase.auth.getUser();
+          
+          if (authError || !user) {
+            sendEvent('error', { message: 'Необходима авторизация' });
+            controller.close();
+            return;
+          }
+
+          // Get cached response from DB
+          const questionId = getExampleQuestionId(query);
+          let cachedResponse = null;
+          
+          if (questionId) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data: cache } = await (supabase.from('cached_responses') as any)
+              .select('response')
+              .eq('question_id', questionId)
+              .single();
+            
+            if (cache) {
+              cachedResponse = cache.response;
+            }
+          }
+
+          // Create generation record with cached response
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data: generation } = await (supabase.from('generations') as any)
+            .insert({
+              user_id: user.id,
+              query: query,
+              response: cachedResponse,
+            })
+            .select()
+            .single();
+
+          if (generation?.id) {
+            // Create chat history entry
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (supabase.from('chat_history') as any).insert({
+              user_id: user.id,
+              title: query.slice(0, 100),
+              generation_id: generation.id,
+            });
+
+            sendEvent('complete', { id: generation.id, query, cached: true });
+          } else {
+            sendEvent('error', { message: 'Не удалось создать запись' });
+          }
+        } catch (error) {
+          console.error('Cached response error:', error);
+          sendEvent('error', { message: 'Произошла ошибка' });
+        } finally {
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    });
   }
 
   const encoder = new TextEncoder();
@@ -403,6 +493,37 @@ export async function POST(request: NextRequest) {
             title: query.slice(0, 100),
             generation_id: generationId,
           });
+        }
+
+        // Step 11.5: Save to cache if this was an example question
+        const exampleQuestionId = getExampleQuestionId(query);
+        if (exampleQuestionId) {
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (supabase.from('cached_responses') as any)
+              .upsert({
+                question_id: exampleQuestionId,
+                question_text: query,
+                response: response,
+                court_cases: cases.slice(0, 5).map((c, i) => ({
+                  id: i + 1,
+                  title: c.title,
+                  url: c.url,
+                  court: c.court,
+                  isSearchLink: c.isSearchLink,
+                })),
+                created_at: new Date().toISOString(),
+                expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+                hit_count: 0,
+                last_hit_at: null,
+              }, {
+                onConflict: 'question_id',
+              });
+            console.log(`Cached response for example question #${exampleQuestionId}`);
+          } catch (cacheError) {
+            // Don't fail if caching fails - just log
+            console.error('Failed to cache response:', cacheError);
+          }
         }
 
         // Step 12: Send complete event with ID
