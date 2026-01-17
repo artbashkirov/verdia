@@ -168,6 +168,19 @@ export async function POST(request: NextRequest) {
           userProfile = profileData as UserProfile;
         }
 
+        // Step 0.5: Create generation record immediately so it appears in sidebar
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: initialGeneration } = await (supabase.from('generations') as any)
+          .insert({
+            user_id: user.id,
+            query: query,
+            response: null, // Will be updated with full response later
+          })
+          .select()
+          .single();
+        
+        const generationId = initialGeneration?.id;
+
         // Step 1: Send "searching" status
         sendEvent('status', { stage: 'searching', message: 'Ищу судебные дела...' });
 
@@ -236,6 +249,13 @@ export async function POST(request: NextRequest) {
           
           // Check if AI needs clarification
           if (response.clarificationNeeded) {
+            // Delete the incomplete generation record since we need clarification
+            if (generationId) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              await (supabase.from('generations') as any)
+                .delete()
+                .eq('id', generationId);
+            }
             sendEvent('clarification', {
               question: response.clarificationQuestion,
               options: response.options || [],
@@ -370,29 +390,24 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        // Step 11: Save to database
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: generation } = await (supabase.from('generations') as any)
-          .insert({
-            user_id: user.id,
-            query: query,
-            response: response,
-          })
-          .select()
-          .single();
+        // Step 11: Update generation record with full response
+        if (generationId) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (supabase.from('generations') as any)
+            .update({ response })
+            .eq('id', generationId);
 
-        if (generation) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           await (supabase.from('chat_history') as any).insert({
             user_id: user.id,
             title: query.slice(0, 100),
-            generation_id: generation.id,
+            generation_id: generationId,
           });
         }
 
         // Step 12: Send complete event with ID
         sendEvent('complete', {
-          id: generation?.id,
+          id: generationId,
           query,
         });
 

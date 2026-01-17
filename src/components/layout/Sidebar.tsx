@@ -45,6 +45,7 @@ export function Sidebar({
   useEffect(() => {
     try {
       const supabase = createClient();
+      let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
       
       // Get current user
       supabase.auth.getUser().then(({ data: { user }, error }) => {
@@ -56,6 +57,45 @@ export function Sidebar({
         setUser(user);
         if (user) {
           loadChatHistory(user.id);
+          
+          // Subscribe to realtime changes for this user's generations
+          realtimeChannel = supabase
+            .channel('generations-changes')
+            .on(
+              'postgres_changes',
+              {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'generations',
+                filter: `user_id=eq.${user.id}`,
+              },
+              (payload) => {
+                // Add new chat to the top of the list
+                const newChat = payload.new as { id: string; query: string };
+                setChatHistory(prev => [
+                  {
+                    id: newChat.id,
+                    title: newChat.query.slice(0, 50) + (newChat.query.length > 50 ? '...' : ''),
+                  },
+                  ...prev,
+                ]);
+              }
+            )
+            .on(
+              'postgres_changes',
+              {
+                event: 'DELETE',
+                schema: 'public',
+                table: 'generations',
+                filter: `user_id=eq.${user.id}`,
+              },
+              (payload) => {
+                // Remove deleted chat from the list
+                const deletedId = payload.old.id;
+                setChatHistory(prev => prev.filter(chat => chat.id !== deletedId));
+              }
+            )
+            .subscribe();
         } else {
           setIsLoadingHistory(false);
         }
@@ -78,6 +118,9 @@ export function Sidebar({
       return () => {
         if (subscription) {
           subscription.unsubscribe();
+        }
+        if (realtimeChannel) {
+          supabase.removeChannel(realtimeChannel);
         }
       };
     } catch (error) {

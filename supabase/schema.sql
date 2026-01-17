@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS public.generations (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   query TEXT NOT NULL,
-  response JSONB NOT NULL,
+  response JSONB, -- NULL initially, filled after AI response
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -58,8 +58,14 @@ CREATE POLICY "Users can view own generations" ON public.generations
 CREATE POLICY "Users can create own generations" ON public.generations
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+CREATE POLICY "Users can update own generations" ON public.generations
+  FOR UPDATE USING (auth.uid() = user_id);
+
 CREATE POLICY "Users can delete own generations" ON public.generations
   FOR DELETE USING (auth.uid() = user_id);
+
+-- Enable Realtime for generations table (sidebar updates)
+ALTER PUBLICATION supabase_realtime ADD TABLE public.generations;
 
 -- RLS Policies for chat_history table
 CREATE POLICY "Users can view own chat history" ON public.chat_history
