@@ -127,6 +127,7 @@ function NewChatPageContent() {
   const [clarification, setClarification] = useState<ClarificationData | null>(null);
   const [isComplete, setIsComplete] = useState(false);
   const [sidebarRefreshTrigger, setSidebarRefreshTrigger] = useState(0);
+  const [pendingChat, setPendingChat] = useState<{ id: string; title: string } | undefined>(undefined);
   const [clarificationRequest, setClarificationRequest] = useState<GenerationResponse['clarificationRequest'] | null>(null);
   const [defendantForm, setDefendantForm] = useState({ defendantName: '', defendantLocation: '' });
   const [isRefining, setIsRefining] = useState(false);
@@ -192,6 +193,13 @@ function NewChatPageContent() {
     hasStartedGeneration.current = true;
     setQuery(queryToUse);
     sessionStorage.removeItem('pendingQuery');
+    
+    // Show in sidebar immediately with temporary ID
+    setPendingChat({
+      id: 'pending-' + Date.now(),
+      title: queryToUse.slice(0, 50) + (queryToUse.length > 50 ? '...' : ''),
+    });
+    
     generateResponseStream(queryToUse);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -353,6 +361,10 @@ function NewChatPageContent() {
                 case 'complete':
                   setChatId(data.id);
                   setIsComplete(true);
+                  // Update pending chat with real ID
+                  if (data.id) {
+                    setPendingChat(prev => prev ? { ...prev, id: data.id } : undefined);
+                  }
                   // Refresh sidebar to show new chat
                   setSidebarRefreshTrigger(prev => prev + 1);
                   // Don't redirect - stay on page and show full result
@@ -615,11 +627,12 @@ function NewChatPageContent() {
       <MobileSidebar
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
-        currentChatId={chatId || undefined}
+        currentChatId={chatId || pendingChat?.id}
         onNewChat={handleNewChat}
         refreshTrigger={sidebarRefreshTrigger}
+        pendingChat={pendingChat}
       />
-      <Sidebar currentChatId={chatId || undefined} onNewChat={handleNewChat} className="hidden md:flex" refreshTrigger={sidebarRefreshTrigger} />
+      <Sidebar currentChatId={chatId || pendingChat?.id} onNewChat={handleNewChat} className="hidden md:flex" refreshTrigger={sidebarRefreshTrigger} pendingChat={pendingChat} />
       
       <div className="flex-1 flex flex-col p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A] overflow-hidden">
         <div className="flex-1 bg-background md:rounded-2xl relative flex flex-col overflow-hidden" style={{

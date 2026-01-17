@@ -22,6 +22,7 @@ interface MobileSidebarProps {
   onNewChat?: () => void;
   onClearHistory?: () => void;
   refreshTrigger?: number;
+  pendingChat?: { id: string; title: string }; // Show immediately when user sends query
 }
 
 export function MobileSidebar({
@@ -32,6 +33,7 @@ export function MobileSidebar({
   onNewChat,
   onClearHistory,
   refreshTrigger = 0,
+  pendingChat,
 }: MobileSidebarProps) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -258,7 +260,11 @@ export function MobileSidebar({
   };
 
   // Use prop history if provided, otherwise use loaded history
-  const displayHistory = propChatHistory && propChatHistory.length > 0 ? propChatHistory : chatHistory;
+  // Add pendingChat at the top if provided and not already in list
+  const baseHistory = propChatHistory && propChatHistory.length > 0 ? propChatHistory : chatHistory;
+  const displayHistory = pendingChat && !baseHistory.some(c => c.id === pendingChat.id)
+    ? [pendingChat, ...baseHistory]
+    : baseHistory;
 
   const userName = user?.user_metadata?.first_name 
     ? `${user.user_metadata.first_name} ${user.user_metadata.last_name?.charAt(0) || ''}.`
