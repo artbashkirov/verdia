@@ -219,9 +219,9 @@ app.post('/scrape/sudact', authMiddleware, async (req, res) => {
     try { 
       await mainPage.waitForSelector('#docListContainer li h4 a', { timeout: 8000 }); 
     } catch { 
-      console.log('No results found');
+      console.log('No results found - NOT caching empty result');
+      // НЕ кэшируем пустые результаты - это может быть временная проблема с сайтом
       const emptyResult = { cases: [], stats: { total: 0, satisfied: 0, partial: 0, rejected: 0, percentage: 0 } };
-      setCache(searchTerms, emptyResult);
       return res.json(emptyResult); 
     }
     
