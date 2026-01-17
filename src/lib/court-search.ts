@@ -75,7 +75,7 @@ const LEGAL_CATEGORIES: Record<string, { keywords: string[]; searchTerms: string
   // Наследственные дела - специфичные подкатегории
   inheritanceNotary: {
     keywords: ['нотариус отказ', 'отказ нотариуса', 'нотариус не выдает', 'нотариус не выдаёт', 'свидетельство о праве на наследство'],
-    searchTerms: 'обжалование отказа нотариуса наследство',
+    searchTerms: 'нотариус выдача свидетельства наследство',
     mosGorsudCategory: 'Наследственные споры',
   },
   inheritanceDeadline: {
