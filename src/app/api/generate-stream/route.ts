@@ -150,6 +150,29 @@ export async function POST(request: NextRequest) {
             return;
           }
 
+          // Check if user already has a generation with the same query (within last 24 hours)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data: existingGeneration } = await (supabase.from('generations') as any)
+            .select('id, response, created_at')
+            .eq('user_id', user.id)
+            .eq('query', query)
+            .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          if (existingGeneration) {
+            // If we found an existing generation, redirect to it
+            sendEvent('complete', { 
+              id: existingGeneration.id, 
+              query, 
+              cached: true,
+              existing: true 
+            });
+            controller.close();
+            return;
+          }
+
           // Get cached response from DB
           const questionId = getExampleQuestionId(query);
           let cachedResponse = null;
@@ -244,6 +267,41 @@ export async function POST(request: NextRequest) {
           sendEvent('error', { message: 'Необходима авторизация' });
           closeController();
           return;
+        }
+
+        // Check if user already has a generation with the same query (within last 24 hours)
+        // This prevents duplicate entries when user clicks the same question multiple times
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: existingGeneration } = await (supabase.from('generations') as any)
+          .select('id, response, created_at')
+          .eq('user_id', user.id)
+          .eq('query', query)
+          .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (existingGeneration) {
+          // If we found an existing generation, redirect to it instead of creating a new one
+          if (existingGeneration.response) {
+            // Generation is complete - send complete event to redirect
+            sendEvent('complete', { 
+              id: existingGeneration.id, 
+              query, 
+              existing: true 
+            });
+            closeController();
+            return;
+          } else {
+            // Generation is in progress - redirect to it (user can wait there)
+            sendEvent('complete', { 
+              id: existingGeneration.id, 
+              query, 
+              inProgress: true 
+            });
+            closeController();
+            return;
+          }
         }
 
         // Step 0: Load user profile for plaintiff info

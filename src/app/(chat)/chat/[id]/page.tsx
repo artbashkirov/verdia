@@ -222,6 +222,8 @@ export default function ChatResultPage() {
   }, [params.id]);
 
   useEffect(() => {
+    let pollInterval: NodeJS.Timeout | null = null;
+    
     async function fetchGeneration() {
       if (!params.id) {
         setIsLoading(false);
@@ -275,9 +277,34 @@ export default function ChatResultPage() {
 
       setGeneration(data as Generation);
       setIsLoading(false);
+      
+      // If response is null, poll every 2 seconds until it's ready
+      if (data && !data.response) {
+        pollInterval = setInterval(async () => {
+          const { data: updatedData } = await supabase
+            .from('generations')
+            .select('*')
+            .eq('id', id)
+            .single();
+          
+          if (updatedData?.response) {
+            setGeneration(updatedData as Generation);
+            if (pollInterval) {
+              clearInterval(pollInterval);
+              pollInterval = null;
+            }
+          }
+        }, 2000);
+      }
     }
 
     fetchGeneration();
+    
+    return () => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+    };
   }, [params.id]);
 
   // Handle action parameter for auto-generating documents
@@ -551,6 +578,33 @@ export default function ChatResultPage() {
         <div className="flex-1 min-w-0 overflow-x-hidden p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A]">
           <div className="h-full bg-background md:rounded-2xl overflow-hidden flex items-center justify-center">
             <div className="w-12 h-12 border-4 border-foreground border-t-transparent rounded-full animate-spin" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if generation exists but response is still null (generation in progress)
+  if (generation && !generation.response) {
+    return (
+      <div className="flex bg-background" style={{ height: 'var(--viewport-height, 100vh)' }}>
+        <MobileHeader 
+          onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          isMenuOpen={isMobileMenuOpen}
+          onNewChat={handleNewChat}
+        />
+        <MobileSidebar
+          isOpen={isMobileMenuOpen}
+          onClose={() => setIsMobileMenuOpen(false)}
+          currentChatId={chatId}
+          onNewChat={handleNewChat}
+        />
+        <Sidebar currentChatId={chatId} onNewChat={handleNewChat} className="hidden md:flex" />
+        <div className="flex-1 min-w-0 overflow-x-hidden p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A]">
+          <div className="h-full bg-background md:rounded-2xl overflow-hidden flex flex-col items-center justify-center">
+            <div className="w-12 h-12 border-4 border-foreground border-t-transparent rounded-full animate-spin mb-4" />
+            <p className="text-lg text-gray-400 mb-2">Анализ в процессе...</p>
+            <p className="text-sm text-gray-500">{generation.query?.slice(0, 50)}...</p>
           </div>
         </div>
       </div>

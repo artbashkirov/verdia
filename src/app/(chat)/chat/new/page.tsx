@@ -388,6 +388,11 @@ function NewChatPageContent() {
             } else if (line.startsWith('data: ') && currentEvent === 'complete') {
               try {
                 const data = JSON.parse(line.slice(6));
+                // If this is an existing generation, redirect to it
+                if (data.existing) {
+                  router.replace(`/chat/${data.id}`);
+                  return;
+                }
                 setChatId(data.id);
                 setIsComplete(true);
                 setPendingChat(prev => prev ? { ...prev, id: data.id } : undefined);
@@ -479,6 +484,11 @@ function NewChatPageContent() {
                   setClarificationRequest(data);
                   break;
                 case 'complete':
+                  // If this is an existing generation (user already has this query), redirect to it
+                  if (data.existing || data.inProgress) {
+                    router.replace(`/chat/${data.id}`);
+                    return;
+                  }
                   setChatId(data.id);
                   setIsComplete(true);
                   // Update pending chat with real ID
