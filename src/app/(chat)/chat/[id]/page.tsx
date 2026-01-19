@@ -275,11 +275,12 @@ export default function ChatResultPage() {
         return;
       }
 
-      setGeneration(data as Generation);
+      const generationData = data as Generation;
+      setGeneration(generationData);
       setIsLoading(false);
       
       // If response is null, poll every 2 seconds until it's ready
-      if (data && !data.response) {
+      if (generationData && !generationData.response) {
         pollInterval = setInterval(async () => {
           const { data: updatedData } = await supabase
             .from('generations')
@@ -287,7 +288,7 @@ export default function ChatResultPage() {
             .eq('id', id)
             .single();
           
-          if (updatedData?.response) {
+          if (updatedData && (updatedData as Generation).response) {
             setGeneration(updatedData as Generation);
             if (pollInterval) {
               clearInterval(pollInterval);
