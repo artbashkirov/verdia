@@ -193,6 +193,7 @@ function NewChatPageContent() {
     const urlQuery = searchParams.get('q');
     const isCached = searchParams.get('cached') === '1';
     const storedQuery = sessionStorage.getItem('pendingQuery');
+    const storedQuestionId = sessionStorage.getItem('pendingQuestionId');
     const queryToUse = urlQuery || storedQuery;
     
     if (!queryToUse) {
@@ -203,14 +204,27 @@ function NewChatPageContent() {
     hasStartedGeneration.current = true;
     setQuery(queryToUse);
     sessionStorage.removeItem('pendingQuery');
+    sessionStorage.removeItem('pendingQuestionId');
     
     // Show in sidebar immediately with temporary ID
-    setPendingChat({
+    const newPendingChat = {
       id: 'pending-' + Date.now(),
       title: queryToUse.slice(0, 50) + (queryToUse.length > 50 ? '...' : ''),
-    });
+    };
+    setPendingChat(newPendingChat);
     
-    // Check for cached response
+    // Also save to localStorage so sidebar shows it when user navigates away
+    try {
+      const cachedHistory = localStorage.getItem('chatHistoryCache');
+      const history = cachedHistory ? JSON.parse(cachedHistory) : [];
+      // Add at the beginning with isGenerating: true
+      const updatedHistory = [{ ...newPendingChat, isGenerating: true }, ...history.filter((c: { title: string }) => c.title !== newPendingChat.title)];
+      localStorage.setItem('chatHistoryCache', JSON.stringify(updatedHistory));
+    } catch (e) {
+      console.error('Error saving pending chat to localStorage:', e);
+    }
+    
+    // Check for cached response (from sessionStorage or fetch from API)
     if (isCached) {
       const cachedData = sessionStorage.getItem('cachedResponse');
       if (cachedData) {
@@ -226,6 +240,26 @@ function NewChatPageContent() {
           // Fall through to normal generation
         }
       }
+    }
+    
+    // If we have a questionId, check cache from API (async, don't block UI)
+    if (storedQuestionId) {
+      const questionId = parseInt(storedQuestionId, 10);
+      // Check cache in background - if found, it will be used, otherwise generation continues
+      fetch(`/api/cached-response?questionId=${questionId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.cached && data.response && !isComplete) {
+            // Cache hit - load cached response
+            loadCachedResponse(queryToUse, {
+              questionId,
+              response: data.response,
+              courtCases: data.courtCases,
+              createdAt: data.createdAt,
+            });
+          }
+        })
+        .catch(err => console.error('Cache check failed:', err));
     }
     
     generateResponseStream(queryToUse);
@@ -396,6 +430,21 @@ function NewChatPageContent() {
                 setChatId(data.id);
                 setIsComplete(true);
                 setPendingChat(prev => prev ? { ...prev, id: data.id } : undefined);
+                // Update localStorage cache - mark as complete
+                try {
+                  const cachedHistory = localStorage.getItem('chatHistoryCache');
+                  if (cachedHistory) {
+                    const history = JSON.parse(cachedHistory);
+                    const updatedHistory = history.map((c: { id: string; title: string; isGenerating?: boolean }) => 
+                      c.id.startsWith('pending-') || c.id === data.id
+                        ? { ...c, id: data.id, isGenerating: false }
+                        : c
+                    );
+                    localStorage.setItem('chatHistoryCache', JSON.stringify(updatedHistory));
+                  }
+                } catch (e) {
+                  console.error('Error updating localStorage cache:', e);
+                }
                 setSidebarRefreshTrigger(prev => prev + 1);
               } catch (e) {
                 console.error('Parse error:', e);
@@ -494,6 +543,21 @@ function NewChatPageContent() {
                   // Update pending chat with real ID
                   if (data.id) {
                     setPendingChat(prev => prev ? { ...prev, id: data.id } : undefined);
+                    // Update localStorage cache - mark as complete (not generating)
+                    try {
+                      const cachedHistory = localStorage.getItem('chatHistoryCache');
+                      if (cachedHistory) {
+                        const history = JSON.parse(cachedHistory);
+                        const updatedHistory = history.map((c: { id: string; title: string; isGenerating?: boolean }) => 
+                          c.id.startsWith('pending-') || c.id === data.id
+                            ? { ...c, id: data.id, isGenerating: false }
+                            : c
+                        );
+                        localStorage.setItem('chatHistoryCache', JSON.stringify(updatedHistory));
+                      }
+                    } catch (e) {
+                      console.error('Error updating localStorage cache:', e);
+                    }
                   }
                   // Refresh sidebar to show new chat
                   setSidebarRefreshTrigger(prev => prev + 1);

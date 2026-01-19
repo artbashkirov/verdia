@@ -9,7 +9,6 @@ export default function ChatPage() {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [checkingCache, setCheckingCache] = useState<number | null>(null);
   
   // Получаем 9 случайных вопросов при загрузке страницы
   // Using ref to generate queries once and avoid SSR mismatch
@@ -34,36 +33,12 @@ export default function ChatPage() {
     router.push(`/chat/new?q=${encodeURIComponent(message)}`);
   };
 
-  const handleExampleClick = async (questionId: number, text: string) => {
-    // Show loading state
-    setCheckingCache(questionId);
-    
-    try {
-      // Check cache first
-      const response = await fetch(`/api/cached-response?questionId=${questionId}`);
-      const data = await response.json();
-      
-      if (data.cached && data.response) {
-        // Cache hit - store cached data and redirect
-        sessionStorage.setItem('pendingQuery', text);
-        sessionStorage.setItem('cachedResponse', JSON.stringify({
-          questionId,
-          response: data.response,
-          courtCases: data.courtCases,
-          createdAt: data.createdAt,
-        }));
-        router.push(`/chat/new?q=${encodeURIComponent(text)}&cached=1`);
-      } else {
-        // Cache miss - normal flow
-        handleSubmit(text);
-      }
-    } catch (error) {
-      console.error('Cache check failed:', error);
-      // Fallback to normal flow
-      handleSubmit(text);
-    } finally {
-      setCheckingCache(null);
-    }
+  const handleExampleClick = (questionId: number, text: string) => {
+    // Navigate immediately - cache check happens on the new page
+    // Store questionId for potential cache lookup on the new page
+    sessionStorage.setItem('pendingQuery', text);
+    sessionStorage.setItem('pendingQuestionId', questionId.toString());
+    router.push(`/chat/new?q=${encodeURIComponent(text)}`);
   };
 
   const handleNewChat = () => {
@@ -128,11 +103,10 @@ export default function ChatPage() {
                       <button
                         key={query.id}
                         onClick={() => handleExampleClick(query.id, query.text)}
-                        disabled={checkingCache === query.id}
-                        className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors disabled:opacity-70"
+                        className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors "
                       >
                         <p className="text-[16px] lg:text-[16px] font-normal text-foreground leading-[24px] lg:leading-[24px]">
-                          {checkingCache === query.id ? 'Загрузка...' : query.text}
+                          {query.text}
                         </p>
                       </button>
                     ))}
@@ -144,11 +118,10 @@ export default function ChatPage() {
                       <button
                         key={query.id}
                         onClick={() => handleExampleClick(query.id, query.text)}
-                        disabled={checkingCache === query.id}
-                        className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors disabled:opacity-70"
+                        className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors "
                       >
                         <p className="text-[16px] lg:text-[16px] font-normal text-foreground leading-[24px] lg:leading-[24px]">
-                          {checkingCache === query.id ? 'Загрузка...' : query.text}
+                          {query.text}
                         </p>
                       </button>
                     ))}
@@ -160,11 +133,10 @@ export default function ChatPage() {
                       <button
                         key={query.id}
                         onClick={() => handleExampleClick(query.id, query.text)}
-                        disabled={checkingCache === query.id}
-                        className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors disabled:opacity-70"
+                        className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors "
                       >
                         <p className="text-[16px] lg:text-[16px] font-normal text-foreground leading-[24px] lg:leading-[24px]">
-                          {checkingCache === query.id ? 'Загрузка...' : query.text}
+                          {query.text}
                         </p>
                       </button>
                     ))}
@@ -177,12 +149,11 @@ export default function ChatPage() {
                     <button
                       key={query.id}
                       onClick={() => handleExampleClick(query.id, query.text)}
-                      disabled={checkingCache === query.id}
-                      className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors w-full disabled:opacity-70"
+                      className="bg-gray-100 px-4 py-3 rounded-xl text-left hover:bg-gray-200 transition-colors w-full "
                       style={{ maxWidth: '400px', margin: '0 auto' }}
                     >
                       <p className="text-[16px] font-normal text-foreground leading-[24px]">
-                        {checkingCache === query.id ? 'Загрузка...' : query.text}
+                        {query.text}
                       </p>
                     </button>
                   ))}

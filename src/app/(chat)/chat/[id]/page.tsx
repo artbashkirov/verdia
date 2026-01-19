@@ -585,10 +585,15 @@ export default function ChatResultPage() {
     );
   }
 
-  // Check if generation exists but response is still null (generation in progress)
-  if (generation && !generation.response) {
+  // Check if generation is in progress (no response OR response has _status: 'generating')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const isGenerating = generation && (!generation.response || (generation.response as any)?._status === 'generating');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const partialCourtCases = (generation?.response as any)?.courtCases;
+  
+  if (isGenerating) {
     return (
-      <div className="flex bg-background" style={{ height: 'var(--viewport-height, 100vh)' }}>
+      <div className="flex bg-background h-screen mobile-fixed-layout" style={{ width: '100%' }}>
         <MobileHeader 
           onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           isMenuOpen={isMobileMenuOpen}
@@ -601,11 +606,129 @@ export default function ChatResultPage() {
           onNewChat={handleNewChat}
         />
         <Sidebar currentChatId={chatId} onNewChat={handleNewChat} className="hidden md:flex" />
-        <div className="flex-1 min-w-0 overflow-x-hidden p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A]">
-          <div className="h-full bg-background md:rounded-2xl overflow-hidden flex flex-col items-center justify-center">
-            <div className="w-12 h-12 border-4 border-foreground border-t-transparent rounded-full animate-spin mb-4" />
-            <p className="text-lg text-gray-400 mb-2">Анализ в процессе...</p>
-            <p className="text-sm text-gray-500">{generation.query?.slice(0, 50)}...</p>
+        <div className="flex-1 flex flex-col min-w-0 p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A] overflow-hidden">
+          <div className="flex-1 bg-background md:rounded-2xl relative flex flex-col overflow-hidden">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden pt-6 md:pt-14 px-0 relative pb-[calc(56px+48px)] md:pb-[calc(56px+64px)]">
+              <div className="w-full max-w-[660px] mx-auto flex flex-col gap-8 break-words px-4">
+                {/* Query */}
+                <h1 className="text-[20px] lg:text-[32px] font-medium text-foreground leading-[28px] lg:leading-[40px] tracking-tight break-words md:mt-0">
+                  {generation?.query}
+                </h1>
+
+                {/* Loading state - show real court cases if available, otherwise skeleton */}
+                <div className="flex flex-col gap-4 animate-fadeIn -mx-4 md:mx-0">
+                  {/* Show searching status if no court cases yet */}
+                  {!partialCourtCases && (
+                    <div className="flex items-center gap-3 px-4 md:px-0">
+                      <div className="flex gap-1">
+                        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </div>
+                      <span className="text-sm text-gray-400">Ищу судебные дела...</span>
+                    </div>
+                  )}
+                  
+                  {/* Show label for court cases if available */}
+                  {partialCourtCases && partialCourtCases.length > 0 && (
+                    <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px] px-4 md:px-0">
+                      Судебные дела
+                    </p>
+                  )}
+                  
+                  <div 
+                    className="overflow-x-auto overflow-y-hidden hide-horizontal-scrollbar pl-4 pr-4 md:pl-0 md:pr-0"
+                    style={{ 
+                      display: 'flex',
+                      gap: '8px',
+                      paddingBottom: '4px',
+                      WebkitOverflowScrolling: 'touch'
+                    }}
+                  >
+                    {/* Show real court cases if available */}
+                    {partialCourtCases && partialCourtCases.length > 0 ? (
+                      <>
+                        {partialCourtCases.map((c: { id: number; title: string; url: string }) => (
+                          <a
+                            key={c.id}
+                            href={c.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => markAsVisited(c.url)}
+                            style={{ 
+                              opacity: visitedUrls.has(c.url) ? 0.5 : 1,
+                              backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F',
+                              width: '240px',
+                              minWidth: '240px',
+                              flexShrink: 0,
+                              padding: '12px',
+                              borderRadius: '16px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '12px',
+                              textDecoration: 'none',
+                              transition: 'background-color 0.2s, opacity 0.2s'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = resolvedTheme === 'light' ? '#E5E5E5' : '#4a4a4a'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F'}
+                          >
+                            <p className="text-[13px] lg:text-[14px] font-medium text-foreground leading-[18px] lg:leading-[20px] line-clamp-3" style={{ margin: 0 }}>
+                              {c.title}
+                            </p>
+                            <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 leading-[14px] lg:leading-[14px]" style={{ margin: 0 }}>
+                              {c.url?.includes('sudact.ru') ? 'sudact.ru' : 
+                               c.url?.includes('help.mos-gorsud.ru') ? 'help.mos-gorsud.ru' : 'mos-gorsud.ru'}
+                            </p>
+                          </a>
+                        ))}
+                        <div className="min-w-4 flex-shrink-0" />
+                      </>
+                    ) : (
+                      /* Skeleton cards when court cases not yet found */
+                      <>
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <div
+                            key={i}
+                            className="animate-pulse"
+                            style={{ 
+                              backgroundColor: resolvedTheme === 'light' ? '#F3F3F3' : '#1E1E1F',
+                              width: '240px',
+                              minWidth: '240px',
+                              flexShrink: 0,
+                              padding: '12px',
+                              borderRadius: '16px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '12px',
+                            }}
+                          >
+                            <div className="space-y-2">
+                              <div className="h-4 rounded w-full" style={{ backgroundColor: resolvedTheme === 'light' ? '#E5E5E5' : '#2a2a2b' }} />
+                              <div className="h-4 rounded w-4/5" style={{ backgroundColor: resolvedTheme === 'light' ? '#E5E5E5' : '#2a2a2b' }} />
+                              <div className="h-4 rounded w-3/5" style={{ backgroundColor: resolvedTheme === 'light' ? '#E5E5E5' : '#2a2a2b' }} />
+                            </div>
+                            <div className="h-3 rounded w-1/3" style={{ backgroundColor: resolvedTheme === 'light' ? '#EBEBEB' : '#252526' }} />
+                          </div>
+                        ))}
+                        <div className="min-w-4 flex-shrink-0" />
+                      </>
+                    )}
+                  </div>
+                  
+                  {/* Show "Preparing response" status AFTER court cases */}
+                  {partialCourtCases && partialCourtCases.length > 0 && (
+                    <div className="flex items-center gap-3 px-4 md:px-0 mt-4">
+                      <div className="flex gap-1">
+                        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </div>
+                      <span className="text-sm text-gray-400">Готовлю ответ...</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

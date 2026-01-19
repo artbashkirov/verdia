@@ -358,21 +358,38 @@ export async function POST(request: NextRequest) {
           percentage: stats.percentage
         });
         
-        // Step 3: Send court cases immediately
+        // Prepare court cases data (used both for SSE and DB)
+        const courtCasesData = cases.slice(0, 5).map((c, i) => ({
+          id: i + 1,
+          title: c.title,
+          url: c.url,
+          court: c.court || '',
+          isSearchLink: c.isSearchLink || false,
+        }));
+
+        // Step 3: Send court cases immediately via SSE
         sendEvent('courtCases', {
-          cases: cases.slice(0, 5).map((c, i) => ({
-            id: i + 1,
-            title: c.title,
-            url: c.url,
-            court: c.court,
-            isSearchLink: c.isSearchLink,
-          })),
+          cases: courtCasesData,
           stats: {
             total: cases.length,
             percentage: stats.percentage,
           },
           courtInfo: courtInfo?.name,
         });
+
+        // Step 3.5: Save court cases to DB immediately (partial state)
+        // This allows users who leave and return to see the found cases
+        if (generationId) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (supabase.from('generations') as any)
+            .update({ 
+              response: { 
+                courtCases: courtCasesData,
+                _status: 'generating' // Mark as in-progress
+              } 
+            })
+            .eq('id', generationId);
+        }
 
         // Step 4: Update status - preparing response
         sendEvent('status', { stage: 'analyzing', message: 'Готовлю ответ (примерно 30 секунд)...' });
@@ -518,6 +535,16 @@ export async function POST(request: NextRequest) {
         if (response.defendantAnalysis) {
           sendEvent('defendantAnalysis', response.defendantAnalysis);
         }
+
+        // Step 9.7: ВАЖНО - Перезаписываем courtCases реальными данными от VPS scraper
+        // AI может сгенерировать свои URL (часто mos-gorsud.ru), но мы используем реальные с sudact.ru
+        response.courtCases = cases.slice(0, 5).map((c, i) => ({
+          id: i + 1,
+          title: c.title,
+          url: c.url,
+          court: c.court || '',
+          isSearchLink: c.isSearchLink || false,
+        }));
 
         // Step 10: Send recommendations
         if (response.recommendations) {

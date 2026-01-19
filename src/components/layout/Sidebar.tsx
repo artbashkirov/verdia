@@ -12,6 +12,7 @@ import type { User } from '@supabase/supabase-js';
 interface ChatHistory {
   id: string;
   title: string;
+  isGenerating?: boolean; // true if response is null (still generating)
 }
 
 interface SidebarProps {
@@ -36,13 +37,65 @@ export function Sidebar({
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [chatHistory, setChatHistory] = useState<ChatHistory[]>([]);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  // Initialize from localStorage to prevent flickering on navigation
+  const [chatHistory, setChatHistory] = useState<ChatHistory[]>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('chatHistoryCache');
+      if (cached) {
+        try {
+          return JSON.parse(cached);
+        } catch (e) {
+          console.error('Error loading cached history:', e);
+        }
+      }
+    }
+    return [];
+  });
+  // Don't show loading if we have cached data
+  const [isLoadingHistory, setIsLoadingHistory] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('chatHistoryCache');
+      return !cached; // Only show loading if no cache
+    }
+    return true;
+  });
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [hasOverflow, setHasOverflow] = useState(false);
+  const [readChats, setReadChats] = useState<Set<string>>(new Set()); // Track which chats have been read
   const dropdownRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<HTMLDivElement>(null);
+
+  // Save chat history to localStorage whenever it changes
+  useEffect(() => {
+    if (chatHistory.length > 0) {
+      localStorage.setItem('chatHistoryCache', JSON.stringify(chatHistory));
+    }
+  }, [chatHistory]);
+
+  // Load read status from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('readChats');
+    if (stored) {
+      try {
+        setReadChats(new Set(JSON.parse(stored)));
+      } catch (e) {
+        console.error('Error loading read chats:', e);
+      }
+    }
+  }, []);
+
+  // Mark current chat as read
+  useEffect(() => {
+    if (currentChatId && !readChats.has(currentChatId)) {
+      setReadChats(prev => {
+        const updated = new Set(prev);
+        updated.add(currentChatId);
+        localStorage.setItem('readChats', JSON.stringify([...updated]));
+        return updated;
+      });
+    }
+  }, [currentChatId]);
 
   useEffect(() => {
     try {
@@ -72,15 +125,58 @@ export function Sidebar({
                 filter: `user_id=eq.${user.id}`,
               },
               (payload) => {
-                // Add new chat to the top of the list
-                const newChat = payload.new as { id: string; query: string };
-                setChatHistory(prev => [
-                  {
-                    id: newChat.id,
-                    title: newChat.query.slice(0, 50) + (newChat.query.length > 50 ? '...' : ''),
-                  },
-                  ...prev,
-                ]);
+                // Add new chat to the top of the list (if not already exists)
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const newChat = payload.new as { id: string; query: string; response: any };
+                const newTitle = newChat.query.slice(0, 50) + (newChat.query.length > 50 ? '...' : '');
+                const isGenerating = !newChat.response || newChat.response?._status === 'generating';
+                const titlePrefix = newTitle.slice(0, 30); // For fuzzy matching
+                
+                setChatHistory(prev => {
+                  // Check if already exists by ID
+                  if (prev.some(c => c.id === newChat.id)) {
+                    return prev.map(c => c.id === newChat.id ? { ...c, isGenerating } : c);
+                  }
+                  
+                  // Check if there's a pending item with similar title - replace it
+                  const hasPendingDuplicate = prev.some(c => 
+                    c.id.startsWith('pending-') && c.title.slice(0, 30) === titlePrefix
+                  );
+                  
+                  if (hasPendingDuplicate) {
+                    // Replace the pending item with the real one
+                    return prev.map(c => 
+                      c.id.startsWith('pending-') && c.title.slice(0, 30) === titlePrefix
+                        ? { id: newChat.id, title: newTitle, isGenerating }
+                        : c
+                    );
+                  }
+                  
+                  // Check if there's any item with exactly same title
+                  if (prev.some(c => c.title === newTitle)) {
+                    return prev;
+                  }
+                  
+                  return [{ id: newChat.id, title: newTitle, isGenerating }, ...prev];
+                });
+              }
+            )
+            .on(
+              'postgres_changes',
+              {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'generations',
+                filter: `user_id=eq.${user.id}`,
+              },
+              (payload) => {
+                // Update generating status when response is ready
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const updated = payload.new as { id: string; response: any };
+                const isGenerating = !updated.response || updated.response?._status === 'generating';
+                setChatHistory(prev => prev.map(c => 
+                  c.id === updated.id ? { ...c, isGenerating } : c
+                ));
               }
             )
             .on(
@@ -131,6 +227,42 @@ export function Sidebar({
     }
   }, []);
 
+  // Poll for generating items to check if they're complete (every 3 seconds)
+  useEffect(() => {
+    const generatingItems = chatHistory.filter(c => c.isGenerating);
+    if (generatingItems.length === 0) return;
+
+    const pollInterval = setInterval(async () => {
+      const supabase = createClient();
+      const ids = generatingItems.map(c => c.id);
+      
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data } = await (supabase.from('generations') as any)
+        .select('id, response')
+        .in('id', ids);
+      
+      if (data) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const updates = data.filter((item: any) => 
+          item.response && item.response._status !== 'generating'
+        );
+        
+        if (updates.length > 0) {
+          setChatHistory(prev => prev.map(c => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const updated = updates.find((u: any) => u.id === c.id);
+            if (updated) {
+              return { ...c, isGenerating: false };
+            }
+            return c;
+          }));
+        }
+      }
+    }, 3000);
+
+    return () => clearInterval(pollInterval);
+  }, [chatHistory]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -164,18 +296,21 @@ export function Sidebar({
   // Refresh history when trigger changes
   useEffect(() => {
     if (refreshTrigger > 0 && user) {
-      loadChatHistory(user.id);
+      loadChatHistory(user.id, true); // isRefresh = true, don't show loading
     }
   }, [refreshTrigger]);
 
-  const loadChatHistory = async (userId: string) => {
+  const loadChatHistory = async (userId: string, isRefresh: boolean = false) => {
     try {
-      setIsLoadingHistory(true);
+      // Only show loading state if no cached data
+      if (!isRefresh && chatHistory.length === 0) {
+        setIsLoadingHistory(true);
+      }
       const supabase = createClient();
       
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data, error } = await (supabase.from('generations') as any)
-        .select('id, query, created_at')
+        .select('id, query, response, created_at')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
@@ -183,12 +318,24 @@ export function Sidebar({
         console.error('Error loading chat history:', error);
         setChatHistory([]);
       } else {
-        setChatHistory(
-          (data || []).map((item: { id: string; query: string }) => ({
-            id: item.id,
-            title: item.query.slice(0, 50) + (item.query.length > 50 ? '...' : ''),
-          }))
-        );
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const historyItems = (data || []).map((item: { id: string; query: string; response: any }) => ({
+          id: item.id,
+          title: item.query.slice(0, 50) + (item.query.length > 50 ? '...' : ''),
+          isGenerating: !item.response || item.response?._status === 'generating',
+        }));
+        setChatHistory(historyItems);
+        
+        // Mark all completed chats as "read" - only new background generations should show blue dot
+        const completedIds = historyItems.filter((c: { isGenerating?: boolean }) => !c.isGenerating).map((c: { id: string }) => c.id);
+        if (completedIds.length > 0) {
+          setReadChats(prev => {
+            const updated = new Set(prev);
+            completedIds.forEach((id: string) => updated.add(id));
+            localStorage.setItem('readChats', JSON.stringify([...updated]));
+            return updated;
+          });
+        }
       }
     } catch (error) {
       console.error('Error in loadChatHistory:', error);
@@ -257,10 +404,14 @@ export function Sidebar({
   };
 
   // Use prop history if provided, otherwise use loaded history
-  // Add pendingChat at the top if provided and not already in list
+  // Add pendingChat at the top if provided and not already in list (check by ID AND title)
   const baseHistory = propChatHistory && propChatHistory.length > 0 ? propChatHistory : chatHistory;
-  const displayHistory = pendingChat && !baseHistory.some(c => c.id === pendingChat.id)
-    ? [pendingChat, ...baseHistory]
+  const pendingAlreadyExists = pendingChat && baseHistory.some(c => 
+    c.id === pendingChat.id || c.title === pendingChat.title
+  );
+  // pendingChat is always generating (that's why it's pending)
+  const displayHistory = pendingChat && !pendingAlreadyExists
+    ? [{ ...pendingChat, isGenerating: true }, ...baseHistory]
     : baseHistory;
 
   const userName = user?.user_metadata?.first_name 
@@ -366,42 +517,73 @@ export function Sidebar({
         {/* Chat history */}
         {!isCollapsed && (
           <div ref={historyRef} className="flex flex-col gap-2 flex-1 overflow-y-auto" style={{ marginTop: '12px', width: '100%' }}>
-            {isLoadingHistory ? (
-              <div className="p-3 text-sm text-gray-400">Загрузка...</div>
-            ) : displayHistory.length === 0 ? (
+            {displayHistory.length === 0 ? (
               null
             ) : (
-              displayHistory.map((chat) => (
-                <div
-                  key={chat.id}
-                  className={`
-                    group relative h-10 rounded-xl transition-colors
-                    ${currentChatId === chat.id ? 'bg-white/10' : 'hover:bg-white/10'}
-                  `}
-                >
-                  <Link
-                    href={`/chat/${chat.id}`}
-                    className="flex items-center gap-2 w-full h-full px-3 overflow-hidden"
+              displayHistory.map((chat) => {
+                const isCurrentPage = currentChatId === chat.id;
+                const isUnread = !isCurrentPage && !chat.isGenerating && !readChats.has(chat.id);
+                const showSpinner = !isCurrentPage && chat.isGenerating;
+                
+                return (
+                  <div
+                    key={chat.id}
+                    className={`
+                      group relative h-10 rounded-xl transition-colors
+                      ${isCurrentPage ? 'bg-white/10' : 'hover:bg-white/10'}
+                    `}
                   >
-                    <MessageCircleMore className="w-4 h-4 text-white shrink-0" strokeWidth="1.5" />
-                    <span className="text-sm font-medium text-white truncate">
-                      {chat.title}
-                    </span>
-                  </Link>
-                  <div className="absolute right-0 top-0 h-full flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="w-12 h-full bg-gradient-to-r from-[#17181A]/0 to-[#17181A]" />
-                    <div className="h-full flex items-center bg-[#17181A] pr-2">
-                      <button
-                        onClick={(e) => handleDeleteChat(e, chat.id)}
-                        className="p-1 rounded-lg hover:bg-white/10"
-                        title="Удалить"
-                      >
-                        <TrashIcon className="w-4 h-4 text-gray-400 hover:text-red-400" />
-                      </button>
+                    <Link
+                      href={`/chat/${chat.id}`}
+                      className="flex items-center gap-2 w-full h-full px-3 overflow-hidden"
+                    >
+                      <MessageCircleMore className="w-4 h-4 text-white shrink-0" strokeWidth="1.5" />
+                      <span className="text-sm font-medium text-white truncate">
+                        {chat.title}
+                      </span>
+                    </Link>
+                    
+                    {/* Right side indicators */}
+                    <div className="absolute right-0 top-0 h-full flex items-center">
+                      {/* Spinner for generating (always visible when generating) */}
+                      {showSpinner && (
+                        <>
+                          <div className="w-8 h-full bg-gradient-to-r from-[#17181A]/0 to-[#17181A]" />
+                          <div className="h-full flex items-center bg-[#17181A] pr-3">
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          </div>
+                        </>
+                      )}
+                      
+                      {/* Blue dot for unread (always visible when unread) */}
+                      {isUnread && !showSpinner && (
+                        <>
+                          <div className="w-8 h-full bg-gradient-to-r from-[#17181A]/0 to-[#17181A]" />
+                          <div className="h-full flex items-center bg-[#17181A] pr-3">
+                            <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                          </div>
+                        </>
+                      )}
+                      
+                      {/* Delete button (only on hover, only for read items) */}
+                      {!showSpinner && !isUnread && (
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                          <div className="w-12 h-full bg-gradient-to-r from-[#17181A]/0 to-[#17181A]" />
+                          <div className="h-full flex items-center bg-[#17181A] pr-2">
+                            <button
+                              onClick={(e) => handleDeleteChat(e, chat.id)}
+                              className="p-1 rounded-lg hover:bg-white/10"
+                              title="Удалить"
+                            >
+                              <TrashIcon className="w-4 h-4 text-gray-400 hover:text-red-400" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}
@@ -446,7 +628,7 @@ export function Sidebar({
                 className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-foreground hover:bg-gray-100 transition-colors"
               >
                 <UserIcon className="w-[18px] h-[18px]" />
-                <span>Профиль истца</span>
+                <span>Профиль</span>
               </Link>
               <button
                 onClick={handleClearHistory}
