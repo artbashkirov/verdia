@@ -37,31 +37,12 @@ export function Sidebar({
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
-  // Initialize from localStorage to prevent flickering on navigation
-  const [chatHistory, setChatHistory] = useState<ChatHistory[]>(() => {
-    if (typeof window !== 'undefined') {
-      const cached = localStorage.getItem('chatHistoryCache');
-      if (cached) {
-        try {
-          return JSON.parse(cached);
-        } catch (e) {
-          console.error('Error loading cached history:', e);
-        }
-      }
-    }
-    return [];
-  });
-  // Don't show loading if we have cached data
-  const [isLoadingHistory, setIsLoadingHistory] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const cached = localStorage.getItem('chatHistoryCache');
-      return !cached; // Only show loading if no cache
-    }
-    return true;
-  });
+  const [chatHistory, setChatHistory] = useState<ChatHistory[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [hasOverflow, setHasOverflow] = useState(false);
-  const [readChats, setReadChats] = useState<Set<string>>(new Set()); // Track which chats have been read
+  const [readChats, setReadChats] = useState<Set<string>>(new Set());
+  const [isMounted, setIsMounted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<HTMLDivElement>(null);
@@ -73,8 +54,22 @@ export function Sidebar({
     }
   }, [chatHistory]);
 
-  // Load read status from localStorage
+  // Initialize from localStorage after mount
   useEffect(() => {
+    setIsMounted(true);
+    
+    // Load cached chat history
+    const cachedHistory = localStorage.getItem('chatHistoryCache');
+    if (cachedHistory) {
+      try {
+        setChatHistory(JSON.parse(cachedHistory));
+        setIsLoadingHistory(false);
+      } catch (e) {
+        console.error('Error loading cached history:', e);
+      }
+    }
+    
+    // Load read status
     const stored = localStorage.getItem('readChats');
     if (stored) {
       try {
@@ -443,6 +438,11 @@ export function Sidebar({
       }
     }
   };
+
+  // Don't render until mounted to avoid hydration mismatch
+  if (!isMounted) {
+    return <div className={`h-screen bg-[#17181A] w-[282px] ${className}`} />;
+  }
 
   return (
     <div 

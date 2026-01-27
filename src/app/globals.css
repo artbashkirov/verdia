@@ -415,3 +415,13 @@ input.dark-input:-webkit-autofill:focus {
   color: var(--foreground) !important;
   text-decoration: underline;
 }
+
+/* Chat item text truncation on hover */
+.chat-item-text {
+  max-width: 100%;
+  transition: max-width 0.15s ease-out;
+}
+
+.group:hover .chat-item-text-truncate {
+  max-width: calc(100% - 16px);
+}

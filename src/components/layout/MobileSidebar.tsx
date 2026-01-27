@@ -2,10 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { MessageCircleMore } from 'lucide-react';
-import { PlusIcon, TrashIcon, HelpCircleIcon, ChevronDownIcon, UserIcon } from '@/components/icons';
+import { TrashIcon, HelpCircleIcon, ChevronDownIcon, UserIcon } from '@/components/icons';
 import { createClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
@@ -39,30 +37,11 @@ export function MobileSidebar({
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
-  // Initialize from localStorage to prevent flickering on navigation
-  const [chatHistory, setChatHistory] = useState<ChatHistory[]>(() => {
-    if (typeof window !== 'undefined') {
-      const cached = localStorage.getItem('chatHistoryCache');
-      if (cached) {
-        try {
-          return JSON.parse(cached);
-        } catch (e) {
-          console.error('Error loading cached history:', e);
-        }
-      }
-    }
-    return [];
-  });
-  // Don't show loading if we have cached data
-  const [isLoadingHistory, setIsLoadingHistory] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const cached = localStorage.getItem('chatHistoryCache');
-      return !cached; // Only show loading if no cache
-    }
-    return true;
-  });
+  const [chatHistory, setChatHistory] = useState<ChatHistory[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [hasOverflow, setHasOverflow] = useState(false);
-  const [readChats, setReadChats] = useState<Set<string>>(new Set()); // Track which chats have been read
+  const [readChats, setReadChats] = useState<Set<string>>(new Set());
+  const [isMounted, setIsMounted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<HTMLDivElement>(null);
@@ -74,8 +53,22 @@ export function MobileSidebar({
     }
   }, [chatHistory]);
 
-  // Load read status from localStorage
+  // Initialize from localStorage after mount
   useEffect(() => {
+    setIsMounted(true);
+    
+    // Load cached chat history
+    const cachedHistory = localStorage.getItem('chatHistoryCache');
+    if (cachedHistory) {
+      try {
+        setChatHistory(JSON.parse(cachedHistory));
+        setIsLoadingHistory(false);
+      } catch (e) {
+        console.error('Error loading cached history:', e);
+      }
+    }
+    
+    // Load read status
     const stored = localStorage.getItem('readChats');
     if (stored) {
       try {
@@ -434,6 +427,11 @@ export function MobileSidebar({
     return 'П';
   };
 
+  // Don't render until mounted to avoid hydration mismatch
+  if (!isMounted) {
+    return null;
+  }
+
   return (
     <>
       {/* Overlay */}
@@ -441,129 +439,80 @@ export function MobileSidebar({
         <div className="fixed inset-0 bg-black/50 z-[60] md:hidden" onClick={onClose} />
       )}
 
-      {/* Sidebar */}
+      {/* Bottom Sheet Menu */}
       <div
         ref={sidebarRef}
-        className={`fixed top-0 left-0 bg-[#17181A] flex flex-col shrink-0 transition-transform duration-300 ease-in-out z-[70] md:hidden ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed bottom-0 left-0 right-0 bg-[#17181A] flex flex-col transition-transform duration-300 ease-in-out z-[70] md:hidden h-[90dvh] rounded-t-[32px] ${
+          isOpen ? 'translate-y-0' : 'translate-y-full'
         }`}
-        style={{ 
-          width: '60vw',
-          height: '100dvh'
-        }}
       >
-        {/* Top section */}
-        <div className="flex flex-col flex-1 min-h-0 pt-5 px-4">
-          {/* Logo - full version */}
-          <div className="flex items-center mb-5">
-            <Link href="/chat" onClick={handleChatClick} className="flex items-center justify-center" style={{ lineHeight: 0 }}>
-              <Image
-                src="/verdiaLogo.svg"
-                alt="Verdia"
-                width={100}
-                height={20}
-                priority
-                className="object-contain"
-                style={{ height: '20px', width: 'auto', display: 'block' }}
-              />
-            </Link>
-          </div>
+        {/* Drag indicator */}
+        <div className="flex justify-center pt-3 pb-2">
+          <div className="w-9 h-1 bg-white/30 rounded-full" />
+        </div>
 
-          {/* New request button */}
-          <button
-            onClick={() => {
-              if (onNewChat) {
-                onNewChat();
-              } else {
-                router.push('/chat');
-              }
-              onClose();
-            }}
-            className="w-full h-10 flex items-center justify-center gap-2 bg-white text-black rounded-xl hover:bg-gray-100 transition-colors"
-            style={{ marginTop: '0' }}
-          >
-            <PlusIcon className="w-4 h-4" />
-            <span className="text-sm font-medium">Новый запрос</span>
-          </button>
-
-          {/* Chat history */}
-          <div ref={historyRef} className="flex flex-col gap-2 flex-1 overflow-y-auto" style={{ marginTop: '12px' }}>
-            {displayHistory.length === 0 ? (
-              null
-            ) : (
-              displayHistory.map((chat) => {
-                const isCurrentPage = currentChatId === chat.id;
-                const isUnread = !isCurrentPage && !chat.isGenerating && !readChats.has(chat.id);
-                const showSpinner = !isCurrentPage && chat.isGenerating;
-                
-                return (
+        {/* Chat history - scrollable area */}
+        <div ref={historyRef} className="flex flex-col gap-2 flex-1 overflow-y-auto px-4 pt-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          {displayHistory.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center">
+              <span className="text-sm text-gray-400">История запросов пуста</span>
+            </div>
+          ) : (
+            displayHistory.map((chat) => {
+              const isCurrentPage = currentChatId === chat.id;
+              const isUnread = !isCurrentPage && !chat.isGenerating && !readChats.has(chat.id);
+              const showSpinner = !isCurrentPage && chat.isGenerating;
+              
+              // Determine if delete button will show on hover
+              const showDeleteOnHover = !showSpinner && !isUnread;
+              
+              return (
                 <div
                   key={chat.id}
-                  className={`
-                    group relative h-10 rounded-xl transition-colors
-                      ${isCurrentPage ? 'bg-white/10' : 'hover:bg-white/10'}
-                  `}
+                  className={`group relative h-10 rounded-xl transition-colors ${isCurrentPage ? 'bg-white/10' : 'hover:bg-white/5'}`}
                 >
                   <Link
                     href={`/chat/${chat.id}`}
                     onClick={handleChatClick}
-                    className="flex items-center gap-2 w-full h-full px-3 overflow-hidden"
+                    className="flex items-center w-full h-full px-3"
                   >
-                    <MessageCircleMore className="w-4 h-4 text-white shrink-0" strokeWidth="1.5" />
-                    <span className="text-sm font-medium text-white truncate">
+                    <span 
+                      className={`text-sm font-medium text-white truncate chat-item-text ${showDeleteOnHover ? 'chat-item-text-truncate' : ''}`}
+                      title=""
+                    >
                       {chat.title}
                     </span>
                   </Link>
-                    
-                    {/* Right side indicators */}
-                    <div className="absolute right-0 top-0 h-full flex items-center">
-                      {/* Spinner for generating (always visible when generating) */}
-                      {showSpinner && (
-                        <>
-                          <div className="w-8 h-full bg-gradient-to-r from-[#17181A]/0 to-[#17181A]" />
-                          <div className="h-full flex items-center bg-[#17181A] pr-3">
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          </div>
-                        </>
-                      )}
-                      
-                      {/* Blue dot for unread (always visible when unread) */}
-                      {isUnread && !showSpinner && (
-                        <>
-                          <div className="w-8 h-full bg-gradient-to-r from-[#17181A]/0 to-[#17181A]" />
-                          <div className="h-full flex items-center bg-[#17181A] pr-3">
-                            <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                          </div>
-                        </>
-                      )}
-                      
-                      {/* Delete button (only on hover, only for read items) */}
-                      {!showSpinner && !isUnread && (
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
-                    <div className="w-12 h-full bg-gradient-to-r from-[#17181A]/0 to-[#17181A]" />
-                    <div className="h-full flex items-center bg-[#17181A] pr-2">
-                      <button
-                        onClick={(e) => handleDeleteChat(e, chat.id)}
-                        className="p-1 rounded-lg hover:bg-white/10"
-                        title="Удалить"
-                      >
-                        <TrashIcon className="w-4 h-4 text-gray-400 hover:text-red-400" />
-                      </button>
+                  
+                  {/* Right side indicators */}
+                  {showSpinner && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     </div>
-                        </div>
-                      )}
-                  </div>
+                  )}
+                  
+                  {isUnread && !showSpinner && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                    </div>
+                  )}
+                  
+                  {showDeleteOnHover && (
+                    <button
+                      onClick={(e) => handleDeleteChat(e, chat.id)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <TrashIcon className="w-4 h-4 text-gray-500 hover:text-red-400 transition-colors" />
+                    </button>
+                  )}
                 </div>
-                );
-              })
-            )}
-          </div>
+              );
+            })
+          )}
         </div>
 
-        {/* Bottom section */}
-        <div className="pb-5 px-4 shrink-0">
-          {/* Divider - only show when chat history overflows */}
-          {hasOverflow && <div className="h-px bg-white/10 mb-3" />}
+        {/* Bottom section - fixed at bottom */}
+        <div className="px-4 pb-4 shrink-0">
           {/* User profile */}
           <div className="relative" ref={dropdownRef}>
             <button 
@@ -620,6 +569,17 @@ export function MobileSidebar({
               </div>
             )}
           </div>
+
+          {/* Divider */}
+          <div className="h-px bg-white/10 my-4" />
+
+          {/* Close button */}
+          <button
+            onClick={onClose}
+            className="w-full h-12 flex items-center justify-center bg-white/10 text-white rounded-xl hover:bg-white/20 transition-colors"
+          >
+            <span className="text-sm font-medium">Закрыть</span>
+          </button>
         </div>
       </div>
     </>

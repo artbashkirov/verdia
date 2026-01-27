@@ -127,7 +127,7 @@ export default function ProfilePage() {
           <div className="max-w-3xl mx-auto px-4 py-8">
             {/* Header */}
             <div className="mb-8">
-              <h1 className="text-2xl font-semibold text-foreground">Профиль истца</h1>
+              <h1 className="text-2xl font-semibold text-foreground">Профиль</h1>
               <p className="text-secondary-text mt-2">
                 Эти данные будут использоваться при генерации документов и анализе подсудности
               </p>

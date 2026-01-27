@@ -63,6 +63,7 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${outfit.variable} antialiased`}
         style={{ fontSize: '16px', margin: 0, padding: 0 }}
+        suppressHydrationWarning
       >
         <ThemeProvider>
           <ScrollbarHandler />
