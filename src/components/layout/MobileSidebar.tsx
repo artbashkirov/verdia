@@ -44,7 +44,7 @@ export function MobileSidebar({
   const [isMounted, setIsMounted] = useState(false);
   const [swipedChatId, setSwipedChatId] = useState<string | null>(null);
   const touchStartX = useRef<number>(0);
-  const touchCurrentX = useRef<number>(0);
+  const swipeRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const dropdownRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<HTMLDivElement>(null);
@@ -296,6 +296,10 @@ export function MobileSidebar({
   useEffect(() => {
     if (!isOpen) {
       setSwipedChatId(null);
+      // Reset all swipe transforms
+      swipeRefs.current.forEach((el) => {
+        el.style.transform = 'translateX(0)';
+      });
     }
   }, [isOpen]);
 
@@ -449,13 +453,28 @@ export function MobileSidebar({
         <div className="fixed inset-0 bg-black/50 z-[60] md:hidden" onClick={onClose} />
       )}
 
+      {/* Close button - fixed at bottom of screen */}
+      <div
+        className={`fixed bottom-0 left-0 right-0 z-[80] md:hidden px-4 bg-[#17181A] transition-transform duration-300 ease-in-out ${
+          isOpen ? 'translate-y-0' : 'translate-y-full'
+        }`}
+        style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
+      >
+        <button
+          onClick={onClose}
+          className="w-full h-12 flex items-center justify-center bg-white/10 text-white rounded-xl hover:bg-white/20 transition-colors"
+        >
+          <span className="text-sm font-medium">Закрыть</span>
+        </button>
+      </div>
+
       {/* Bottom Sheet Menu */}
       <div
         ref={sidebarRef}
-        className={`fixed bottom-0 left-0 right-0 bg-[#17181A] flex flex-col transition-transform duration-300 ease-in-out z-[70] md:hidden rounded-t-[32px] ${
+        className={`fixed left-0 right-0 bg-[#17181A] flex flex-col transition-transform duration-300 ease-in-out z-[70] md:hidden rounded-t-[32px] ${
           isOpen ? 'translate-y-0' : 'translate-y-full'
         }`}
-        style={{ maxHeight: 'calc(100dvh - 70px)', height: '90%' }}
+        style={{ bottom: 'calc(48px + 16px + max(16px, env(safe-area-inset-bottom)))', maxHeight: 'calc(100dvh - 140px)', height: '85%' }}
       >
         {/* Drag indicator */}
         <div className="flex justify-center pt-3 pb-2">
@@ -479,24 +498,33 @@ export function MobileSidebar({
               const handleTouchStart = (e: React.TouchEvent) => {
                 if (!canDelete) return;
                 touchStartX.current = e.touches[0].clientX;
-                touchCurrentX.current = e.touches[0].clientX;
               };
               
               const handleTouchMove = (e: React.TouchEvent) => {
                 if (!canDelete) return;
-                touchCurrentX.current = e.touches[0].clientX;
+                const diff = touchStartX.current - e.touches[0].clientX;
+                const el = swipeRefs.current.get(chat.id);
+                if (el) {
+                  // Instant transform - no transition during drag
+                  const translateX = Math.max(0, Math.min(48, diff));
+                  el.style.transition = 'none';
+                  el.style.transform = `translateX(-${translateX}px)`;
+                }
               };
               
-              const handleTouchEnd = () => {
+              const handleTouchEnd = (e: React.TouchEvent) => {
                 if (!canDelete) return;
-                const diff = touchStartX.current - touchCurrentX.current;
-                // Swipe left to show delete (threshold 50px)
-                if (diff > 50) {
-                  setSwipedChatId(chat.id);
-                } 
-                // Swipe right to hide delete
-                else if (diff < -30) {
-                  setSwipedChatId(null);
+                const diff = touchStartX.current - e.changedTouches[0].clientX;
+                const el = swipeRefs.current.get(chat.id);
+                if (el) {
+                  el.style.transition = 'transform 0.15s ease-out';
+                  if (diff > 40) {
+                    el.style.transform = 'translateX(-48px)';
+                    setSwipedChatId(chat.id);
+                  } else {
+                    el.style.transform = 'translateX(0)';
+                    setSwipedChatId(null);
+                  }
                 }
               };
               
@@ -510,8 +538,8 @@ export function MobileSidebar({
                 >
                   {/* Chat content - slides when swiped */}
                   <div 
-                    className={`absolute inset-0 flex items-center ${isSwiped ? '-translate-x-12' : 'translate-x-0'}`}
-                    style={{ transition: 'transform 0.15s ease-out' }}
+                    ref={(el) => { if (el) swipeRefs.current.set(chat.id, el); }}
+                    className="absolute inset-0 flex items-center"
                   >
                     <Link
                       href={`/chat/${chat.id}`}
@@ -558,8 +586,8 @@ export function MobileSidebar({
           )}
         </div>
 
-        {/* Bottom section - fixed at bottom */}
-        <div className="px-4 shrink-0" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
+        {/* Bottom section */}
+        <div className="px-4 pb-4 shrink-0">
           {/* User profile */}
           <div className="relative" ref={dropdownRef}>
             <button 
@@ -616,17 +644,6 @@ export function MobileSidebar({
               </div>
             )}
           </div>
-
-          {/* Divider */}
-          <div className="h-px bg-white/10 my-4" />
-
-          {/* Close button */}
-          <button
-            onClick={onClose}
-            className="w-full h-12 flex items-center justify-center bg-white/10 text-white rounded-xl hover:bg-white/20 transition-colors"
-          >
-            <span className="text-sm font-medium">Закрыть</span>
-          </button>
         </div>
       </div>
     </>
