@@ -452,9 +452,10 @@ export function MobileSidebar({
       {/* Bottom Sheet Menu */}
       <div
         ref={sidebarRef}
-        className={`fixed bottom-0 left-0 right-0 bg-[#17181A] flex flex-col transition-transform duration-300 ease-in-out z-[70] md:hidden h-[80dvh] rounded-t-[32px] ${
+        className={`fixed bottom-0 left-0 right-0 bg-[#17181A] flex flex-col transition-transform duration-300 ease-in-out z-[70] md:hidden rounded-t-[32px] ${
           isOpen ? 'translate-y-0' : 'translate-y-full'
         }`}
+        style={{ height: 'calc(var(--viewport-height, 90vh) * 0.9)' }}
       >
         {/* Drag indicator */}
         <div className="flex justify-center pt-3 pb-2">
@@ -502,7 +503,7 @@ export function MobileSidebar({
               return (
                 <div
                   key={chat.id}
-                  className={`group relative h-10 rounded-xl overflow-hidden ${isCurrentPage ? 'bg-white/10' : ''}`}
+                  className={`group relative h-10 min-h-10 shrink-0 rounded-xl overflow-hidden ${isCurrentPage ? 'bg-white/10' : ''}`}
                   onTouchStart={handleTouchStart}
                   onTouchMove={handleTouchMove}
                   onTouchEnd={handleTouchEnd}
@@ -557,7 +558,7 @@ export function MobileSidebar({
         </div>
 
         {/* Bottom section - fixed at bottom */}
-        <div className="px-4 pb-4 shrink-0">
+        <div className="px-4 shrink-0" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
           {/* User profile */}
           <div className="relative" ref={dropdownRef}>
             <button 
