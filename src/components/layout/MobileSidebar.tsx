@@ -453,28 +453,13 @@ export function MobileSidebar({
         <div className="fixed inset-0 bg-black/50 z-[60] md:hidden" onClick={onClose} />
       )}
 
-      {/* Close button - fixed at bottom of screen */}
-      <div
-        className={`fixed bottom-0 left-0 right-0 z-[80] md:hidden px-4 bg-[#17181A] transition-transform duration-300 ease-in-out ${
-          isOpen ? 'translate-y-0' : 'translate-y-full'
-        }`}
-        style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
-      >
-        <button
-          onClick={onClose}
-          className="w-full h-12 flex items-center justify-center bg-white/10 text-white rounded-xl hover:bg-white/20 transition-colors"
-        >
-          <span className="text-sm font-medium">Закрыть</span>
-        </button>
-      </div>
-
       {/* Bottom Sheet Menu */}
       <div
         ref={sidebarRef}
-        className={`fixed left-0 right-0 bg-[#17181A] flex flex-col transition-transform duration-300 ease-in-out z-[70] md:hidden rounded-t-[32px] ${
+        className={`fixed bottom-0 left-0 right-0 bg-[#17181A] flex flex-col transition-transform duration-300 ease-in-out z-[70] md:hidden rounded-t-[32px] ${
           isOpen ? 'translate-y-0' : 'translate-y-full'
         }`}
-        style={{ bottom: 'calc(48px + 16px + max(16px, env(safe-area-inset-bottom)))', maxHeight: 'calc(100dvh - 140px)', height: '85%' }}
+        style={{ height: '90dvh' }}
       >
         {/* Drag indicator */}
         <div className="flex justify-center pt-3 pb-2">
@@ -587,7 +572,7 @@ export function MobileSidebar({
         </div>
 
         {/* Bottom section */}
-        <div className="px-4 pb-4 shrink-0">
+        <div className="px-4 shrink-0" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
           {/* User profile */}
           <div className="relative" ref={dropdownRef}>
             <button 
@@ -644,6 +629,17 @@ export function MobileSidebar({
               </div>
             )}
           </div>
+
+          {/* Divider */}
+          <div className="h-px bg-white/10 my-4" />
+
+          {/* Close button */}
+          <button
+            onClick={onClose}
+            className="w-full h-12 flex items-center justify-center bg-white/10 text-white rounded-xl hover:bg-white/20 transition-colors"
+          >
+            <span className="text-sm font-medium">Закрыть</span>
+          </button>
         </div>
       </div>
     </>
