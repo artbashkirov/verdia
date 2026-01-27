@@ -42,6 +42,9 @@ export function MobileSidebar({
   const [hasOverflow, setHasOverflow] = useState(false);
   const [readChats, setReadChats] = useState<Set<string>>(new Set());
   const [isMounted, setIsMounted] = useState(false);
+  const [swipedChatId, setSwipedChatId] = useState<string | null>(null);
+  const touchStartX = useRef<number>(0);
+  const touchCurrentX = useRef<number>(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<HTMLDivElement>(null);
@@ -289,6 +292,13 @@ export function MobileSidebar({
     return () => window.removeEventListener('resize', checkOverflow);
   }, [chatHistory, isOpen]);
 
+  // Reset swiped state when menu closes
+  useEffect(() => {
+    if (!isOpen) {
+      setSwipedChatId(null);
+    }
+  }, [isOpen]);
+
   // Refresh history when trigger changes
   useEffect(() => {
     if (refreshTrigger > 0 && user) {
@@ -442,7 +452,7 @@ export function MobileSidebar({
       {/* Bottom Sheet Menu */}
       <div
         ref={sidebarRef}
-        className={`fixed bottom-0 left-0 right-0 bg-[#17181A] flex flex-col transition-transform duration-300 ease-in-out z-[70] md:hidden h-[90dvh] rounded-t-[32px] ${
+        className={`fixed bottom-0 left-0 right-0 bg-[#17181A] flex flex-col transition-transform duration-300 ease-in-out z-[70] md:hidden h-[80dvh] rounded-t-[32px] ${
           isOpen ? 'translate-y-0' : 'translate-y-full'
         }`}
       >
@@ -462,47 +472,82 @@ export function MobileSidebar({
               const isCurrentPage = currentChatId === chat.id;
               const isUnread = !isCurrentPage && !chat.isGenerating && !readChats.has(chat.id);
               const showSpinner = !isCurrentPage && chat.isGenerating;
+              const isSwiped = swipedChatId === chat.id;
+              const canDelete = !showSpinner && !isUnread;
               
-              // Determine if delete button will show on hover
-              const showDeleteOnHover = !showSpinner && !isUnread;
+              const handleTouchStart = (e: React.TouchEvent) => {
+                if (!canDelete) return;
+                touchStartX.current = e.touches[0].clientX;
+                touchCurrentX.current = e.touches[0].clientX;
+              };
+              
+              const handleTouchMove = (e: React.TouchEvent) => {
+                if (!canDelete) return;
+                touchCurrentX.current = e.touches[0].clientX;
+              };
+              
+              const handleTouchEnd = () => {
+                if (!canDelete) return;
+                const diff = touchStartX.current - touchCurrentX.current;
+                // Swipe left to show delete (threshold 50px)
+                if (diff > 50) {
+                  setSwipedChatId(chat.id);
+                } 
+                // Swipe right to hide delete
+                else if (diff < -30) {
+                  setSwipedChatId(null);
+                }
+              };
               
               return (
                 <div
                   key={chat.id}
-                  className={`group relative h-10 rounded-xl transition-colors ${isCurrentPage ? 'bg-white/10' : 'hover:bg-white/5'}`}
+                  className={`group relative h-10 rounded-xl overflow-hidden ${isCurrentPage ? 'bg-white/10' : ''}`}
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
                 >
-                  <Link
-                    href={`/chat/${chat.id}`}
-                    onClick={handleChatClick}
-                    className="flex items-center w-full h-full px-3"
+                  {/* Chat content - slides when swiped */}
+                  <div 
+                    className={`absolute inset-0 flex items-center transition-transform duration-200 ${isSwiped ? '-translate-x-12' : 'translate-x-0'}`}
                   >
-                    <span 
-                      className={`text-sm font-medium text-white truncate chat-item-text ${showDeleteOnHover ? 'chat-item-text-truncate' : ''}`}
-                      title=""
+                    <Link
+                      href={`/chat/${chat.id}`}
+                      onClick={handleChatClick}
+                      className="flex items-center w-full h-full px-3"
                     >
-                      {chat.title}
-                    </span>
-                  </Link>
+                      <span 
+                        className="text-sm font-medium text-white truncate"
+                        title=""
+                      >
+                        {chat.title}
+                      </span>
+                    </Link>
+                    
+                    {/* Right side indicators */}
+                    {showSpinner && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      </div>
+                    )}
+                    
+                    {isUnread && !showSpinner && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                      </div>
+                    )}
+                  </div>
                   
-                  {/* Right side indicators */}
-                  {showSpinner && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    </div>
-                  )}
-                  
-                  {isUnread && !showSpinner && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                    </div>
-                  )}
-                  
-                  {showDeleteOnHover && (
+                  {/* Delete button - revealed on swipe */}
+                  {canDelete && (
                     <button
-                      onClick={(e) => handleDeleteChat(e, chat.id)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => {
+                        handleDeleteChat(e, chat.id);
+                        setSwipedChatId(null);
+                      }}
+                      className={`absolute right-0 top-0 h-full w-12 flex items-center justify-center bg-red-500 transition-opacity duration-200 ${isSwiped ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
                     >
-                      <TrashIcon className="w-4 h-4 text-gray-500 hover:text-red-400 transition-colors" />
+                      <TrashIcon className="w-4 h-4 text-white" />
                     </button>
                   )}
                 </div>
