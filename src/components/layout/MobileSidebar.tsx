@@ -303,6 +303,18 @@ export function MobileSidebar({
     }
   }, [isOpen]);
 
+  // Block body scroll when menu is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
   // Refresh history when trigger changes
   useEffect(() => {
     if (refreshTrigger > 0 && user) {
@@ -456,10 +468,10 @@ export function MobileSidebar({
       {/* Bottom Sheet Menu */}
       <div
         ref={sidebarRef}
-        className={`fixed bottom-0 left-0 right-0 bg-[#17181A] flex flex-col transition-transform duration-300 ease-in-out z-[70] md:hidden rounded-t-[32px] ${
+        className={`fixed bottom-0 left-0 right-0 bg-[#17181A] flex flex-col transition-transform duration-300 ease-in-out z-[70] md:hidden rounded-t-[32px] overflow-hidden ${
           isOpen ? 'translate-y-0' : 'translate-y-full'
         }`}
-        style={{ height: '90dvh' }}
+        style={{ maxHeight: '90dvh' }}
       >
         {/* Drag indicator */}
         <div className="flex justify-center pt-3 pb-2">
