@@ -455,7 +455,7 @@ export function MobileSidebar({
         className={`fixed bottom-0 left-0 right-0 bg-[#17181A] flex flex-col transition-transform duration-300 ease-in-out z-[70] md:hidden rounded-t-[32px] ${
           isOpen ? 'translate-y-0' : 'translate-y-full'
         }`}
-        style={{ height: 'calc(var(--viewport-height, 90vh) * 0.9)' }}
+        style={{ maxHeight: 'calc(100dvh - 70px)', height: '90%' }}
       >
         {/* Drag indicator */}
         <div className="flex justify-center pt-3 pb-2">
@@ -503,14 +503,15 @@ export function MobileSidebar({
               return (
                 <div
                   key={chat.id}
-                  className={`group relative h-10 min-h-10 shrink-0 rounded-xl overflow-hidden ${isCurrentPage ? 'bg-white/10' : ''}`}
+                  className={`group relative h-10 min-h-10 shrink-0 rounded-xl overflow-hidden transition-colors ${isCurrentPage ? 'bg-white/10' : 'active:bg-white/10'}`}
                   onTouchStart={handleTouchStart}
                   onTouchMove={handleTouchMove}
                   onTouchEnd={handleTouchEnd}
                 >
                   {/* Chat content - slides when swiped */}
                   <div 
-                    className={`absolute inset-0 flex items-center transition-transform duration-200 ${isSwiped ? '-translate-x-12' : 'translate-x-0'}`}
+                    className={`absolute inset-0 flex items-center ${isSwiped ? '-translate-x-12' : 'translate-x-0'}`}
+                    style={{ transition: 'transform 0.15s ease-out' }}
                   >
                     <Link
                       href={`/chat/${chat.id}`}

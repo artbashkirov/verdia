@@ -524,63 +524,44 @@ export function Sidebar({
                 const isCurrentPage = currentChatId === chat.id;
                 const isUnread = !isCurrentPage && !chat.isGenerating && !readChats.has(chat.id);
                 const showSpinner = !isCurrentPage && chat.isGenerating;
+                const showDeleteOnHover = !showSpinner && !isUnread;
                 
                 return (
                   <div
                     key={chat.id}
-                    className={`
-                      group relative h-10 rounded-xl transition-colors
-                      ${isCurrentPage ? 'bg-white/10' : 'hover:bg-white/10'}
-                    `}
+                    className={`group relative h-10 rounded-xl transition-colors ${isCurrentPage ? 'bg-white/10' : 'hover:bg-white/5'}`}
                   >
                     <Link
                       href={`/chat/${chat.id}`}
                       className="flex items-center gap-2 w-full h-full px-3 overflow-hidden"
                     >
                       <MessageCircleMore className="w-4 h-4 text-white shrink-0" strokeWidth="1.5" />
-                      <span className="text-sm font-medium text-white truncate">
+                      <span className={`text-sm font-medium text-white truncate chat-item-text ${showDeleteOnHover ? 'chat-item-text-truncate' : ''}`}>
                         {chat.title}
                       </span>
                     </Link>
                     
                     {/* Right side indicators */}
-                    <div className="absolute right-0 top-0 h-full flex items-center">
-                      {/* Spinner for generating (always visible when generating) */}
-                      {showSpinner && (
-                        <>
-                          <div className="w-8 h-full bg-gradient-to-r from-[#17181A]/0 to-[#17181A]" />
-                          <div className="h-full flex items-center bg-[#17181A] pr-3">
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          </div>
-                        </>
-                      )}
-                      
-                      {/* Blue dot for unread (always visible when unread) */}
-                      {isUnread && !showSpinner && (
-                        <>
-                          <div className="w-8 h-full bg-gradient-to-r from-[#17181A]/0 to-[#17181A]" />
-                          <div className="h-full flex items-center bg-[#17181A] pr-3">
-                            <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                          </div>
-                        </>
-                      )}
-                      
-                      {/* Delete button (only on hover, only for read items) */}
-                      {!showSpinner && !isUnread && (
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
-                          <div className="w-12 h-full bg-gradient-to-r from-[#17181A]/0 to-[#17181A]" />
-                          <div className="h-full flex items-center bg-[#17181A] pr-2">
-                            <button
-                              onClick={(e) => handleDeleteChat(e, chat.id)}
-                              className="p-1 rounded-lg hover:bg-white/10"
-                              title="Удалить"
-                            >
-                              <TrashIcon className="w-4 h-4 text-gray-400 hover:text-red-400" />
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                    {showSpinner && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      </div>
+                    )}
+                    
+                    {isUnread && !showSpinner && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                      </div>
+                    )}
+                    
+                    {showDeleteOnHover && (
+                      <button
+                        onClick={(e) => handleDeleteChat(e, chat.id)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <TrashIcon className="w-4 h-4 text-gray-500 hover:text-red-400 transition-colors" />
+                      </button>
+                    )}
                   </div>
                 );
               })
