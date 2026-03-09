@@ -68,51 +68,72 @@ function sleep(ms) {
  * Генерирует embeddings через OpenAI API
  * Батчит до 2048 inputs за раз (лимит OpenAI)
  */
-async function generateEmbeddings(texts, batchSize = 100) {
-  const allEmbeddings = [];
+async function callEmbeddingsAPI(inputs) {
+  const response = await fetch('https://api.openai.com/v1/embeddings', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${OPENAI_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: EMBEDDING_MODEL,
+      input: inputs,
+      dimensions: EMBEDDING_DIMENSIONS,
+    }),
+  });
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(`OpenAI API error: ${response.status} ${JSON.stringify(error)}`);
+  }
+  
+  const data = await response.json();
+  return data.data.sort((a, b) => a.index - b.index).map(d => d.embedding);
+}
+
+async function generateEmbeddings(texts, batchSize = 20) {
+  const allEmbeddings = new Array(texts.length).fill(null);
+  let done = 0;
   
   for (let i = 0; i < texts.length; i += batchSize) {
     const batch = texts.slice(i, i + batchSize);
     
-    const response = await fetch('https://api.openai.com/v1/embeddings', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENAI_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: EMBEDDING_MODEL,
-        input: batch,
-        dimensions: EMBEDDING_DIMENSIONS,
-      }),
-    });
-    
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(`OpenAI API error: ${response.status} ${JSON.stringify(error)}`);
+    try {
+      const embeddings = await callEmbeddingsAPI(batch);
+      for (let j = 0; j < embeddings.length; j++) {
+        allEmbeddings[i + j] = embeddings[j];
+      }
+      done += embeddings.length;
+    } catch (error) {
+      console.log(`\n  ⚠️  Батч ${i}-${i + batch.length} ошибка: ${error.message.substring(0, 80)}`);
+      console.log(`  Пробую по одному...`);
+      for (let j = 0; j < batch.length; j++) {
+        try {
+          const [embedding] = await callEmbeddingsAPI([batch[j]]);
+          allEmbeddings[i + j] = embedding;
+          done++;
+        } catch (singleErr) {
+          console.log(`  ❌ Чанк ${i + j} пропущен (${batch[j].length} символов): ${singleErr.message.substring(0, 60)}`);
+        }
+        await sleep(100);
+      }
     }
     
-    const data = await response.json();
-    const embeddings = data.data
-      .sort((a, b) => a.index - b.index)
-      .map(d => d.embedding);
-    
-    allEmbeddings.push(...embeddings);
-    
-    if (i + batchSize < texts.length) {
-      process.stdout.write(`  Embeddings: ${allEmbeddings.length}/${texts.length}\r`);
-      await sleep(200);
-    }
+    process.stdout.write(`  Embeddings: ${done}/${texts.length}\r`);
+    if (i + batchSize < texts.length) await sleep(200);
   }
   
-  console.log(`  Embeddings: ${allEmbeddings.length}/${texts.length} ✅`);
+  console.log(`  Embeddings: ${done}/${texts.length} ✅`);
   return allEmbeddings;
 }
 
 /**
  * Формирует текст для embedding: заголовок + контекст + содержимое
- * Это помогает получить более точные результаты поиска
+ * Обрезает до MAX_EMBED_CHARS чтобы не превысить лимит токенов модели (8191)
+ * Русский текст ≈ 2-3 токена на слово, ~6000 символов ≈ ~4000 токенов — безопасно
  */
+const MAX_EMBED_CHARS = 6000;
+
 function buildEmbeddingText(article) {
   const parts = [];
   
@@ -125,7 +146,11 @@ function buildEmbeddingText(article) {
   parts.push(`Статья ${article.article_number}. ${article.article_title}`);
   parts.push(article.content_chunk);
   
-  return parts.join('\n');
+  let text = parts.join('\n');
+  if (text.length > MAX_EMBED_CHARS) {
+    text = text.substring(0, MAX_EMBED_CHARS);
+  }
+  return text;
 }
 
 async function indexCode(codeSlug, dataDir, batchSize) {
@@ -187,18 +212,23 @@ async function indexCode(codeSlug, dataDir, batchSize) {
     const batch = toIndex.slice(i, i + uploadBatchSize);
     const batchEmbeddings = embeddings.slice(i, i + uploadBatchSize);
     
-    const rows = batch.map((article, j) => ({
-      code_slug: article.code_slug,
-      code_name: article.code_name,
-      article_number: article.article_number,
-      article_title: article.article_title,
-      section_path: article.section_path || null,
-      content: article.content,
-      content_chunk: article.content_chunk,
-      chunk_index: article.chunk_index,
-      embedding: JSON.stringify(batchEmbeddings[j]),
-      source_url: article.source_url,
-    }));
+    const rows = batch
+      .map((article, j) => {
+        if (!batchEmbeddings[j]) return null;
+        return {
+          code_slug: article.code_slug,
+          code_name: article.code_name,
+          article_number: article.article_number,
+          article_title: article.article_title,
+          section_path: article.section_path || null,
+          content: article.content.substring(0, 10000),
+          content_chunk: article.content_chunk,
+          chunk_index: article.chunk_index,
+          embedding: JSON.stringify(batchEmbeddings[j]),
+          source_url: article.source_url,
+        };
+      })
+      .filter(Boolean);
     
     const { error } = await supabase
       .from('law_articles')

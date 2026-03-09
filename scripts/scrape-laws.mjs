@@ -138,59 +138,80 @@ function parseTableOfContents(html, codePath) {
 }
 
 /**
+ * Убирает HTML-теги и преобразует в чистый текст
+ */
+function htmlToText(html) {
+  return html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<\/h[1-6]>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#\d+;/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/**
  * Парсит страницу отдельной статьи и извлекает текст
  */
-function parseArticlePage(html, articleNum) {
-  // Find article title - pattern: "# Статья X ... . Title."
+function parseArticlePage(rawHtml, articleNum) {
+  const text = htmlToText(rawHtml);
+  
+  // Find article title
   let title = '';
-  const titleMatch = html.match(
-    /# Статья\s+[\d.]+[^.]*?\.\s*([^.#\n]+)/
+  const escapedNum = articleNum.replace('.', '\\.');
+  const titleMatch = text.match(
+    new RegExp(`Статья\\s+${escapedNum}[^.]*\\.\\s*([^\\n.]+)`, 'i')
   );
   if (titleMatch) {
     title = titleMatch[1].trim().replace(/\s+/g, ' ');
   }
   
-  // Strategy: extract text between article heading and "Судебная практика" section or navigation
-  // The article text is between "---" after title and "← Статья" navigation
-  
   let content = '';
   
-  // Find the article heading line
+  // Find the article text between its heading and "Судебная практика" or next article link
   const headingPattern = new RegExp(
-    `# Статья\\s+${articleNum.replace('.', '\\.')}[^\\n]*\\n`,
+    `Статья\\s+${escapedNum}[^\\n]*\\n`,
     'i'
   );
-  const headingMatch = html.match(headingPattern);
+  const headingMatch = text.match(headingPattern);
   
   if (headingMatch) {
     const startIdx = headingMatch.index + headingMatch[0].length;
     
-    // Find the end markers
     const endMarkers = [
-      '## Судебная практика',
-      '← [Статья',
+      'Судебная практика по статье',
+      'Судебная практика',
       '← Статья',
-      '[Статья',  // navigation links at the bottom
+      'Страницы←',
     ];
     
-    let endIdx = html.length;
+    let endIdx = text.length;
     for (const marker of endMarkers) {
-      const idx = html.indexOf(marker, startIdx);
+      const idx = text.indexOf(marker, startIdx);
       if (idx !== -1 && idx < endIdx) {
         endIdx = idx;
       }
     }
     
-    content = html.substring(startIdx, endIdx);
+    content = text.substring(startIdx, endIdx);
   }
   
   if (!content) {
-    // Fallback: try to find numbered paragraphs (1. ... 2. ...)
+    // Fallback: find numbered paragraphs that look like law text
     const paragraphs = [];
     const pRegex = /^(\d+)\.\s+(.+)/gm;
     let pMatch;
-    while ((pMatch = pRegex.exec(html)) !== null) {
-      // Skip if it looks like a court case list item
+    while ((pMatch = pRegex.exec(text)) !== null) {
       if (pMatch[2].includes('Решение №') || pMatch[2].includes('районный суд')) continue;
       paragraphs.push(pMatch[0]);
     }
@@ -199,27 +220,43 @@ function parseArticlePage(html, articleNum) {
     }
   }
   
-  // Clean up content
+  // Clean up
   content = content
-    .replace(/^--+\s*/gm, '')                     // Remove horizontal rules
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')       // Remove markdown links, keep text
-    .replace(/^#{1,6}\s+/gm, '')                   // Remove markdown headings
-    .replace(/\*\*([^*]+)\*\*/g, '$1')             // Remove bold
-    .replace(/\*([^*]+)\*/g, '$1')                 // Remove italic
-    .replace(/^\s*[-*]\s+/gm, '')                  // Remove list markers
-    .replace(/\n{3,}/g, '\n\n')                    // Collapse multiple newlines
-    .replace(/^\|.*\|$/gm, '')                     // Remove table rows
-    .replace(/^---+$/gm, '')                       // Remove horizontal rules
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/^\s*[-*]\s+/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/^\|.*\|$/gm, '')
+    .replace(/^---+$/gm, '')
+    .replace(/Свернуть все[\s\S]*?Развернуть/g, '')
+    .replace(/Найти\s*[∨∧]/g, '')
+    .replace(/Отправить на e-mail[\s\S]*$/g, '')
     .trim();
   
-  // Extract section path from navigation
+  // Extract section path
   let sectionPath = '';
   const sectionParts = [];
-  const sectionRegex = /\[(Раздел[^\]]+|Подраздел[^\]]+|Глава[^\]]+|§[^\]]+)\]/g;
-  let sMatch;
-  while ((sMatch = sectionRegex.exec(html)) !== null) {
-    const part = sMatch[1].trim();
-    if (!sectionParts.includes(part)) {
+  const sectionPatterns = [
+    /(?:^|\n)(Раздел\s+[IVXLC]+[^.\n]*)/g,
+    /(?:^|\n)(Подраздел\s+\d+[^.\n]*)/g,
+    /(?:^|\n)(Глава\s+\d+[^.\n]*)/g,
+  ];
+  for (const regex of sectionPatterns) {
+    let sMatch;
+    while ((sMatch = regex.exec(rawHtml)) !== null) {
+      const part = htmlToText(sMatch[1]).trim();
+      if (part && !sectionParts.includes(part) && part.length < 200) {
+        sectionParts.push(part);
+      }
+    }
+  }
+  // Also try from link text
+  const linkSectionRegex = />(Раздел[^<]+|Подраздел[^<]+|Глава[^<]+)</g;
+  let lsMatch;
+  while ((lsMatch = linkSectionRegex.exec(rawHtml)) !== null) {
+    const part = lsMatch[1].trim();
+    if (part && !sectionParts.includes(part) && part.length < 200) {
       sectionParts.push(part);
     }
   }
@@ -234,7 +271,7 @@ function parseArticlePage(html, articleNum) {
  * Нарезает текст на чанки по ~800 токенов (~3200 символов)
  * Разбивает по пунктам статьи (1., 2., 3. ...) или по абзацам
  */
-function chunkContent(content, maxChars = 3000) {
+function chunkContent(content, maxChars = 1500) {
   if (content.length <= maxChars) {
     return [content];
   }
