@@ -107,7 +107,8 @@ export async function searchLawArticles(
       params.target_code_slug = codeSlug;
     }
 
-    const { data, error } = await supabase.rpc(functionName, params);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.rpc as any)(functionName, params);
 
     if (error) {
       console.error('[RAG] Vector search error:', error.message);
