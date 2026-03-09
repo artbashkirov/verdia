@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { generateLegalResponse } from '@/lib/openai';
 import { searchCourtCases } from '@/lib/court-search';
+import { getLawContext } from '@/lib/rag';
 import { exampleQueries } from '@/lib/example-queries';
 import type { UserProfile, PersonType } from '@/types/database';
 
@@ -338,15 +339,22 @@ export async function POST(request: NextRequest) {
         const finalDefendantName = defendantName || parties.defendantName;
         const finalDefendantLocation = defendantLocation || parties.defendantLocation || 'Москва';
         
-        // Step 2: Search court cases
-        const searchResults = await searchCourtCases(query, {
-          maxResults: 5,
-          defendantName: finalDefendantName,
-          defendantLocation: finalDefendantLocation,
-          plaintiffLocation: userProfile?.registration_city,
-        });
+        // Step 2: Search court cases + RAG law articles in parallel
+        const [searchResults, ragResult] = await Promise.all([
+          searchCourtCases(query, {
+            maxResults: 5,
+            defendantName: finalDefendantName,
+            defendantLocation: finalDefendantLocation,
+            plaintiffLocation: userProfile?.registration_city,
+          }),
+          getLawContext(query, { matchCount: 5, matchThreshold: 0.3 }).catch(err => {
+            console.error('[RAG] Error (non-fatal):', err);
+            return { context: '', articles: [] };
+          }),
+        ]);
         
         const { cases, stats, courtInfo, category } = searchResults;
+        const lawContext = ragResult.context;
         
         // Debug: log stats to verify they're correct
         console.log('Search results stats:', {
@@ -394,7 +402,7 @@ export async function POST(request: NextRequest) {
         // Step 4: Update status - preparing response
         sendEvent('status', { stage: 'analyzing', message: 'Готовлю ответ (примерно 30 секунд)...' });
 
-        // Build enhanced query with plaintiff context
+        // Build enhanced query with plaintiff context + RAG law context
         const plaintiffContext = formatPlaintiffContext(userProfile);
         
         const enhancedSearchResults = {
@@ -402,9 +410,9 @@ export async function POST(request: NextRequest) {
           plaintiffContext,
         };
 
-        // Step 5: Generate AI response
+        // Step 5: Generate AI response (with RAG law context injected)
         const responseJson = await generateLegalResponse(
-          query + plaintiffContext, 
+          query + plaintiffContext + lawContext, 
           enhancedSearchResults
         );
         

@@ -40,7 +40,7 @@
 |------------|------------|
 | **Next.js API Routes** | HTTP эндпоинты |
 | **Supabase** | База данных (PostgreSQL), аутентификация |
-| **OpenAI API** | AI генерация (GPT-4o, GPT-4o-mini) |
+| **Gemini / OpenAI** | AI: Gemini — основная для анализа исков; OpenAI опционально |
 | **Puppeteer** | Парсинг судебных решений |
 
 ### Инфраструктура
@@ -50,7 +50,7 @@
 | **Nginx** | Reverse proxy, SSL |
 | **PM2** | Менеджер процессов |
 | **GitHub Actions** | CI/CD автодеплой |
-| **Vercel** | Альтернативный хостинг |
+| **VPS REG.RU** | Production хостинг (используется только он) |
 
 ---
 
@@ -102,7 +102,7 @@ src/
 │   │   ├── client.ts          # Клиентский SDK
 │   │   ├── server.ts          # Серверный SDK
 │   │   └── middleware.ts      # Middleware для auth
-│   ├── openai.ts              # OpenAI интеграция
+│   ├── openai.ts              # AI: Gemini (основная) и OpenAI (опционально)
 │   ├── prompts.ts             # AI промпты
 │   ├── court-search.ts        # Поиск судебной практики
 │   ├── docx-generator.ts      # Генерация DOCX
@@ -315,7 +315,7 @@ interface ChatHistoryItem {
 ```
 1. ChatInput → POST /api/generate-stream
 2. API извлекает данные профиля истца из Supabase
-3. API отправляет запрос в OpenAI (GPT-4o)
+3. API отправляет запрос в AI (Gemini — основная модель)
 4. Стриминг ответа через ReadableStream
 5. Ответ сохраняется в таблицу generations
 6. Создаётся запись в chat_history
@@ -327,7 +327,7 @@ interface ChatHistoryItem {
 ```
 1. Пользователь запрашивает документы
 2. POST /api/generate с контекстом
-3. OpenAI генерирует текст документов
+3. AI (Gemini) генерирует текст документов
 4. docx-generator создаёт DOCX файлы
 5. Файлы скачиваются через file-saver
 ```
@@ -406,8 +406,10 @@ AI отвечает в формате JSON со следующей структ�
 NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...
 
-# OpenAI
-OPENAI_API_KEY=sk-...
+# AI: Gemini (основная) — Cloudflare Worker; OpenAI (опционально)
+CLOUDFLARE_WORKER_URL=...
+CLOUDFLARE_WORKER_SECRET=...
+# OPENAI_API_KEY=sk-...
 
 # VPS Scraper (опционально)
 VPS_SCRAPER_URL=http://193.227.240.206:3001
@@ -488,10 +490,7 @@ pm2 restart verdia --update-env
 cd /opt/verdia-app && git log -1 --oneline
 ```
 
-### Vercel (альтернативный)
-
-1. Push в репозиторий
-2. Vercel автоматически собирает и деплоит
+Деплой выполняется только на VPS REG.RU через GitHub Actions (см. ARCHITECTURE.md).
 
 ---
 
@@ -535,7 +534,7 @@ AI-генерации ответов
 | Сервис | URL | Назначение |
 |--------|-----|------------|
 | **Supabase** | supabase.com | БД, Auth |
-| **OpenAI** | openai.com | AI API |
+| **Gemini / OpenAI** | Cloudflare Worker / openai.com | AI (Gemini — основная) |
 | **sudact.ru** | sudact.ru | Судебная практика |
 | **mos-gorsud.ru** | mos-gorsud.ru | Московские суды |
 

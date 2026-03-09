@@ -61,14 +61,22 @@ async function setupEnv() {
     envContent += `NEXT_PUBLIC_SUPABASE_ANON_KEY=${supabaseKey.trim()}\n`;
   }
 
-  // Запрашиваем OpenAI Key (опционально)
+  // Gemini (основная AI для анализа исков) — Cloudflare Worker
+  const workerUrl = await question('Введите CLOUDFLARE_WORKER_URL для Gemini (основная AI, нажмите Enter чтобы пропустить): ');
+  if (workerUrl.trim()) {
+    envContent += `CLOUDFLARE_WORKER_URL=${workerUrl.trim()}\n`;
+    const workerSecret = await question('Введите CLOUDFLARE_WORKER_SECRET: ');
+    if (workerSecret.trim()) envContent += `CLOUDFLARE_WORKER_SECRET=${workerSecret.trim()}\n`;
+    envContent += 'AI_PROVIDER=gemini\n';
+  }
+  // OpenAI (опционально)
   const openaiKey = await question('Введите OPENAI_API_KEY (опционально, нажмите Enter чтобы пропустить): ');
   if (openaiKey.trim()) {
     envContent += `OPENAI_API_KEY=${openaiKey.trim()}\n`;
   }
 
   // Записываем файл
-  const fullContent = `# Supabase Configuration
+  const fullContent = `# Supabase + AI (Gemini — основная, OpenAI — опционально)
 # Generated automatically by setup script
 ${envContent}
 `;

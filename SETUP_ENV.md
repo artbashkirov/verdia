@@ -10,7 +10,7 @@ npm run setup-env
 Скрипт попросит вас ввести:
 1. `NEXT_PUBLIC_SUPABASE_URL` - URL вашего проекта Supabase
 2. `NEXT_PUBLIC_SUPABASE_ANON_KEY` - публичный ключ Supabase
-3. `OPENAI_API_KEY` - ключ OpenAI (опционально)
+3. `CLOUDFLARE_WORKER_URL`, `CLOUDFLARE_WORKER_SECRET` — для Gemini (основная AI); `OPENAI_API_KEY` — опционально
 
 ## Ручная настройка
 
@@ -20,7 +20,8 @@ npm run setup-env
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://ваш-проект.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=ваш_реальный_ключ
-OPENAI_API_KEY=ваш_openai_ключ
+# Gemini (основная): CLOUDFLARE_WORKER_URL=..., CLOUDFLARE_WORKER_SECRET=...
+# OPENAI_API_KEY=ваш_openai_ключ  # опционально
 ```
 
 ## Где взять Supabase credentials

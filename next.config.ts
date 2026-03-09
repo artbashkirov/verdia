@@ -4,7 +4,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  // Optimize for Vercel deployment (only for production build)
+  // Production build (деплой на VPS REG.RU)
   // output: 'standalone',
   
   // Отключаем некоторые оптимизации для стабильности с iCloud путями

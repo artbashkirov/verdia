@@ -361,6 +361,27 @@ app.post('/scrape/sudact', authMiddleware, async (req, res) => {
   }
 });
 
+// Прокси для загрузки произвольной страницы (используется скрапером законодательства)
+app.post('/fetch-page', authMiddleware, async (req, res) => {
+  const { url } = req.body;
+  if (!url) return res.status(400).json({ error: 'url required' });
+  
+  let page;
+  try {
+    const browser = await getBrowser();
+    page = await createPage(browser);
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
+    
+    const html = await page.content();
+    res.json({ html });
+  } catch (e) {
+    console.error('fetch-page error:', e.message);
+    res.status(500).json({ error: e.message });
+  } finally {
+    if (page) await page.close().catch(() => {});
+  }
+});
+
 // Очистка кэша
 app.post('/cache/clear', authMiddleware, (req, res) => {
   cache = {};

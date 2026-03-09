@@ -27,7 +27,7 @@ export function createClient() {
 
   // Дополнительная проверка: если URL содержит ключ (случайно склеились), попробуем разделить
   if (supabaseUrl.includes('NEXT_PUBLIC_SUPABASE_ANON_KEY') || supabaseUrl.includes('supabase_anon_key')) {
-    console.error('Invalid Supabase URL: URL and key appear to be concatenated. Please check Vercel environment variables.');
+    console.error('Invalid Supabase URL: URL and key appear to be concatenated. Please check environment variables on server or in .env.local.');
     const parts = supabaseUrl.split(/[=&]/);
     if (parts.length > 1) {
       supabaseUrl = parts[0];
@@ -39,7 +39,7 @@ export function createClient() {
   if (supabaseUrl.includes('eyJ') || supabaseUrl.length > 200) {
     console.error('Invalid Supabase URL: URL appears to contain the API key. URL:', supabaseUrl.substring(0, 100));
     throw new Error(
-      'URL Supabase содержит ключ API. Проверьте переменные окружения в Vercel: NEXT_PUBLIC_SUPABASE_URL должен содержать только URL (https://xxx.supabase.co), без ключа.'
+      'URL Supabase содержит ключ API. Проверьте переменные окружения (на сервере или в .env.local): NEXT_PUBLIC_SUPABASE_URL должен содержать только URL (https://xxx.supabase.co), без ключа.'
     );
   }
 

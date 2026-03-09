@@ -124,7 +124,7 @@
 | Сервис | Роль |
 |--------|------|
 | **Supabase** | База данных (PostgreSQL), аутентификация |
-| **OpenAI API** | AI генерация текста (GPT-4o) |
+| **Gemini (Cloudflare Worker)** | Основная AI для анализа исков; OpenAI — опционально |
 | **Cloudflare Worker** | Проксирование Replicate API |
 | **VPS Scraper** | Парсинг судебных решений |
 
@@ -265,8 +265,8 @@ export async function POST(request: Request) {
   // 1. Получает данные из запроса
   const body = await request.json();
   
-  // 2. Вызывает OpenAI API
-  const response = await openai.chat.completions.create({...});
+  // 2. Вызывает AI (Gemini по умолчанию или OpenAI)
+  const response = await chatCompletion([...]);
   
   // 3. Сохраняет в Supabase
   await supabase.from('generations').insert({...});
@@ -296,23 +296,15 @@ const { data, error } = await supabase
   .eq('user_id', userId);
 ```
 
-#### B. OpenAI API (AI)
+#### B. AI (Gemini — основная, OpenAI — опционально)
 ```
-Next.js API Route → OpenAI SDK → OpenAI API (GPT-4o)
+Next.js API Route → Gemini (через Cloudflare Worker) или OpenAI SDK
 ```
 
 **Что делает:**
-- Генерирует текстовые ответы
-- Анализирует юридические вопросы
+- Генерирует текстовые ответы (основная модель — Gemini)
+- Анализирует юридические вопросы и иски
 - Генерирует документы
-
-**Пример:**
-```typescript
-const completion = await openai.chat.completions.create({
-  model: "gpt-4o",
-  messages: [{ role: "user", content: "..." }],
-});
-```
 
 #### C. VPS Scraper (Парсинг)
 ```
@@ -439,7 +431,7 @@ VPS → npm install
 - Использует `package.json` для определения зависимостей
 
 **Зависимости:**
-- **Production**: next, react, @supabase/supabase-js, openai, и др.
+- **Production**: next, react, @supabase/supabase-js, openai (опционально), и др.
 - **Dev**: typescript, eslint, tailwindcss, и др.
 
 ### 7. Сборка приложения
@@ -557,7 +549,7 @@ PM2 → Node.js → Next.js → Приложение работает на по�
 #### 2. Пользователь делает запрос к API
 
 ```
-Браузер → HTTPS → Nginx → HTTP → PM2 → Node.js → Next.js → API Route → Supabase/OpenAI → JSON → Браузер
+Браузер → HTTPS → Nginx → HTTP → PM2 → Node.js → Next.js → API Route → Supabase/Gemini(OpenAI) → JSON → Браузер
 ```
 
 #### 3. Аутентификация
@@ -718,19 +710,16 @@ server {
 - Безопасность (RLS)
 - Масштабируемость
 
-### OpenAI API
+### Gemini (основная AI) и OpenAI (опционально)
 
-**Что это:** API для доступа к GPT моделям.
+**Gemini** — основная нейросеть для анализа исков и генерации юридических ответов (через Cloudflare Worker / Replicate API).
+
+**OpenAI** — опциональная альтернатива (GPT-4o и др.).
 
 **Роль в проекте:**
 - Генерация текстовых ответов
-- Анализ юридических вопросов
+- Анализ юридических вопросов и исков
 - Генерация документов
-
-**Почему важен:**
-- AI функциональность
-- Высокое качество ответов (GPT-4o)
-- API удобен в использовании
 
 ---
 
@@ -751,7 +740,7 @@ server {
    ↓
 6. NEXT.JS (обрабатывает запрос)
    ↓
-7. ВНЕШНИЕ СЕРВИСЫ (Supabase, OpenAI, и др.)
+7. ВНЕШНИЕ СЕРВИСЫ (Supabase, Gemini/OpenAI, и др.)
    ↓
 8. ОТВЕТ → NEXT.JS → NODE.JS → PM2 → NGINX → БРАУЗЕР → ПОЛЬЗОВАТЕЛЬ
 ```
@@ -791,7 +780,7 @@ server {
 | **PM2** | VPS | Управляет Node.js процессом |
 | **Nginx** | VPS (порт 80/443) | Веб-сервер, reverse proxy |
 | **Supabase** | Облако | База данных, аутентификация |
-| **OpenAI** | Облако | AI API |
+| **Gemini / OpenAI** | Облако | AI (Gemini — основная для анализа исков) |
 | **GitHub Actions** | GitHub | Автоматический деплой |
 | **VPS** | 193.227.240.206 | Сервер, где все работает |
 

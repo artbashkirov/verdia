@@ -19,7 +19,7 @@
 - **Frontend**: Next.js 15, React 19, TypeScript
 - **Стилизация**: Tailwind CSS 4
 - **База данных**: Supabase (PostgreSQL)
-- **AI**: OpenAI API (ChatGPT)
+- **AI**: Gemini (основная нейросеть для анализа исков), OpenAI — опционально
 - **Источник данных**: mos-gorsud.ru
 
 ## 📦 Установка
@@ -49,8 +49,8 @@ npm run dev
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
-# OpenAI (будет добавлено позже)
-OPENAI_API_KEY=your_openai_api_key
+# Gemini (основная) — через Cloudflare Worker; см. env.example
+# OPENAI_API_KEY=your_openai_api_key  # опционально
 ```
 
 ### ⚠️ Важно: Настройка Supabase для локальной разработки
@@ -76,8 +76,7 @@ OPENAI_API_KEY=your_openai_api_key
    - В разделе **Redirect URLs** добавьте:
      - `http://localhost:3000/auth/callback` (для локальной разработки)
      - `http://127.0.0.1:3000/auth/callback` (альтернативный вариант)
-     - `https://your-vercel-app.vercel.app/auth/callback` (для Vercel деплоя)
-     - `https://your-domain.com/auth/callback` (для кастомного домена, если есть)
+     - `https://ваш-домен.ru/auth/callback` (для продакшена на VPS REG.RU)
    - В разделе **Site URL** укажите: `http://localhost:3000` (для разработки)
    - Сохраните изменения
 
@@ -91,79 +90,21 @@ OPENAI_API_KEY=your_openai_api_key
    npm run dev
    ```
 
-## 🚀 Деплой на Vercel
+## 🚀 Деплой на VPS REG.RU
 
-Проект настроен для деплоя на Vercel. Подробные инструкции смотрите в [VERCEL_SETUP.md](./VERCEL_SETUP.md).
+Приложение развёрнуто на **удалённом сервере REG.RU** (VPS). Используются Nginx, PM2 и автоматический деплой через GitHub Actions.
 
-### Быстрый старт (через веб-интерфейс - рекомендуемый способ):
+- Подробная схема и описание: [ARCHITECTURE.md](./ARCHITECTURE.md)
+- Команды и настройка на VPS: [VPS_COMMANDS.md](./VPS_COMMANDS.md)
+- Настройка деплоя: `.github/workflows/deploy.yml` — при пуше в `main` выполняется SSH на VPS, `git pull`, `npm install`, `npm run build`, `pm2 restart verdia`.
 
-1. **Перейдите на [vercel.com](https://vercel.com)** и войдите через GitHub
-2. **Нажмите "Add New Project"** и выберите репозиторий `verdia`
-3. **Нажмите "Deploy"** (настройки определятся автоматически)
+### Переменные окружения на сервере
 
-4. **Настройте переменные окружения** (подробная инструкция в [VERCEL_SETUP.md](./VERCEL_SETUP.md)):
-   - В панели Vercel: **Settings** → **Environment Variables**
-   - Добавьте переменные:
-     - `NEXT_PUBLIC_SUPABASE_URL` - URL вашего Supabase проекта
-     - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - публичный ключ Supabase
-     - `OPENAI_API_KEY` - ключ OpenAI API
-   - ⚠️ **Важно**: Выберите все три окружения (Production, Preview, Development)
-   - После добавления сделайте **Redeploy** проекта
+На VPS в директории приложения (например `/opt/verdia-app`) должны быть настроены те же переменные, что и локально: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `OPENAI_API_KEY` и др. (см. `env.example`).
 
-4. **Для продакшн деплоя**:
-   ```bash
-   vercel --prod
-   ```
+### Домен и SSL
 
-### Настройка домена (REG.RU)
-
-После деплоя можно подключить кастомный домен из REG.RU к проекту на Vercel:
-
-#### 1. Добавьте домен в Vercel
-
-1. Откройте **Vercel Dashboard** → ваш проект → **Settings** → **Domains**
-2. Нажмите **Add Domain**
-3. Введите ваш домен (например, `example.com` или `www.example.com`)
-4. Vercel покажет IP-адрес или CNAME, который нужно добавить в DNS
-
-#### 2. Настройте DNS-записи в REG.RU
-
-1. Войдите в **REG.RU** → **Мои домены** → выберите домен → **DNS-серверы и зона**
-
-2. **Для корневого домена (example.com):**
-   - Добавьте **A-запись**:
-     - Имя: `@` (или оставьте пустым)
-     - Тип: `A`
-     - Значение: IP-адрес из Vercel (обычно `76.76.21.21`)
-     - TTL: `3600`
-
-3. **Для поддомена www (www.example.com):**
-   - Добавьте **CNAME-запись**:
-     - Имя: `www`
-     - Тип: `CNAME`
-     - Значение: `cname.vercel-dns.com` (или значение из Vercel)
-     - TTL: `3600`
-
-4. Сохраните изменения и подождите 5-30 минут для распространения DNS
-
-#### 3. Обновите Redirect URL в Supabase
-
-После подключения домена добавьте новый redirect URL в Supabase:
-
-1. **Supabase Dashboard** → ваш проект → **Authentication** → **URL Configuration**
-2. Добавьте в **Redirect URLs**:
-   - `https://ваш-домен.com/auth/callback`
-   - `https://www.ваш-домен.com/auth/callback` (если используете www)
-3. Сохраните изменения
-
-#### 4. Проверьте работу
-
-- Дождитесь распространения DNS (обычно 5-30 минут)
-- Vercel автоматически выпустит SSL-сертификат
-- Убедитесь, что сайт открывается по новому домену
-- Проверьте, что HTTPS работает (замок в адресной строке)
-
-**Важно:** DNS-изменения могут распространяться до 48 часов, но обычно работают быстрее.
+Домен указывает на IP VPS (A-запись в REG.RU). Nginx на сервере принимает HTTPS (порт 443), SSL-сертификат — Let's Encrypt. В Supabase в **Redirect URLs** добавлен `https://ваш-домен.ru/auth/callback`.
 
 ### 📧 Решение проблем с email подтверждением
 
@@ -222,7 +163,7 @@ src/
 
 ## 🔜 Roadmap
 
-- [ ] Подключение OpenAI API
+- [x] Gemini как основная нейросеть для анализа исков
 - [ ] Парсинг mos-gorsud.ru
 - [ ] Генерация документов (DOCX)
 - [ ] Система оплаты

@@ -10,12 +10,12 @@ export function getAIProvider(): AIProvider {
   if (provider === 'openai') return 'openai';
   if (provider === 'gemini') return 'gemini';
   
-  // Auto-detect: prefer OpenAI if configured, fall back to Gemini
-  if (process.env.OPENAI_API_KEY) return 'openai';
+  // Auto-detect: prefer Gemini (main for claim analysis) if configured, else OpenAI
   if (process.env.CLOUDFLARE_WORKER_URL) return 'gemini';
+  if (process.env.OPENAI_API_KEY) return 'openai';
   
-  // Default to OpenAI
-  return 'openai';
+  // Default: Gemini — основная нейросеть для анализа исков
+  return 'gemini';
 }
 
 // Lazy initialization for OpenAI client to avoid build-time errors
@@ -87,7 +87,7 @@ async function callOpenAI(
   }
 }
 
-// Universal function to call AI (OpenAI or Gemini based on provider setting)
+// Universal function to call AI (Gemini — основная для анализа исков, или OpenAI)
 async function callAI(
   prompt: string, 
   systemPrompt?: string, 
@@ -160,23 +160,14 @@ async function callGemini(prompt: string, systemPrompt?: string, maxTokens: numb
   
   // Мягкая проверка - не выбрасываем ошибку сразу, даем возможность работать
   if (!workerUrl || workerUrl.length === 0 || !workerSecret || workerSecret.length === 0) {
-    const isVercel = !!process.env.VERCEL;
     const isDevelopment = process.env.NODE_ENV === 'development';
-    
-    let envHint = '';
-    if (isVercel) {
-      envHint = 'Проверьте переменные окружения в Vercel Dashboard → Settings → Environment Variables';
-    } else if (isDevelopment) {
-      envHint = 'Перезапустите dev-сервер после добавления переменных в .env.local (npm run dev)';
-    } else {
-      envHint = 'Для production на VPS установите переменные через процесс-менеджер (pm2/systemd) или создайте .env.production файл';
-    }
-    
+    const envHint = isDevelopment
+      ? 'Перезапустите dev-сервер после добавления переменных в .env.local (npm run dev)'
+      : 'На VPS установите переменные через процесс-менеджер (pm2) или .env.production';
     const errorMsg = `CLOUDFLARE_WORKER_URL and CLOUDFLARE_WORKER_SECRET must be set. ${envHint}`;
     console.error('[callGemini] Configuration error:', {
       workerUrl: workerUrl ? 'present but empty' : 'not set',
       workerSecret: workerSecret ? 'present but empty' : 'not set',
-      isVercel,
       isDevelopment,
       nodeEnv: process.env.NODE_ENV,
       allEnvKeys: Object.keys(process.env).filter(k => k.includes('CLOUDFLARE')),

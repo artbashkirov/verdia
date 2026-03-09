@@ -1,6 +1,10 @@
 # Настройка деплоя на Vercel
 
-## Быстрый старт
+> **Сейчас не используется.** Продакшен-деплой выполняется только на **VPS REG.RU** (см. [ARCHITECTURE.md](./ARCHITECTURE.md), [README.md](./README.md)). Этот файл оставлен для справки, если в будущем понадобится альтернативный хостинг.
+
+---
+
+## Быстрый старт (справочно)
 
 ### Способ 1: Деплой через веб-интерфейс Vercel (самый простой способ) ⭐
 
@@ -105,7 +109,7 @@ npm i -g vercel
 
    **Переменная 3: OPENAI_API_KEY**
    - В поле **"Key"** введите: `OPENAI_API_KEY`
-   - В поле **"Value"** введите ваш OpenAI API ключ (начинается с `sk-...`)
+   - В поле **"Value"** введите ключи для AI: для Gemini — CLOUDFLARE_WORKER_URL и CLOUDFLARE_WORKER_SECRET; для OpenAI (опционально) — OPENAI_API_KEY
    - Выберите окружения: ✅ **Production**, ✅ **Preview**, ✅ **Development**
    - Нажмите **"Save"**
 
@@ -119,8 +123,7 @@ npm i -g vercel
      - **Project URL** → это `NEXT_PUBLIC_SUPABASE_URL`
      - **anon/public key** → это `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-   **OpenAI API Key:**
-   - Перейдите на [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+   **AI (основная — Gemini):** CLOUDFLARE_WORKER_URL, CLOUDFLARE_WORKER_SECRET. **OpenAI (опционально):** [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
    - Войдите в аккаунт
    - Создайте новый ключ или используйте существующий
    - Скопируйте ключ (он начинается с `sk-`)

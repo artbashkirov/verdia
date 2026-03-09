@@ -213,7 +213,7 @@ async function getBrowser(): Promise<Browser> {
   console.log('getBrowser called, BROWSERLESS_API_KEY exists:', !!browserlessApiKey);
   
   if (browserlessApiKey) {
-    // Use Browserless.io cloud browser with stealth mode (for Vercel/production)
+    // Use Browserless.io cloud browser with stealth mode (for production/VPS)
     try {
       console.log('Connecting to Browserless.io cloud browser with stealth...');
       const browser = await puppeteerCore.connect({

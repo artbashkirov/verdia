@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { chatCompletion, getAIProvider } from '@/lib/openai';
+import { getLawContext } from '@/lib/rag';
 import { DOCUMENT_GENERATION_PROMPT } from '@/lib/prompts';
 import type { UserProfile } from '@/types/database';
 
@@ -277,7 +278,7 @@ _Услуга станет доступна после оплаты подгот
         documents: [],
       } as any);
 
-      // Generate documents using AI (OpenAI or Gemini based on config)
+      // Generate documents using AI (Gemini — основная, или OpenAI по настройке)
       const responseText = await chatCompletion(messages, { maxTokens: 5000, jsonMode: true });
       
       console.log(`🔍 [${getAIProvider()}] raw response length:`, responseText.length);
@@ -377,9 +378,21 @@ _Услуга станет доступна после оплаты подгот
       });
 
     } else {
-      // Regular chat flow
+      // Regular chat flow — enrich with RAG law context
+      let lawContext = '';
+      try {
+        const ragResult = await getLawContext(message, { matchCount: 3, matchThreshold: 0.35 });
+        lawContext = ragResult.context;
+      } catch (err) {
+        console.error('[RAG] Chat error (non-fatal):', err);
+      }
+
+      const systemWithRag = lawContext 
+        ? CHAT_SYSTEM_PROMPT + lawContext 
+        : CHAT_SYSTEM_PROMPT;
+
       const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
-        { role: 'system', content: CHAT_SYSTEM_PROMPT },
+        { role: 'system', content: systemWithRag },
         { role: 'user', content: `Контекст моего вопроса:\n${contextSummary}` },
         { role: 'assistant', content: 'Понял. Чем могу помочь?' },
       ];
@@ -404,7 +417,7 @@ _Услуга станет доступна после оплаты подгот
         documents: [],
       } as any);
 
-      // Generate response using AI (OpenAI or Gemini based on config)
+      // Generate response using AI (Gemini — основная, или OpenAI по настройке)
       let assistantMessage = await chatCompletion(messages, { maxTokens: 1500 }) || 'Извините, произошла ошибка.';
 
       // Check if this looks like a question about documents and add offer
