@@ -7,6 +7,7 @@ import { DownloadIcon } from '@/components/icons';
 import { MarkdownRenderer } from '@/components/ui';
 import { createClient } from '@/lib/supabase/client';
 import { generateDocx, downloadBlob } from '@/lib/docx-generator';
+import { CaseTransitionBanner } from '@/components/cases/CaseTransitionBanner';
 import { useTheme } from '@/lib/theme-context';
 
 interface ChatMessage {
@@ -967,6 +968,14 @@ export default function ChatResultPage() {
                     ))}
                   </ol>
                 </div>
+              )}
+
+              {/* Case transition banner */}
+              {generation && (
+                <CaseTransitionBanner
+                  generationId={chatId}
+                  query={query}
+                />
               )}
 
               {/* Divider */}
