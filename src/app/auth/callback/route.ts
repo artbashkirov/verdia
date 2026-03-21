@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 
-function getOrigin(request: Request): string {
-  const headersList = headers();
+async function getOrigin(request: Request): Promise<string> {
+  const headersList = await headers();
   const forwardedHost = headersList.get('x-forwarded-host');
   const forwardedProto = headersList.get('x-forwarded-proto') ?? 'https';
   const host = headersList.get('host');
@@ -20,7 +20,7 @@ function getOrigin(request: Request): string {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const origin = getOrigin(request);
+  const origin = await getOrigin(request);
   const code = searchParams.get('code');
   const next = searchParams.get('next') ?? '/chat';
   const type = searchParams.get('type');
