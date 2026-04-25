@@ -27,7 +27,7 @@
     "mammoth": "^1.12.0",
     "next": "16.1.1",
     "openai": "^6.9.1",
-    "pdf-parse": "^2.4.5",
+    "pdf-parse": "^1.1.1",
     "puppeteer": "^24.34.0",
     "puppeteer-core": "^24.34.0",
     "react": "19.2.0",
