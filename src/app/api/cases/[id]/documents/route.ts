@@ -108,7 +108,7 @@ export async function POST(
       console.error('Document parsing error:', parseError);
     }
 
-    const { data: document, error: insertError } = await supabase
+    const { data: documentRaw, error: insertError } = await supabase
       .from('case_documents')
       .insert({
         case_id: caseId,
@@ -120,7 +120,7 @@ export async function POST(
         mime_type: file.type,
         extracted_text: extractedText || null,
         is_relevant: true,
-      })
+      } as never)
       .select()
       .single();
 
@@ -129,6 +129,8 @@ export async function POST(
       return NextResponse.json({ error: 'Failed to save document record' }, { status: 500 });
     }
 
+    const document = documentRaw as { id: string };
+
     await supabase.from('case_messages').insert({
       case_id: caseId,
       user_id: user.id,
@@ -136,7 +138,7 @@ export async function POST(
       content: `Загружен документ: ${file.name}`,
       message_type: 'document_upload',
       attached_documents: [document.id],
-    });
+    } as never);
 
     return NextResponse.json({ document }, { status: 201 });
   } catch (error) {

@@ -77,7 +77,7 @@ export async function PUT(
 
     const { data: updatedCase, error } = await supabase
       .from('cases')
-      .update(updateData)
+      .update(updateData as never)
       .eq('id', id)
       .eq('user_id', user.id)
       .select()

@@ -14,7 +14,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data: doc } = await supabase
+    const { data: docRaw } = await supabase
       .from('case_documents')
       .select('file_path')
       .eq('id', docId)
@@ -22,9 +22,11 @@ export async function DELETE(
       .eq('user_id', user.id)
       .single();
 
-    if (!doc) {
+    if (!docRaw) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
+
+    const doc = docRaw as { file_path: string };
 
     await supabase.storage
       .from('case-documents')

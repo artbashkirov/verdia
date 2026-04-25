@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
         missing_info: [],
         similar_cases: [],
         probability: {},
-      })
+      } as never)
       .select()
       .single();
 
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
         content: `Дело создано на основе консультации.\n\n${contextParts.join('\n\n')}`,
         message_type: 'analysis',
         attached_documents: [],
-      });
+      } as never);
     }
 
     // Copy chat messages if any
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
         })
       );
 
-      await supabase.from('case_messages').insert(messagesToInsert);
+      await supabase.from('case_messages').insert(messagesToInsert as never);
     }
 
     return NextResponse.json({ case: newCase });

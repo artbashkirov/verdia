@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { title, description, case_type = 'objection', source_chat_id } = body;
 
-    const { data: newCase, error } = await supabase
+    const { data: newCaseRaw, error } = await supabase
       .from('cases')
       .insert({
         user_id: user.id,
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
         case_type,
         status: 'draft',
         source_chat_id: source_chat_id || null,
-      })
+      } as never)
       .select()
       .single();
 
@@ -58,6 +58,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create case' }, { status: 500 });
     }
 
+    const newCase = newCaseRaw as { id: string };
+
     if (description) {
       await supabase.from('case_messages').insert({
         case_id: newCase.id,
@@ -65,10 +67,10 @@ export async function POST(request: NextRequest) {
         role: 'user',
         content: description,
         message_type: 'message',
-      });
+      } as never);
     }
 
-    return NextResponse.json({ case: newCase }, { status: 201 });
+    return NextResponse.json({ case: newCaseRaw }, { status: 201 });
   } catch (error) {
     console.error('Cases POST error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

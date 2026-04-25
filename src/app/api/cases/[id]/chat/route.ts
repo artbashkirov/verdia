@@ -82,7 +82,7 @@ export async function POST(
         role: 'user',
         content: content.trim(),
         message_type: 'message',
-      })
+      } as never)
       .select()
       .single();
 
