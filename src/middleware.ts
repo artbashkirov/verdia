@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
+import { updateSession } from '@/lib/supabase/middleware';
 
 const CASES_ENABLED = process.env.NEXT_PUBLIC_FEATURE_CASES === 'true';
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Cases flow is gated behind NEXT_PUBLIC_FEATURE_CASES.
@@ -24,7 +24,7 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+  return await updateSession(request);
 }
 
 export const config = {

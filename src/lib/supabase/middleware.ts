@@ -73,17 +73,17 @@ export async function updateSession(request: NextRequest) {
   } catch (error: any) {
     // Игнорируем таймауты и сетевые ошибки, чтобы не блокировать приложение
     if (error?.message?.includes('timeout') || error?.message?.includes('fetch failed') || error?.code === 'ENOTFOUND') {
-      // Тихо продолжаем без аутентификации
+      // Тихо продолжаем без аутентификации — user остаётся null,
+      // дальше отработает проверка защищённого пути ниже
     } else {
       console.error('Error in middleware updateSession:', error?.message || error);
     }
-    // В случае ошибки возвращаем ответ без проверки аутентификации
-    // чтобы приложение могло работать даже при проблемах с Supabase
-    return supabaseResponse;
+    // НЕ делаем early return — даём отработать проверке защищённого пути,
+    // чтобы невалидная сессия / ошибка cookie не пропускала юзера в /chat
   }
 
   // Protected routes - require authentication
-  const protectedPaths = ['/chat'];
+  const protectedPaths = ['/chat', '/profile', '/cases'];
   const isProtectedPath = protectedPaths.some(path => 
     request.nextUrl.pathname.startsWith(path)
   );
