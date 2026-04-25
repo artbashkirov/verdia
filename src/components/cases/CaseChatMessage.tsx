@@ -1,6 +1,7 @@
 'use client';
 
 import { User, Bot, FileUp, FileCheck, AlertTriangle } from 'lucide-react';
+import { MarkdownRenderer } from '@/components/ui';
 import type { CaseMessage } from '@/types/database';
 
 interface CaseChatMessageProps {
@@ -36,16 +37,16 @@ export function CaseChatMessage({ message }: CaseChatMessageProps) {
         style={{ maxWidth: 'calc(100% - 40px)' }}
       >
         <div
-          className={`inline-block px-4 py-2.5 rounded-2xl text-[15px] leading-[22px] whitespace-pre-wrap ${
+          className={`inline-block px-4 py-2.5 rounded-2xl text-[15px] leading-[22px] ${
             isUser
               ? 'bg-foreground text-background rounded-tr-md'
               : isSystem
               ? 'bg-orange-50 text-foreground border border-orange-100 rounded-tl-md'
               : 'bg-gray-100 text-foreground rounded-tl-md'
-          }`}
+          } ${!isUser ? '' : 'whitespace-pre-wrap'}`}
           style={{ maxWidth: '100%', wordBreak: 'break-word' }}
         >
-          {message.content}
+          {isUser ? message.content : <MarkdownRenderer content={message.content} className="prose prose-sm max-w-none" />}
         </div>
         <div
           className={`text-[12px] text-gray-400 mt-1 ${isUser ? 'text-right' : ''}`}

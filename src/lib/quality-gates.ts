@@ -31,6 +31,8 @@ export function checkQualityGates(params: {
   gates.push(checkDebtAdmission(params.analysis));
   gates.push(checkContradictions(params.analysis));
   gates.push(checkMinimalData(params.entities, params.missingInfo));
+  gates.push(checkClaimantEvidence(params.analysis));
+  gates.push(checkClaimAmountCalculation(params.analysis));
 
   const criticalFailures = gates
     .filter(g => !g.passed && g.severity === 'critical')
@@ -162,5 +164,46 @@ function checkMinimalData(entities: CaseEntities, missingInfo: CaseMissingInfo[]
         !hasDefendant && 'данные ответчика',
         ...criticalMissing.map(m => m.description),
       ].filter(Boolean).join(', ')}.`,
+  };
+}
+
+function checkClaimantEvidence(analysis: CaseAnalysis): QualityGate {
+  const risks = analysis.risks || [];
+  const strengths = analysis.strengths || [];
+  const text = [...risks, ...strengths].join(' ').toLowerCase();
+  const hasTopic =
+    text.includes('доказательств') &&
+    (text.includes('истец') || text.includes('истца') || text.includes('недостаточ') || text.includes('отсутств'));
+
+  return {
+    id: 'claimant_evidence',
+    name: 'Доказательства истца',
+    description: 'Недостаточность доказательств истца — возможное основание для возражения',
+    passed: true,
+    severity: 'info',
+    message: hasTopic
+      ? 'Выявлена слабость позиции истца по доказательствам — можно использовать в возражении.'
+      : undefined,
+  };
+}
+
+function checkClaimAmountCalculation(analysis: CaseAnalysis): QualityGate {
+  const risks = analysis.risks || [];
+  const strengths = analysis.strengths || [];
+  const text = [...risks, ...strengths].join(' ').toLowerCase();
+  const hasTopic =
+    (text.includes('цен') && text.includes('иск')) ||
+    (text.includes('расчет') && text.includes('иск')) ||
+    (text.includes('сумм') && (text.includes('необоснован') || text.includes('неправиль') || text.includes('ошибк')));
+
+  return {
+    id: 'claim_amount',
+    name: 'Расчёт цены иска',
+    description: 'Необоснованный расчёт цены иска — возможное основание для возражения (ст. 91 ГПК РФ)',
+    passed: true,
+    severity: 'info',
+    message: hasTopic
+      ? 'Выявлены сомнения в расчёте цены иска — можно оспорить в возражении.'
+      : undefined,
   };
 }

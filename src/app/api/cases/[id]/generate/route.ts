@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { callAI } from '@/lib/openai';
-import { getLawContext } from '@/lib/rag';
+import { getLawContext, getTemplatesContext } from '@/lib/rag';
 import { OBJECTION_GENERATION_PROMPT, buildCaseAnalysisContext } from '@/lib/case-prompts';
 import { checkQualityGates } from '@/lib/quality-gates';
 import type { GeneratedDocumentType, CaseMissingInfo } from '@/types/database';
@@ -90,13 +90,19 @@ export async function POST(
       .limit(20);
 
     let lawContext = '';
+    let templatesContext = '';
     try {
       const searchTerms = [
         caseData.analysis?.qualification,
         caseData.entities?.subject,
         caseData.description,
       ].filter(Boolean).join(' ');
-      lawContext = await getLawContext(searchTerms, { matchCount: 7, matchThreshold: 0.3 });
+      const [lawResult, templatesResult] = await Promise.all([
+        getLawContext(searchTerms, { matchCount: 7, matchThreshold: 0.3 }),
+        getTemplatesContext(searchTerms, { matchCount: 3, matchThreshold: 0.3 }),
+      ]);
+      lawContext = lawResult.context;
+      templatesContext = templatesResult.context;
     } catch {
       console.warn('RAG not available for document generation');
     }
@@ -107,6 +113,7 @@ export async function POST(
       chatHistory: (messages || []).map(m => ({ role: m.role, content: m.content })),
       caseType: caseData.case_type,
       lawContext: lawContext || undefined,
+      additionalContext: templatesContext || undefined,
     });
 
     const additionalContext = `\n\nАнализ дела:\n${JSON.stringify(caseData.analysis, null, 2)}\n\nСущности дела:\n${JSON.stringify(caseData.entities, null, 2)}\n\nВыбранная стратегия: ${requestedStrategy}`;
@@ -183,11 +190,17 @@ export async function POST(
     }
 
     if (generationResult.attachments_checklist?.length > 0) {
-      notifyMessage += '**Чек-лист приложений:**\n';
+      notifyMessage += '**Чек-лист приложений к возражению:**\n';
       for (const a of generationResult.attachments_checklist) {
         notifyMessage += `☐ ${a}\n`;
       }
+      notifyMessage += '\n';
     }
+
+    notifyMessage += '**Действия после составления:**\n';
+    notifyMessage += '☐ Направить возражение в суд (лично или почтой заказным письмом с уведомлением)\n';
+    notifyMessage += '☐ Направить копии возражения и приложений истцу и другим участникам дела (ст. 57, 149 ГПК РФ)\n';
+    notifyMessage += '☐ Срок подачи — в период подготовки к разбирательству (указан в определении суда)\n';
 
     await supabase.from('case_messages').insert({
       case_id: caseId,

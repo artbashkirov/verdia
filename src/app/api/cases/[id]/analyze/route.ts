@@ -92,7 +92,8 @@ export async function POST(
     let lawContext = '';
     try {
       const searchQuery = caseData.description || docsForContext.map(d => d.file_name).join(' ');
-      lawContext = await getLawContext(searchQuery, { matchCount: 5, matchThreshold: 0.3 });
+      const ragResult = await getLawContext(searchQuery, { matchCount: 5, matchThreshold: 0.3 });
+      lawContext = ragResult.context;
     } catch {
       console.warn('RAG not available for case analysis');
     }

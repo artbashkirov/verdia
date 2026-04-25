@@ -1,18 +1,35 @@
 import { NextResponse } from 'next/server';
+import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 
+async function getOrigin(request: Request): Promise<string> {
+  const headersList = await headers();
+  const forwardedHost = headersList.get('x-forwarded-host');
+  const forwardedProto = headersList.get('x-forwarded-proto') ?? 'https';
+  const host = headersList.get('host');
+
+  if (forwardedHost) {
+    return `${forwardedProto}://${forwardedHost}`;
+  }
+  if (host) {
+    const proto = host.includes('localhost') ? 'http' : 'https';
+    return `${proto}://${host}`;
+  }
+  return new URL(request.url).origin;
+}
+
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
+  const origin = await getOrigin(request);
   const code = searchParams.get('code');
   const next = searchParams.get('next') ?? '/chat';
-  const type = searchParams.get('type'); // Может быть 'recovery' для сброса пароля
+  const type = searchParams.get('type');
 
   if (code) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     
     if (!error) {
-      // Если это сброс пароля, перенаправляем на страницу сброса пароля
       if (type === 'recovery' || next === '/reset-password') {
         return NextResponse.redirect(`${origin}/reset-password`);
       }
@@ -20,7 +37,6 @@ export async function GET(request: Request) {
     }
   }
 
-  // Return the user to an error page with instructions
   return NextResponse.redirect(`${origin}/login?error=auth_failed`);
 }
 
