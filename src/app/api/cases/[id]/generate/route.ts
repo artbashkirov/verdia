@@ -97,9 +97,16 @@ export async function POST(
         caseData.entities?.subject,
         caseData.description,
       ].filter(Boolean).join(' ');
+
+      // Объяснение-RAG шаблонов возражений включается фича-флагом, чтобы можно было
+      // выкатывать функционал постепенно (на проде по умолчанию выключен).
+      const templatesEnabled = process.env.OBJECTION_TEMPLATES_ENABLED === 'true';
+
       const [lawResult, templatesResult] = await Promise.all([
         getLawContext(searchTerms, { matchCount: 7, matchThreshold: 0.3 }),
-        getTemplatesContext(searchTerms, { matchCount: 3, matchThreshold: 0.3 }),
+        templatesEnabled
+          ? getTemplatesContext(searchTerms, { matchCount: 3, matchThreshold: 0.3 })
+          : Promise.resolve({ context: '', templates: [] }),
       ]);
       lawContext = lawResult.context;
       templatesContext = templatesResult.context;

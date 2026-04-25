@@ -54,10 +54,12 @@ CREATE INDEX IF NOT EXISTS idx_objection_templates_embedding
 -- RLS
 ALTER TABLE public.objection_templates ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Templates readable by authenticated" ON public.objection_templates;
 CREATE POLICY "Templates readable by authenticated"
   ON public.objection_templates FOR SELECT
   USING (auth.role() = 'authenticated');
 
+DROP POLICY IF EXISTS "Service role manages templates" ON public.objection_templates;
 CREATE POLICY "Service role manages templates"
   ON public.objection_templates FOR ALL
   USING (auth.role() = 'service_role');
