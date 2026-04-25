@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { Suspense, useEffect, useState, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Sidebar, ChatInput, MobileHeader, MobileSidebar, ProbabilityBlock } from '@/components/layout';
 import { DownloadIcon } from '@/components/icons';
 import { MarkdownRenderer } from '@/components/ui';
 import { createClient } from '@/lib/supabase/client';
 import { generateDocx, downloadBlob } from '@/lib/docx-generator';
+import { CaseTransitionBanner } from '@/components/cases/CaseTransitionBanner';
 import { useTheme } from '@/lib/theme-context';
 
 interface ChatMessage {
@@ -84,7 +85,7 @@ interface Generation {
   created_at: string;
 }
 
-export default function ChatResultPage() {
+function ChatResultPageContent() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -223,7 +224,9 @@ export default function ChatResultPage() {
 
   useEffect(() => {
     let pollInterval: NodeJS.Timeout | null = null;
-    
+    let safetyTimeout: NodeJS.Timeout | null = null;
+    let cancelled = false;
+
     async function fetchGeneration() {
       if (!params.id) {
         setIsLoading(false);
@@ -253,57 +256,90 @@ export default function ChatResultPage() {
         }
       }
 
-      // Fetch from database
-      const supabase = createClient();
-      
       if (!id) {
         setError('ID не найден');
         setIsLoading(false);
         return;
       }
-      
-      const { data, error } = await supabase
-        .from('generations')
-        .select('*')
-        .eq('id', id)
-        .single();
 
-      if (error) {
-        console.error('Error fetching generation:', error);
+      // Safety net: на мобильных Supabase JS SDK иногда зависает на refresh-токене
+      // и `await supabase.from(...).single()` не резолвится. Снимаем лоадер через 10s.
+      safetyTimeout = setTimeout(() => {
+        if (cancelled) return;
+        console.warn('fetchGeneration safety timeout fired');
+        setError('Не удалось загрузить результат. Проверьте подключение и обновите страницу.');
+        setIsLoading(false);
+      }, 10000);
+
+      try {
+        // Fetch from database via Supabase client
+        const supabase = createClient();
+
+        const { data, error } = await supabase
+          .from('generations')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (cancelled) return;
+
+        if (error) {
+          console.error('Error fetching generation:', error);
+          setError('Не удалось загрузить результат');
+          setIsLoading(false);
+          return;
+        }
+
+        const generationData = data as Generation;
+        setGeneration(generationData);
+        setIsLoading(false);
+
+        // If response is null, poll every 2 seconds until it's ready
+        if (generationData && !generationData.response) {
+          pollInterval = setInterval(async () => {
+            try {
+              const { data: updatedData } = await supabase
+                .from('generations')
+                .select('*')
+                .eq('id', id)
+                .single();
+
+              if (cancelled) return;
+
+              if (updatedData && (updatedData as Generation).response) {
+                setGeneration(updatedData as Generation);
+                if (pollInterval) {
+                  clearInterval(pollInterval);
+                  pollInterval = null;
+                }
+              }
+            } catch (pollErr) {
+              console.error('Polling error:', pollErr);
+            }
+          }, 2000);
+        }
+      } catch (err) {
+        if (cancelled) return;
+        console.error('Unexpected fetchGeneration error:', err);
         setError('Не удалось загрузить результат');
         setIsLoading(false);
-        return;
-      }
-
-      const generationData = data as Generation;
-      setGeneration(generationData);
-      setIsLoading(false);
-      
-      // If response is null, poll every 2 seconds until it's ready
-      if (generationData && !generationData.response) {
-        pollInterval = setInterval(async () => {
-          const { data: updatedData } = await supabase
-            .from('generations')
-            .select('*')
-            .eq('id', id)
-            .single();
-          
-          if (updatedData && (updatedData as Generation).response) {
-            setGeneration(updatedData as Generation);
-            if (pollInterval) {
-              clearInterval(pollInterval);
-              pollInterval = null;
-            }
-          }
-        }, 2000);
+      } finally {
+        if (safetyTimeout) {
+          clearTimeout(safetyTimeout);
+          safetyTimeout = null;
+        }
       }
     }
 
     fetchGeneration();
-    
+
     return () => {
+      cancelled = true;
       if (pollInterval) {
         clearInterval(pollInterval);
+      }
+      if (safetyTimeout) {
+        clearTimeout(safetyTimeout);
       }
     };
   }, [params.id]);
@@ -969,6 +1005,14 @@ export default function ChatResultPage() {
                 </div>
               )}
 
+              {/* Case transition banner */}
+              {generation && (
+                <CaseTransitionBanner
+                  generationId={chatId}
+                  query={query}
+                />
+              )}
+
               {/* Divider */}
               <div className="h-px bg-gray-200" />
 
@@ -1213,5 +1257,17 @@ export default function ChatResultPage() {
         />
       </div>
     </div>
+  );
+}
+
+export default function ChatResultPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex bg-background items-center justify-center" style={{ height: 'var(--viewport-height, 100vh)' }}>
+        <div className="w-12 h-12 border-4 border-foreground border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <ChatResultPageContent />
+    </Suspense>
   );
 }

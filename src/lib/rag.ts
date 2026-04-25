@@ -173,6 +173,104 @@ export async function getLawContext(
   return { context, articles };
 }
 
+// ─── Objection Templates ─────────────────────────────────────────────────────
+
+export interface ObjectionTemplateMatch {
+  id: string;
+  category: string;
+  court_type: string;
+  stage: string;
+  title: string;
+  key_arguments: string;
+  prayer: string;
+  legal_references: string | null;
+  similarity: number;
+}
+
+/**
+ * Поиск похожих образцов возражений (few-shot context для генерации)
+ */
+export async function searchObjectionTemplates(
+  query: string,
+  options: {
+    matchCount?: number;
+    matchThreshold?: number;
+    category?: string;
+  } = {}
+): Promise<ObjectionTemplateMatch[]> {
+  const { matchCount = 3, matchThreshold = 0.3, category } = options;
+
+  const supabase = getSupabaseAdmin();
+  if (!supabase) return [];
+
+  const embedding = await generateEmbedding(query);
+  if (!embedding) return [];
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.rpc as any)('match_objection_templates', {
+      query_embedding: JSON.stringify(embedding),
+      match_threshold: matchThreshold,
+      match_count: matchCount,
+      filter_category: category ?? null,
+    });
+
+    if (error) {
+      console.error('[RAG] Template search error:', error.message);
+      return [];
+    }
+
+    return (data || []) as ObjectionTemplateMatch[];
+  } catch (error) {
+    console.error('[RAG] Template search failed:', error);
+    return [];
+  }
+}
+
+/**
+ * Форматирует найденные шаблоны как few-shot контекст для промпта генерации
+ */
+export function formatTemplatesContext(templates: ObjectionTemplateMatch[]): string {
+  if (templates.length === 0) return '';
+
+  const lines = ['\n\nПОХОЖИЕ ОБРАЗЦЫ ВОЗРАЖЕНИЙ (используй как ориентир структуры и доводов, не копируй дословно):'];
+
+  for (let i = 0; i < templates.length; i++) {
+    const t = templates[i];
+    lines.push(`\n--- Образец ${i + 1}: ${t.title} ---`);
+    lines.push(`Категория: ${t.category} | Суд: ${t.court_type} | Стадия: ${t.stage}`);
+    lines.push('Ключевые доводы:');
+    lines.push(t.key_arguments);
+    lines.push(`Просительная часть: ${t.prayer}`);
+    if (t.legal_references) {
+      lines.push(`Нормы права: ${t.legal_references}`);
+    }
+  }
+
+  lines.push('\nВАЖНО: Это только ориентиры. Адаптируй доводы под конкретные факты дела. Не копируй формулировки дословно.');
+
+  return lines.join('\n');
+}
+
+/**
+ * Полный pipeline поиска шаблонов + форматирование
+ */
+export async function getTemplatesContext(
+  query: string,
+  options?: { matchCount?: number; matchThreshold?: number; category?: string }
+): Promise<{ context: string; templates: ObjectionTemplateMatch[] }> {
+  const templates = await searchObjectionTemplates(query, options);
+  const context = formatTemplatesContext(templates);
+
+  if (templates.length > 0) {
+    console.log(`[RAG] Found ${templates.length} similar objection templates`);
+  }
+
+  return { context, templates };
+}
+
+// ─── System Health ────────────────────────────────────────────────────────────
+
 /**
  * Проверяет, доступна ли RAG-система (есть ли данные в базе)
  */

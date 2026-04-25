@@ -89,7 +89,7 @@ export async function updateSession(request: NextRequest) {
   );
 
   // Auth routes - redirect to chat if already logged in
-  const authPaths = ['/login', '/register', '/verify', '/forgot-password', '/reset-password'];
+  const authPaths = ['/login', '/register', '/verify', '/forgot-password'];
   const isAuthPath = authPaths.some(path => 
     request.nextUrl.pathname === path
   );

@@ -165,6 +165,140 @@ export interface DefendantSearchResults {
   last_updated: string;
 }
 
+// ==========================================
+// Cases system types
+// ==========================================
+
+export type CaseStatus = 'draft' | 'analyzing' | 'needs_info' | 'ready' | 'completed';
+export type CaseType = 'objection' | 'claim';
+export type CaseStage = 'pre_court' | 'after_filing' | 'after_acceptance' | 'appeal' | 'cassation';
+export type CaseStrategy = 'facts' | 'law' | 'procedural' | 'combined';
+export type CaseDocumentType = 'pdf' | 'docx' | 'image' | 'text';
+export type CaseMessageRole = 'user' | 'assistant' | 'system';
+export type CaseMessageType = 'message' | 'clarification' | 'analysis' | 'document_upload' | 'document_generated' | 'quality_gate';
+export type GeneratedDocumentType = 'objection_facts' | 'objection_law' | 'objection_procedural' | 'objection_combined';
+
+export interface CaseAnalysis {
+  qualification?: string;
+  risks?: string[];
+  strengths?: string[];
+  weaknesses?: string[];
+  recommended_strategy?: CaseStrategy;
+  summary?: string;
+  legal_basis?: string[];
+}
+
+export interface CaseEntities {
+  plaintiff?: {
+    name?: string;
+    type?: PersonType;
+    address?: string;
+    inn?: string;
+    ogrn?: string;
+  };
+  defendant?: {
+    name?: string;
+    type?: PersonType;
+    address?: string;
+    inn?: string;
+    ogrn?: string;
+  };
+  court?: {
+    name?: string;
+    address?: string;
+    case_number?: string;
+  };
+  claim_amount?: number;
+  subject?: string;
+  dates?: {
+    claim_received?: string;
+    hearing_date?: string;
+    deadline?: string;
+    incident_date?: string;
+  };
+}
+
+export interface CaseMissingInfo {
+  field: string;
+  description: string;
+  priority: 'high' | 'medium' | 'low';
+}
+
+export interface CaseProbability {
+  percentage?: number;
+  level?: string;
+  positive_factors?: string[];
+  negative_factors?: string[];
+}
+
+export interface Case {
+  id: string;
+  user_id: string;
+  title: string;
+  description?: string;
+  status: CaseStatus;
+  case_type: CaseType;
+  stage?: CaseStage;
+  strategy?: CaseStrategy;
+  analysis: CaseAnalysis;
+  entities: CaseEntities;
+  missing_info: CaseMissingInfo[];
+  similar_cases: CourtCase[];
+  probability: CaseProbability;
+  source_chat_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CaseDocument {
+  id: string;
+  case_id: string;
+  user_id: string;
+  file_name: string;
+  file_type: CaseDocumentType;
+  file_path: string;
+  file_size: number;
+  mime_type?: string;
+  extracted_text?: string;
+  analysis: {
+    document_type?: string;
+    key_facts?: string[];
+    relevance_explanation?: string;
+    dates_found?: string[];
+    amounts_found?: string[];
+  };
+  is_relevant: boolean;
+  created_at: string;
+}
+
+export interface CaseMessage {
+  id: string;
+  case_id: string;
+  user_id: string;
+  role: CaseMessageRole;
+  content: string;
+  message_type: CaseMessageType;
+  attached_documents: string[];
+  created_at: string;
+}
+
+export interface CaseGeneratedDocument {
+  id: string;
+  case_id: string;
+  user_id?: string;
+  document_type: GeneratedDocumentType;
+  version: number;
+  title: string;
+  content: string;
+  metadata: {
+    legal_references?: string[];
+    grounds?: string[];
+    attachments_checklist?: string[];
+    strategy_used?: CaseStrategy;
+  };
+  created_at: string;
+}
+
 // Database schema for Supabase
 export type Database = {
   public: {
@@ -193,6 +327,32 @@ export type Database = {
         Row: SavedDefendant;
         Insert: Omit<SavedDefendant, 'id' | 'created_at' | 'updated_at'>;
         Update: Partial<Omit<SavedDefendant, 'id'>>;
+      };
+      cases: {
+        Row: Case;
+        Insert: Omit<Case, 'id' | 'created_at' | 'updated_at' | 'analysis' | 'entities' | 'missing_info' | 'similar_cases' | 'probability'> & {
+          analysis?: CaseAnalysis;
+          entities?: CaseEntities;
+          missing_info?: CaseMissingInfo[];
+          similar_cases?: CourtCase[];
+          probability?: CaseProbability;
+        };
+        Update: Partial<Omit<Case, 'id'>>;
+      };
+      case_documents: {
+        Row: CaseDocument;
+        Insert: Omit<CaseDocument, 'id' | 'created_at'>;
+        Update: Partial<Omit<CaseDocument, 'id'>>;
+      };
+      case_messages: {
+        Row: CaseMessage;
+        Insert: Omit<CaseMessage, 'id' | 'created_at'>;
+        Update: Partial<Omit<CaseMessage, 'id'>>;
+      };
+      case_generated_documents: {
+        Row: CaseGeneratedDocument;
+        Insert: Omit<CaseGeneratedDocument, 'id' | 'created_at'>;
+        Update: Partial<Omit<CaseGeneratedDocument, 'id'>>;
       };
     };
   };

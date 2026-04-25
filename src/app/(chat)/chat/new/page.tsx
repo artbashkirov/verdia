@@ -1355,26 +1355,30 @@ function NewChatPageContent() {
                     </p>
                     <div className="flex flex-wrap gap-2">
                       <button
-                        onClick={() => router.push(`/chat/${chatId}?action=lawsuit`)}
-                        className="px-4 py-2 text-sm font-medium rounded-xl bg-[#212121] text-white hover:bg-[#3a3a3a] transition-colors"
+                        onClick={() => handleChatSubmit('Составь исковое заявление')}
+                        disabled={isSendingChat || !chatId}
+                        className="px-4 py-2 text-sm font-medium rounded-xl bg-[#212121] text-white hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
                       >
                         Исковое заявление
                       </button>
                       <button
-                        onClick={() => router.push(`/chat/${chatId}?action=claim`)}
-                        className="px-4 py-2 text-sm font-medium rounded-xl bg-[#212121] text-white hover:bg-[#3a3a3a] transition-colors"
+                        onClick={() => handleChatSubmit('Составь претензию')}
+                        disabled={isSendingChat || !chatId}
+                        className="px-4 py-2 text-sm font-medium rounded-xl bg-[#212121] text-white hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
                       >
                         Претензия
                       </button>
                       <button
-                        onClick={() => router.push(`/chat/${chatId}?action=motion`)}
-                        className="px-4 py-2 text-sm font-medium rounded-xl bg-[#212121] text-white hover:bg-[#3a3a3a] transition-colors"
+                        onClick={() => handleChatSubmit('Составь ходатайство')}
+                        disabled={isSendingChat || !chatId}
+                        className="px-4 py-2 text-sm font-medium rounded-xl bg-[#212121] text-white hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
                       >
                         Ходатайство
                       </button>
                       <button
-                        onClick={() => router.push(`/chat/${chatId}?action=objection`)}
-                        className="px-4 py-2 text-sm font-medium rounded-xl bg-[#212121] text-white hover:bg-[#3a3a3a] transition-colors"
+                        onClick={() => handleChatSubmit('Составь возражения на иск')}
+                        disabled={isSendingChat || !chatId}
+                        className="px-4 py-2 text-sm font-medium rounded-xl bg-[#212121] text-white hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
                       >
                         Возражения на иск
                       </button>

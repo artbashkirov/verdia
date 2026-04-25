@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { PlusIcon, TrashIcon, HelpCircleIcon, ChevronDownIcon } from '@/components/icons';
-import { MessageCircleMore, PanelLeftClose, User as UserIcon } from 'lucide-react';
+import { MessageCircleMore, PanelLeftClose, User as UserIcon, FolderOpen } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
@@ -512,6 +512,27 @@ export function Sidebar({
             <PlusIcon className="w-4 h-4" />
             <span className="text-sm font-medium">Новый запрос</span>
           </button>
+        )}
+
+        {/* My Cases link */}
+        {isCollapsed ? (
+          <Link
+            href="/cases"
+            className="w-[28px] h-[28px] flex items-center justify-center text-white/60 hover:text-white transition-colors"
+            title="Мои дела"
+            style={{ marginTop: '8px' }}
+          >
+            <FolderOpen className="w-5 h-5" strokeWidth="1.5" />
+          </Link>
+        ) : (
+          <Link
+            href="/cases"
+            className="h-10 flex items-center gap-2 px-3 text-white/60 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+            style={{ marginTop: '8px' }}
+          >
+            <FolderOpen className="w-4 h-4" strokeWidth="1.5" />
+            <span className="text-sm font-medium">Мои дела</span>
+          </Link>
         )}
 
         {/* Chat history */}
