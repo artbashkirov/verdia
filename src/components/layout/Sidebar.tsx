@@ -415,7 +415,7 @@ export function Sidebar({
     ? `${user.user_metadata.first_name} ${user.user_metadata.last_name?.charAt(0) || ''}.`
     : user?.email?.split('@')[0] || 'Пользователь';
 
-  const userPlan = 'FREE'; // TODO: Get from database
+  const userEmail = user?.email || '';
 
   // Get user initials for collapsed profile
   const getUserInitials = () => {
@@ -617,9 +617,9 @@ export function Sidebar({
               onClick={() => setShowDropdown(!showDropdown)}
               className="w-full flex items-center justify-between px-4 py-2.5 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
             >
-              <div className="flex flex-col items-start">
-                <span className="text-sm font-semibold text-white">{userName}</span>
-                <span className="text-xs font-medium text-gray-400">{userPlan}</span>
+              <div className="flex flex-col items-start min-w-0 flex-1">
+                <span className="text-sm font-semibold text-white truncate w-full text-left">{userName}</span>
+                <span className="text-xs font-medium text-gray-400 truncate w-full text-left">{userEmail}</span>
               </div>
               <ChevronDownIcon className={`w-[18px] h-[18px] text-white transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
             </button>
