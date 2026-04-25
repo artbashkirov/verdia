@@ -88,7 +88,7 @@ async function callOpenAI(
 }
 
 // Universal function to call AI (Gemini — основная для анализа исков, или OpenAI)
-async function callAI(
+export async function callAI(
   prompt: string, 
   systemPrompt?: string, 
   maxTokens: number = 3000,

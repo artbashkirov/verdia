@@ -4,7 +4,7 @@ import { callAI } from '@/lib/openai';
 import { getLawContext, getTemplatesContext } from '@/lib/rag';
 import { OBJECTION_GENERATION_PROMPT, buildCaseAnalysisContext } from '@/lib/case-prompts';
 import { checkQualityGates } from '@/lib/quality-gates';
-import type { GeneratedDocumentType, CaseMissingInfo } from '@/types/database';
+import type { Case, CaseDocument, CaseMessage, GeneratedDocumentType, CaseMissingInfo } from '@/types/database';
 
 export async function POST(
   request: NextRequest,
@@ -19,16 +19,17 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data: caseData } = await supabase
+    const { data: caseDataRaw } = await supabase
       .from('cases')
       .select('*')
       .eq('id', caseId)
       .eq('user_id', user.id)
       .single();
 
-    if (!caseData) {
+    if (!caseDataRaw) {
       return NextResponse.json({ error: 'Case not found' }, { status: 404 });
     }
+    const caseData = caseDataRaw as Case;
 
     const qualityGates = checkQualityGates({
       analysis: caseData.analysis || {},
@@ -38,14 +39,15 @@ export async function POST(
       extractedTextsAvailable: false,
     });
 
-    const { data: documents } = await supabase
+    const { data: documentsRaw } = await supabase
       .from('case_documents')
       .select('*')
       .eq('case_id', caseId)
       .eq('is_relevant', true);
+    const documents = (documentsRaw || []) as CaseDocument[];
 
-    const docsCount = documents?.length || 0;
-    const hasTexts = documents?.some(d => d.extracted_text && d.extracted_text.length > 0) || false;
+    const docsCount = documents.length;
+    const hasTexts = documents.some(d => d.extracted_text && d.extracted_text.length > 0);
 
     const fullGates = checkQualityGates({
       analysis: caseData.analysis || {},
@@ -62,7 +64,7 @@ export async function POST(
         role: 'assistant',
         content: `Невозможно сгенерировать возражение. Не пройдены проверки качества:\n\n${fullGates.critical_failures.map(f => `❗ ${f}`).join('\n')}`,
         message_type: 'quality_gate',
-      });
+      } as never);
 
       return NextResponse.json({
         error: 'Quality gates not passed',
@@ -73,7 +75,7 @@ export async function POST(
     const body = await request.json().catch(() => ({}));
     const requestedStrategy = body.strategy || caseData.strategy || 'combined';
 
-    const docsForContext = (documents || [])
+    const docsForContext = documents
       .filter(d => d.extracted_text)
       .map(d => ({
         file_name: d.file_name,
@@ -81,13 +83,14 @@ export async function POST(
         analysis: d.analysis,
       }));
 
-    const { data: messages } = await supabase
+    const { data: messagesRaw } = await supabase
       .from('case_messages')
       .select('role, content')
       .eq('case_id', caseId)
       .eq('message_type', 'message')
       .order('created_at', { ascending: true })
       .limit(20);
+    const messages = (messagesRaw || []) as Pick<CaseMessage, 'role' | 'content'>[];
 
     let lawContext = '';
     let templatesContext = '';
@@ -117,7 +120,7 @@ export async function POST(
     const context = buildCaseAnalysisContext({
       caseDescription: caseData.description || undefined,
       documents: docsForContext,
-      chatHistory: (messages || []).map(m => ({ role: m.role, content: m.content })),
+      chatHistory: messages.map(m => ({ role: m.role, content: m.content })),
       caseType: caseData.case_type,
       lawContext: lawContext || undefined,
       additionalContext: templatesContext || undefined,
@@ -145,7 +148,7 @@ export async function POST(
       combined: 'objection_combined',
     };
 
-    const { data: lastVersion } = await supabase
+    const { data: lastVersionRaw } = await supabase
       .from('case_generated_documents')
       .select('version')
       .eq('case_id', caseId)
@@ -154,6 +157,7 @@ export async function POST(
       .limit(1)
       .single();
 
+    const lastVersion = lastVersionRaw as { version: number } | null;
     const newVersion = (lastVersion?.version || 0) + 1;
 
     const { data: generatedDoc, error: insertError } = await supabase
@@ -171,7 +175,7 @@ export async function POST(
           attachments_checklist: generationResult.attachments_checklist || [],
           strategy_used: requestedStrategy,
         },
-      })
+      } as never)
       .select()
       .single();
 
@@ -182,7 +186,7 @@ export async function POST(
 
     await supabase
       .from('cases')
-      .update({ status: 'completed' })
+      .update({ status: 'completed' } as never)
       .eq('id', caseId);
 
     let notifyMessage = `**Возражение на иск подготовлено** (версия ${newVersion})\n\n`;
@@ -215,7 +219,7 @@ export async function POST(
       role: 'assistant',
       content: notifyMessage,
       message_type: 'document_generated',
-    });
+    } as never);
 
     return NextResponse.json({
       document: generatedDoc,

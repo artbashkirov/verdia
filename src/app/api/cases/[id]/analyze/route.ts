@@ -8,7 +8,7 @@ import {
   buildCaseAnalysisContext,
 } from '@/lib/case-prompts';
 import { checkQualityGates } from '@/lib/quality-gates';
-import type { CaseAnalysis, CaseEntities, CaseMissingInfo } from '@/types/database';
+import type { Case, CaseDocument, CaseMessage, CaseAnalysis, CaseEntities, CaseMissingInfo } from '@/types/database';
 
 export async function POST(
   request: NextRequest,
@@ -23,39 +23,42 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data: caseData } = await supabase
+    const { data: caseDataRaw } = await supabase
       .from('cases')
       .select('*')
       .eq('id', caseId)
       .eq('user_id', user.id)
       .single();
 
-    if (!caseData) {
+    if (!caseDataRaw) {
       return NextResponse.json({ error: 'Case not found' }, { status: 404 });
     }
+    const caseData = caseDataRaw as Case;
 
     await supabase
       .from('cases')
-      .update({ status: 'analyzing' })
+      .update({ status: 'analyzing' } as never)
       .eq('id', caseId);
 
-    const { data: documents } = await supabase
+    const { data: documentsRaw } = await supabase
       .from('case_documents')
       .select('*')
       .eq('case_id', caseId)
       .order('created_at', { ascending: true });
+    const documents = (documentsRaw || []) as CaseDocument[];
 
-    const { data: messages } = await supabase
+    const { data: messagesRaw } = await supabase
       .from('case_messages')
       .select('role, content')
       .eq('case_id', caseId)
       .eq('message_type', 'message')
       .order('created_at', { ascending: true });
+    const messages = (messagesRaw || []) as Pick<CaseMessage, 'role' | 'content'>[];
 
     const body = await request.json().catch(() => ({}));
     const analyzeNewDocId = body.document_id;
 
-    if (analyzeNewDocId && documents) {
+    if (analyzeNewDocId && documents.length > 0) {
       const newDoc = documents.find(d => d.id === analyzeNewDocId);
       if (newDoc && newDoc.extracted_text && (!newDoc.analysis || Object.keys(newDoc.analysis).length === 0)) {
         try {
@@ -68,7 +71,7 @@ export async function POST(
             .update({
               analysis: docAnalysis,
               is_relevant: docAnalysis.is_relevant ?? true,
-            })
+            } as never)
             .eq('id', analyzeNewDocId);
         } catch (e) {
           console.error('Document analysis error:', e);
@@ -76,7 +79,7 @@ export async function POST(
       }
     }
 
-    const docsForContext = (documents || [])
+    const docsForContext = documents
       .filter(d => d.extracted_text)
       .map(d => ({
         file_name: d.file_name,
@@ -84,7 +87,7 @@ export async function POST(
         analysis: d.analysis,
       }));
 
-    const chatHistory = (messages || []).map(m => ({
+    const chatHistory = messages.map(m => ({
       role: m.role,
       content: m.content,
     }));
@@ -114,7 +117,7 @@ export async function POST(
       console.error('Case analysis AI error:', e);
       await supabase
         .from('cases')
-        .update({ status: 'draft' })
+        .update({ status: 'draft' } as never)
         .eq('id', caseId);
       return NextResponse.json({ error: 'AI analysis failed' }, { status: 500 });
     }
@@ -158,7 +161,7 @@ export async function POST(
         probability: {
           level: analysisResult.ready_to_generate ? 'analyzed' : 'insufficient_data',
         },
-      })
+      } as never)
       .eq('id', caseId);
 
     let summaryMessage = `**Анализ дела завершен**\n\n${analysis.summary || 'Анализ проведен.'}`;
@@ -195,7 +198,7 @@ export async function POST(
       role: 'assistant',
       content: summaryMessage,
       message_type: 'analysis',
-    });
+    } as never);
 
     return NextResponse.json({
       analysis,
