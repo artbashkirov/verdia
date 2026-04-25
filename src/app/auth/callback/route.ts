@@ -28,15 +28,20 @@ export async function GET(request: Request) {
   if (code) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    
+
     if (!error) {
       if (type === 'recovery' || next === '/reset-password') {
         return NextResponse.redirect(`${origin}/reset-password`);
       }
       return NextResponse.redirect(`${origin}${next}`);
     }
+
+    console.error('[/auth/callback] exchangeCodeForSession error:', error.message, error.status);
+    const reason = encodeURIComponent(error.message);
+    return NextResponse.redirect(`${origin}/login?error=auth_failed&reason=${reason}`);
   }
 
-  return NextResponse.redirect(`${origin}/login?error=auth_failed`);
+  console.error('[/auth/callback] missing code param');
+  return NextResponse.redirect(`${origin}/login?error=auth_failed&reason=missing_code`);
 }
 
