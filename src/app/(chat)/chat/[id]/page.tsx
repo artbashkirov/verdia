@@ -10,6 +10,8 @@ import { generateDocx, downloadBlob } from '@/lib/docx-generator';
 import { CaseTransitionBanner } from '@/components/cases/CaseTransitionBanner';
 import { useTheme } from '@/lib/theme-context';
 
+const CASES_ENABLED = process.env.NEXT_PUBLIC_FEATURE_CASES === 'true';
+
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -1005,8 +1007,8 @@ function ChatResultPageContent() {
                 </div>
               )}
 
-              {/* Case transition banner */}
-              {generation && (
+              {/* Case transition banner — gated behind NEXT_PUBLIC_FEATURE_CASES */}
+              {CASES_ENABLED && generation && (
                 <CaseTransitionBanner
                   generationId={chatId}
                   query={query}

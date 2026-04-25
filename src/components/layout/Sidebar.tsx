@@ -9,6 +9,8 @@ import { MessageCircleMore, PanelLeftClose, User as UserIcon, FolderOpen } from 
 import { createClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
+const CASES_ENABLED = process.env.NEXT_PUBLIC_FEATURE_CASES === 'true';
+
 interface ChatHistory {
   id: string;
   title: string;
@@ -514,25 +516,27 @@ export function Sidebar({
           </button>
         )}
 
-        {/* My Cases link */}
-        {isCollapsed ? (
-          <Link
-            href="/cases"
-            className="w-[28px] h-[28px] flex items-center justify-center text-white/60 hover:text-white transition-colors"
-            title="Мои дела"
-            style={{ marginTop: '8px' }}
-          >
-            <FolderOpen className="w-5 h-5" strokeWidth="1.5" />
-          </Link>
-        ) : (
-          <Link
-            href="/cases"
-            className="h-10 flex items-center gap-2 px-3 text-white/60 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
-            style={{ marginTop: '8px' }}
-          >
-            <FolderOpen className="w-4 h-4" strokeWidth="1.5" />
-            <span className="text-sm font-medium">Мои дела</span>
-          </Link>
+        {/* My Cases link — gated behind NEXT_PUBLIC_FEATURE_CASES */}
+        {CASES_ENABLED && (
+          isCollapsed ? (
+            <Link
+              href="/cases"
+              className="w-[28px] h-[28px] flex items-center justify-center text-white/60 hover:text-white transition-colors"
+              title="Мои дела"
+              style={{ marginTop: '8px' }}
+            >
+              <FolderOpen className="w-5 h-5" strokeWidth="1.5" />
+            </Link>
+          ) : (
+            <Link
+              href="/cases"
+              className="h-10 flex items-center gap-2 px-3 text-white/60 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
+              style={{ marginTop: '8px' }}
+            >
+              <FolderOpen className="w-4 h-4" strokeWidth="1.5" />
+              <span className="text-sm font-medium">Мои дела</span>
+            </Link>
+          )
         )}
 
         {/* Chat history */}

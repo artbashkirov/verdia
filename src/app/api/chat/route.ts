@@ -279,7 +279,9 @@ _Услуга станет доступна после оплаты подгот
       } as any);
 
       // Generate documents using AI (Gemini — основная, или OpenAI по настройке)
-      const responseText = await chatCompletion(messages, { maxTokens: 5000, jsonMode: true });
+      // 12000 tokens — safe headroom for full исковое заявление (~6-9k tokens)
+      // to prevent JSON truncation that produces empty documents fallback.
+      const responseText = await chatCompletion(messages, { maxTokens: 12000, jsonMode: true });
       
       console.log(`🔍 [${getAIProvider()}] raw response length:`, responseText.length);
       console.log(`🔍 [${getAIProvider()}] response (first 1000 chars):`, responseText.slice(0, 1000));
