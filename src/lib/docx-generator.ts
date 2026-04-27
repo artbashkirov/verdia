@@ -121,15 +121,24 @@ export async function generateLegalDocument(
   return await Packer.toBlob(document);
 }
 
-// Download blob as file
+// Download blob as file.
+// Важно: revokeObjectURL откладываем через setTimeout — иначе на Android Chrome
+// blob-URL отзывается раньше, чем браузер успевает начать скачивание,
+// и файл не сохраняется (на iOS Safari и desktop срабатывает быстрее, поэтому там работает).
 export function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
+  a.rel = 'noopener';
+  a.style.display = 'none';
   document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  setTimeout(() => {
+    if (a.parentNode) {
+      document.body.removeChild(a);
+    }
+    URL.revokeObjectURL(url);
+  }, 1000);
 }
 
