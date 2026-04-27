@@ -5,7 +5,6 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Sidebar, ChatInput, MobileHeader, MobileSidebar, ProbabilityBlock } from '@/components/layout';
 import { DownloadIcon } from '@/components/icons';
 import { MarkdownRenderer } from '@/components/ui';
-import { createClient } from '@/lib/supabase/client';
 import { generateDocx, downloadBlob } from '@/lib/docx-generator';
 import { CaseTransitionBanner } from '@/components/cases/CaseTransitionBanner';
 import { useTheme } from '@/lib/theme-context';
@@ -226,7 +225,6 @@ function ChatResultPageContent() {
 
   useEffect(() => {
     let pollInterval: NodeJS.Timeout | null = null;
-    let safetyTimeout: NodeJS.Timeout | null = null;
     let cancelled = false;
 
     async function fetchGeneration() {
@@ -264,52 +262,50 @@ function ChatResultPageContent() {
         return;
       }
 
-      // Safety net: на мобильных Supabase JS SDK иногда зависает на refresh-токене
-      // и `await supabase.from(...).single()` не резолвится. Снимаем лоадер через 10s.
-      safetyTimeout = setTimeout(() => {
-        if (cancelled) return;
-        console.warn('fetchGeneration safety timeout fired');
-        setError('Не удалось загрузить результат. Проверьте подключение и обновите страницу.');
-        setIsLoading(false);
-      }, 10000);
-
       try {
-        // Fetch from database via Supabase client
-        const supabase = createClient();
-
-        const { data, error } = await supabase
-          .from('generations')
-          .select('*')
-          .eq('id', id)
-          .single();
+        // Fetch via server API route — avoids browser Supabase SDK
+        // occasionally hanging on auth-token refresh.
+        const response = await fetch(`/api/generations/${id}`);
 
         if (cancelled) return;
 
-        if (error) {
-          console.error('Error fetching generation:', error);
-          setError('Не удалось загрузить результат');
+        if (!response.ok) {
+          let errorMessage = 'Не удалось загрузить результат';
+          try {
+            const errData = await response.json();
+            if (errData?.error) errorMessage = errData.error;
+          } catch {
+            // ignore JSON parse errors
+          }
+          console.error('Error fetching generation:', response.status, errorMessage);
+          setError(errorMessage);
           setIsLoading(false);
           return;
         }
 
-        const generationData = data as Generation;
+        const json = await response.json();
+        const generationData = json.generation as Generation;
+
+        if (!generationData) {
+          setError('Результат не найден');
+          setIsLoading(false);
+          return;
+        }
+
         setGeneration(generationData);
         setIsLoading(false);
 
         // If response is null, poll every 2 seconds until it's ready
-        if (generationData && !generationData.response) {
+        if (!generationData.response) {
           pollInterval = setInterval(async () => {
             try {
-              const { data: updatedData } = await supabase
-                .from('generations')
-                .select('*')
-                .eq('id', id)
-                .single();
-
+              const pollResponse = await fetch(`/api/generations/${id}`);
               if (cancelled) return;
-
-              if (updatedData && (updatedData as Generation).response) {
-                setGeneration(updatedData as Generation);
+              if (!pollResponse.ok) return;
+              const pollJson = await pollResponse.json();
+              const updatedData = pollJson.generation as Generation;
+              if (updatedData && updatedData.response) {
+                setGeneration(updatedData);
                 if (pollInterval) {
                   clearInterval(pollInterval);
                   pollInterval = null;
@@ -323,13 +319,8 @@ function ChatResultPageContent() {
       } catch (err) {
         if (cancelled) return;
         console.error('Unexpected fetchGeneration error:', err);
-        setError('Не удалось загрузить результат');
+        setError('Не удалось загрузить результат. Проверьте подключение и обновите страницу.');
         setIsLoading(false);
-      } finally {
-        if (safetyTimeout) {
-          clearTimeout(safetyTimeout);
-          safetyTimeout = null;
-        }
       }
     }
 
@@ -339,9 +330,6 @@ function ChatResultPageContent() {
       cancelled = true;
       if (pollInterval) {
         clearInterval(pollInterval);
-      }
-      if (safetyTimeout) {
-        clearTimeout(safetyTimeout);
       }
     };
   }, [params.id]);
@@ -773,7 +761,7 @@ function ChatResultPageContent() {
     );
   }
 
-  if (error || !generation) {
+  if (!isLoading && (error || !generation)) {
     return (
       <div className="flex bg-background" style={{ height: 'var(--viewport-height, 100vh)' }}>
         <MobileHeader 
@@ -799,6 +787,30 @@ function ChatResultPageContent() {
                 Новый запрос
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!generation) {
+    return (
+      <div className="flex bg-background" style={{ height: 'var(--viewport-height, 100vh)' }}>
+        <MobileHeader 
+          onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          isMenuOpen={isMobileMenuOpen}
+          onNewChat={handleNewChat}
+        />
+        <MobileSidebar
+          isOpen={isMobileMenuOpen}
+          onClose={() => setIsMobileMenuOpen(false)}
+          currentChatId={chatId}
+          onNewChat={handleNewChat}
+        />
+        <Sidebar currentChatId={chatId} onNewChat={handleNewChat} className="hidden md:flex" />
+        <div className="flex-1 min-w-0 overflow-x-hidden p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A]">
+          <div className="h-full bg-background md:rounded-2xl overflow-hidden flex items-center justify-center">
+            <div className="w-12 h-12 border-4 border-foreground border-t-transparent rounded-full animate-spin" />
           </div>
         </div>
       </div>
