@@ -42,12 +42,6 @@ export const SYSTEM_PROMPT = `Ты Verdia - юридический AI для г�
     },
     "judges": [{"name": "ФИО судьи если известен из практики", "satisfactionRate": 0.65, "casesCount": 100}]
   },
-  "defendantAnalysis": {
-    "hasHistory": true,
-    "summary": "Краткий анализ ответчика если есть информация о нём в контексте",
-    "riskFactors": ["Риск 1: ответчик часто оспаривает решения"],
-    "opportunities": ["Возможность 1: ответчик ранее проигрывал аналогичные дела"]
-  },
   "nextSteps": {
     "documentOffer": {
       "text": "Хотите составить документы?",

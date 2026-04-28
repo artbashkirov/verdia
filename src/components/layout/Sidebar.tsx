@@ -7,6 +7,9 @@ import Image from 'next/image';
 import { PlusIcon, TrashIcon, HelpCircleIcon, ChevronDownIcon } from '@/components/icons';
 import { MessageCircleMore, PanelLeftClose, User as UserIcon, FolderOpen } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { safeGet, safeSet, safeSetJson } from '@/lib/safe-storage';
+import { getUserWithTimeout } from '@/lib/auth-timeout';
+import { toast } from 'sonner';
 import type { User } from '@supabase/supabase-js';
 
 const CASES_ENABLED = process.env.NEXT_PUBLIC_FEATURE_CASES === 'true';
@@ -52,7 +55,7 @@ export function Sidebar({
   // Save chat history to localStorage whenever it changes
   useEffect(() => {
     if (chatHistory.length > 0) {
-      localStorage.setItem('chatHistoryCache', JSON.stringify(chatHistory));
+      safeSetJson('chatHistoryCache', chatHistory);
     }
   }, [chatHistory]);
 
@@ -61,7 +64,7 @@ export function Sidebar({
     setIsMounted(true);
     
     // Load cached chat history
-    const cachedHistory = localStorage.getItem('chatHistoryCache');
+    const cachedHistory = safeGet('chatHistoryCache');
     if (cachedHistory) {
       try {
         setChatHistory(JSON.parse(cachedHistory));
@@ -72,7 +75,7 @@ export function Sidebar({
     }
     
     // Load read status
-    const stored = localStorage.getItem('readChats');
+    const stored = safeGet('readChats');
     if (stored) {
       try {
         setReadChats(new Set(JSON.parse(stored)));
@@ -88,7 +91,7 @@ export function Sidebar({
       setReadChats(prev => {
         const updated = new Set(prev);
         updated.add(currentChatId);
-        localStorage.setItem('readChats', JSON.stringify([...updated]));
+        safeSet('readChats', JSON.stringify([...updated]));
         return updated;
       });
     }
@@ -99,10 +102,15 @@ export function Sidebar({
       const supabase = createClient();
       let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
       
-      // Get current user
-      supabase.auth.getUser().then(({ data: { user }, error }) => {
-        if (error) {
-          console.error('Error getting user:', error);
+      // Get current user with timeout — на мобильных браузерах getUser() иногда
+      // зависает на refresh-токене, без таймаута получаем "вечный спиннер" истории.
+      getUserWithTimeout(supabase).then(({ user, error, timedOut }) => {
+        if (timedOut || error) {
+          if (timedOut) {
+            console.warn('[Sidebar] auth getUser timed out — продолжаем с кэшем истории');
+          } else {
+            console.error('[Sidebar] auth getUser failed:', error);
+          }
           setIsLoadingHistory(false);
           return;
         }
@@ -229,35 +237,48 @@ export function Sidebar({
     const generatingItems = chatHistory.filter(c => c.isGenerating);
     if (generatingItems.length === 0) return;
 
+    const controller = new AbortController();
+
     const pollInterval = setInterval(async () => {
-      const supabase = createClient();
-      const ids = generatingItems.map(c => c.id);
-      
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data } = await (supabase.from('generations') as any)
-        .select('id, response')
-        .in('id', ids);
-      
-      if (data) {
+      try {
+        const ids = generatingItems.map(c => c.id);
+        if (ids.length === 0) return;
+        if (controller.signal.aborted) return;
+
+        const res = await fetch(
+          `/api/generations?ids=${encodeURIComponent(ids.join(','))}`,
+          { credentials: 'include', signal: controller.signal }
+        );
+        if (controller.signal.aborted) return;
+        if (!res.ok) return;
+
+        const json = await res.json();
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const updates = data.filter((item: any) => 
+        const data = (json?.generations ?? []) as Array<{ id: string; response: any }>;
+
+        const updates = data.filter(item =>
           item.response && item.response._status !== 'generating'
         );
-        
-        if (updates.length > 0) {
+
+        if (updates.length > 0 && !controller.signal.aborted) {
           setChatHistory(prev => prev.map(c => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const updated = updates.find((u: any) => u.id === c.id);
+            const updated = updates.find(u => u.id === c.id);
             if (updated) {
               return { ...c, isGenerating: false };
             }
             return c;
           }));
         }
+      } catch (err) {
+        if ((err as Error)?.name === 'AbortError') return;
+        console.warn('Sidebar poll failed (will retry):', err);
       }
     }, 3000);
 
-    return () => clearInterval(pollInterval);
+    return () => {
+      controller.abort();
+      clearInterval(pollInterval);
+    };
   }, [chatHistory]);
 
   // Close dropdown when clicking outside
@@ -297,42 +318,43 @@ export function Sidebar({
     }
   }, [refreshTrigger]);
 
-  const loadChatHistory = async (userId: string, isRefresh: boolean = false) => {
+  const loadChatHistory = async (_userId: string, isRefresh: boolean = false) => {
     try {
       // Only show loading state if no cached data
       if (!isRefresh && chatHistory.length === 0) {
         setIsLoadingHistory(true);
       }
-      const supabase = createClient();
-      
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase.from('generations') as any)
-        .select('id, query, response, created_at')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error loading chat history:', error);
+      // Используем серверный роут вместо браузерного Supabase-клиента,
+      // который может зависнуть на refresh-токене (особенно на мобильных).
+      const res = await fetch('/api/generations', { credentials: 'include' });
+
+      if (!res.ok) {
+        console.error('Error loading chat history:', res.status, res.statusText);
         setChatHistory([]);
-      } else {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const historyItems = (data || []).map((item: { id: string; query: string; response: any }) => ({
-          id: item.id,
-          title: item.query.slice(0, 50) + (item.query.length > 50 ? '...' : ''),
-          isGenerating: !item.response || item.response?._status === 'generating',
-        }));
-        setChatHistory(historyItems);
-        
-        // Mark all completed chats as "read" - only new background generations should show blue dot
-        const completedIds = historyItems.filter((c: { isGenerating?: boolean }) => !c.isGenerating).map((c: { id: string }) => c.id);
-        if (completedIds.length > 0) {
-          setReadChats(prev => {
-            const updated = new Set(prev);
-            completedIds.forEach((id: string) => updated.add(id));
-            localStorage.setItem('readChats', JSON.stringify([...updated]));
-            return updated;
-          });
-        }
+        return;
+      }
+
+      const json = await res.json();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = (json?.generations ?? []) as Array<{ id: string; query: string; response: any }>;
+
+      const historyItems = data.map((item) => ({
+        id: item.id,
+        title: item.query.slice(0, 50) + (item.query.length > 50 ? '...' : ''),
+        isGenerating: !item.response || item.response?._status === 'generating',
+      }));
+      setChatHistory(historyItems);
+
+      // Mark all completed chats as "read" - only new background generations should show blue dot
+      const completedIds = historyItems.filter(c => !c.isGenerating).map(c => c.id);
+      if (completedIds.length > 0) {
+        setReadChats(prev => {
+          const updated = new Set(prev);
+          completedIds.forEach((id: string) => updated.add(id));
+          safeSet('readChats', JSON.stringify([...updated]));
+          return updated;
+        });
       }
     } catch (error) {
       console.error('Error in loadChatHistory:', error);
@@ -340,7 +362,6 @@ export function Sidebar({
     } finally {
       setIsLoadingHistory(false);
     }
-    setIsLoadingHistory(false);
   };
 
   const handleSignOut = async () => {
@@ -352,51 +373,56 @@ export function Sidebar({
 
   const handleClearHistory = async () => {
     if (!user) return;
-    
-    if (!confirm('Вы уверены, что хотите удалить всю историю?')) return;
-    
-    setShowDropdown(false);
-    
-    const supabase = createClient();
-    
-    // Delete all generations for this user
-    const { error } = await supabase
-      .from('generations')
-      .delete()
-      .eq('user_id', user.id);
 
-    if (error) {
-      console.error('Error clearing history:', error);
-      alert('Ошибка при удалении истории');
-    } else {
+    if (!confirm('Вы уверены, что хотите удалить всю историю?')) return;
+
+    setShowDropdown(false);
+
+    try {
+      const res = await fetch('/api/generations', {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        console.error('Error clearing history:', res.status, res.statusText);
+        toast.error('Ошибка при удалении истории');
+        return;
+      }
+
       setChatHistory([]);
       if (onClearHistory) onClearHistory();
       router.push('/chat');
+    } catch (err) {
+      console.error('Error clearing history (network):', err);
+      toast.error('Ошибка сети, попробуйте ещё раз');
     }
   };
 
   const handleDeleteChat = async (e: React.MouseEvent, chatId: string) => {
     e.preventDefault(); // Prevent navigation
     e.stopPropagation();
-    
-    if (!user) return;
-    
-    const supabase = createClient();
-    
-    const { error } = await supabase
-      .from('generations')
-      .delete()
-      .eq('id', chatId)
-      .eq('user_id', user.id);
 
-    if (error) {
-      console.error('Error deleting chat:', error);
-    } else {
+    if (!user) return;
+
+    try {
+      const res = await fetch(`/api/generations/${encodeURIComponent(chatId)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        console.error('Error deleting chat:', res.status, res.statusText);
+        return;
+      }
+
       setChatHistory(prev => prev.filter(chat => chat.id !== chatId));
       // If deleting current chat, redirect to main chat page
       if (currentChatId === chatId) {
         router.push('/chat');
       }
+    } catch (err) {
+      console.error('Error deleting chat (network):', err);
     }
   };
 

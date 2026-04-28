@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { Sidebar, MobileHeader, MobileSidebar } from '@/components/layout';
 import { CaseDocumentsList } from '@/components/cases/CaseDocumentsList';
 import { CaseAnalysisPanel } from '@/components/cases/CaseAnalysisPanel';
@@ -209,7 +210,7 @@ export default function CaseDetailPage() {
         await loadMessages();
       } else {
         const err = await response.json();
-        alert(err.error || 'Ошибка при генерации');
+        toast.error(err.error || 'Ошибка при генерации');
       }
     } catch (error) {
       console.error('Error generating document:', error);

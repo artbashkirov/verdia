@@ -2,10 +2,12 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { Sidebar, ChatInput, ProbabilityBlock } from '@/components/layout';
 import { DownloadIcon } from '@/components/icons';
 import { generateDocx, downloadBlob } from '@/lib/docx-generator';
 import { useTheme } from '@/lib/theme-context';
+import { safeGet, safeSet } from '@/lib/safe-storage';
 
 interface GenerationResponse {
   courtCases: Array<{
@@ -78,7 +80,7 @@ function ResultContent() {
 
   // Load visited URLs from localStorage
   useEffect(() => {
-    const stored = localStorage.getItem('visitedCourtCases');
+    const stored = safeGet('visitedCourtCases');
     if (stored) {
       try {
         setVisitedUrls(new Set(JSON.parse(stored)));
@@ -92,7 +94,7 @@ function ResultContent() {
     setVisitedUrls(prev => {
       const updated = new Set(prev);
       updated.add(url);
-      localStorage.setItem('visitedCourtCases', JSON.stringify([...updated]));
+      safeSet('visitedCourtCases', JSON.stringify([...updated]));
       return updated;
     });
   };
@@ -113,7 +115,7 @@ function ResultContent() {
   }, []);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem('lastResponse');
+    const stored = safeGet('lastResponse', 'session');
     if (stored) {
       try {
         const data = JSON.parse(stored);
@@ -134,7 +136,7 @@ function ResultContent() {
 
   const handleDownload = async (doc: { id: number; title: string; content?: string; format: string }) => {
     if (!doc.content) {
-      alert('Содержимое документа недоступно. Пожалуйста, попробуйте обновить страницу или обратитесь в поддержку.');
+      toast.error('Содержимое документа недоступно. Попробуйте обновить страницу или обратиться в поддержку.');
       console.error('Document missing content:', doc);
       return;
     }
@@ -160,7 +162,7 @@ function ResultContent() {
         downloadBlob(blob, `${doc.title}.txt`);
       } catch (fallbackErr) {
         console.error('Error creating fallback text file:', fallbackErr);
-        alert('Не удалось создать файл. Пожалуйста, попробуйте еще раз.');
+        toast.error('Не удалось создать файл. Попробуйте ещё раз.');
       }
     } finally {
       setDownloadingId(null);

@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/server';
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
+): Promise<NextResponse> {
   try {
     const { id } = await params;
 
@@ -48,5 +48,44 @@ export async function GET(
       { error: 'Произошла ошибка' },
       { status: 500 }
     );
+  }
+}
+
+// DELETE /api/generations/[id] — удаление одного чата текущего пользователя.
+// Серверный роут вместо прямого `supabase.from('generations').delete()`
+// в Sidebar/MobileSidebar — по тем же причинам, что и GET.
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+): Promise<NextResponse> {
+  try {
+    const { id } = await params;
+
+    if (!id) {
+      return NextResponse.json({ error: 'ID не указан' }, { status: 400 });
+    }
+
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Необходима авторизация' }, { status: 401 });
+    }
+
+    const { error } = await supabase
+      .from('generations')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('Generation DELETE error:', error);
+      return NextResponse.json({ error: 'Не удалось удалить чат' }, { status: 500 });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error('Generation DELETE unexpected error:', error);
+    return NextResponse.json({ error: 'Произошла ошибка' }, { status: 500 });
   }
 }

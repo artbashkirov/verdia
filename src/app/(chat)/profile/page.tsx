@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 import { Sidebar } from '@/components/layout';
 import { MobileHeader } from '@/components/layout/MobileHeader';
 import { MobileSidebar } from '@/components/layout/MobileSidebar';
@@ -26,66 +25,85 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Partial<UserProfile>>({});
 
   useEffect(() => {
+    let cancelled = false;
+
     const loadProfile = async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        router.push('/login');
-        return;
-      }
+      try {
+        const res = await fetch('/api/profile', { credentials: 'include' });
 
-      const { data } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
+        if (res.status === 401) {
+          if (!cancelled) router.push('/login');
+          return;
+        }
 
-      if (data) {
-        const profileData = data as UserProfile;
-        setProfile(profileData);
-        setPersonType(profileData.person_type || 'individual');
+        if (!res.ok) {
+          console.error('Profile load failed:', res.status, res.statusText);
+          if (!cancelled) setIsLoading(false);
+          return;
+        }
+
+        const json = await res.json();
+        if (cancelled) return;
+
+        const profileData = json?.profile as UserProfile | null;
+        if (profileData) {
+          setProfile(profileData);
+          setPersonType(profileData.person_type || 'individual');
+        }
+      } catch (err) {
+        console.error('Profile load error:', err);
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
-      
-      setIsLoading(false);
     };
 
     loadProfile();
+    return () => { cancelled = true; };
   }, [router]);
 
   const handleSave = async () => {
     setIsSaving(true);
     setMessage(null);
-    
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      setMessage({ type: 'error', text: 'Необходима авторизация' });
-      setIsSaving(false);
-      return;
-    }
 
-    const profileData = {
-      user_id: user.id,
-      person_type: personType,
-      ...profile,
-    };
+    try {
+      const profileData = {
+        person_type: personType,
+        ...profile,
+      };
 
-    // Use upsert to create or update
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase.from('user_profiles') as any)
-      .upsert(profileData, { onConflict: 'user_id' });
+      const res = await fetch('/api/profile', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile: profileData }),
+      });
 
-    if (error) {
-      console.error('Error saving profile:', error);
-      setMessage({ type: 'error', text: 'Ошибка сохранения профиля' });
-    } else {
+      if (res.status === 401) {
+        setMessage({ type: 'error', text: 'Необходима авторизация' });
+        return;
+      }
+
+      if (!res.ok) {
+        let serverError = 'Ошибка сохранения профиля';
+        try {
+          const json = await res.json();
+          if (json?.error) serverError = json.error;
+        } catch {
+          // тело может быть не JSON — оставим дефолтный текст ошибки
+        }
+        console.error('Profile save failed:', res.status, serverError);
+        setMessage({ type: 'error', text: serverError });
+        return;
+      }
+
       setMessage({ type: 'success', text: 'Профиль сохранён' });
       setTimeout(() => setMessage(null), 3000);
+    } catch (err) {
+      console.error('Profile save error:', err);
+      setMessage({ type: 'error', text: 'Ошибка сети, попробуйте ещё раз' });
+    } finally {
+      setIsSaving(false);
     }
-    
-    setIsSaving(false);
   };
 
   const updateField = (field: keyof UserProfile, value: string) => {

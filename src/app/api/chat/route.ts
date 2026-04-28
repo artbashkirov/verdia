@@ -3,6 +3,12 @@ import { createClient } from '@/lib/supabase/server';
 import { chatCompletion, getAIProvider } from '@/lib/openai';
 import { getLawContext } from '@/lib/rag';
 import { DOCUMENT_GENERATION_PROMPT } from '@/lib/prompts';
+import {
+  NEXT_STEPS_QUESTION_MARKER,
+  buildNextStepsQuestion,
+  buildTemplateBlock,
+  detectDocumentType,
+} from '@/lib/next-steps-templates';
 import type { UserProfile } from '@/types/database';
 
 // Format plaintiff info for document generation
@@ -51,14 +57,13 @@ function formatPlaintiffForDocuments(profile: UserProfile | null): string {
 
 const CHAT_SYSTEM_PROMPT = `Ты - Verdia, юридический AI-ассистент для граждан России. 
 Ты уже предоставил пользователю юридическую консультацию с анализом судебной практики и прогнозом успеха.
-Теперь пользователь может уточнить детали, согласиться на подготовку документов или запросить помощь представителя.
+Теперь пользователь может уточнить детали или согласиться на подготовку документов.
 
 ПРАВИЛА:
 1. Если пользователь соглашается на документы ("да", "согласен", "хочу", "давай", "составь", "подготовь") - переходи к генерации документов
 2. Отвечай кратко и по существу
 3. Ссылайся на предыдущий анализ, если это уместно
 4. Если вопрос выходит за рамки гражданского процесса РФ, вежливо сообщи об этом
-5. После создания документов - ОБЯЗАТЕЛЬНО предложи помощь представителя в суде
 
 ФОРМАТИРОВАНИЕ:
 - Используй **жирный текст** для важных терминов
@@ -101,16 +106,12 @@ function isAgreement(message: string): boolean {
   return agreementPatterns.some(p => p.test(message.trim()));
 }
 
-// Check if asking about representative
-function isRepresentativeRequest(message: string): boolean {
-  const repPatterns = [
-    /представител/i,
-    /адвокат/i,
-    /юрист/i,
-    /помо[щг].*суд/i,
-    /участ.*заседан/i,
-  ];
-  return repPatterns.some(p => p.test(message));
+// Affirmative response to the "хотите расскажу что дальше" follow-up.
+// Используется ТОЛЬКО когда последнее сообщение ассистента было этим вопросом —
+// иначе "да" по-прежнему попадает в isAgreement и триггерит генерацию документов.
+function isAffirmativeForNextSteps(message: string): boolean {
+  if (isAgreement(message)) return true;
+  return /расскаж|дальше|подать|следующи|инструкц/i.test(message);
 }
 
 export async function POST(request: NextRequest) {
@@ -173,13 +174,21 @@ export async function POST(request: NextRequest) {
     // Get previous messages in this chat
     const { data: previousMessages = [] } = await supabase
       .from('chat_messages')
-      .select('role, content')
+      .select('role, content, documents')
       .eq('generation_id', generationId)
       .order('created_at', { ascending: true });
 
+    type PrevMsg = { role: string; content: string; documents?: Array<{ title: string; content: string }> | null };
+    const prevMsgs = (previousMessages || []) as PrevMsg[];
+
+    // Determine if user is responding to the "что делать дальше" follow-up question.
+    // Это должно проверяться ДО isAgreement, иначе "да" триггернет повторную генерацию документов.
+    const lastAssistantMsg = [...prevMsgs].reverse().find(m => m.role === 'assistant');
+    const wasFollowUpQuestion = !!lastAssistantMsg && NEXT_STEPS_QUESTION_MARKER.test(lastAssistantMsg.content);
+    const wantsNextSteps = wasFollowUpQuestion && isAffirmativeForNextSteps(message);
+
     // Determine message type
-    const shouldGenerateDocuments = isDocumentRequest(message) || isAgreement(message);
-    const isRepRequest = isRepresentativeRequest(message);
+    const shouldGenerateDocuments = !wantsNextSteps && (isDocumentRequest(message) || isAgreement(message));
 
     // Build context from original generation
     const contextSummary = `
@@ -196,45 +205,78 @@ export async function POST(request: NextRequest) {
 Предполагаемый суд: ${gen.response?.courtPrediction?.predictedCourt?.name || 'определяется по месту регистрации ответчика'}
 `;
 
-    // Handle representative request
-    if (isRepRequest) {
+    // Handle "что делать дальше" follow-up
+    if (wantsNextSteps) {
+      // Find the most recent assistant message that has documents attached.
+      const lastDocsMsg = [...prevMsgs].reverse().find(
+        m => m.role === 'assistant' && Array.isArray(m.documents) && m.documents.length > 0
+      );
+      const docs = (lastDocsMsg?.documents || []) as Array<{ title: string; content: string }>;
+      const docTitles = docs.map(d => d.title || '');
+      const docTypes = [...new Set(docTitles.map(detectDocumentType))];
+
+      const templateBlock = buildTemplateBlock(docTitles);
+
+      // Сгенерировать AI-секцию "Особенности вашего случая" на основе контекста
+      // дела + найденных в RAG статей закона. Если RAG/AI не сработают —
+      // оставляем только статический шаблон.
+      let customSection = '';
+      try {
+        const ragQuery = `${gen.query} — что делать после получения документа: ${docTypes.join(', ')}`;
+        const { context: lawContext, articles } = await getLawContext(ragQuery, {
+          matchCount: 4,
+          matchThreshold: 0.3,
+        });
+
+        if (articles.length > 0) {
+          const customPrompt = `Ты юридический ассистент. Дай 2-3 коротких пункта "Особенности вашего случая" — что важно учесть именно в этой ситуации помимо общих процессуальных шагов.
+
+КОНТЕКСТ ДЕЛА: ${gen.query}
+ТИПЫ ДОКУМЕНТОВ: ${docTypes.join(', ')}
+${lawContext}
+
+ТРЕБОВАНИЯ:
+- Только маркированный список из 2-3 пунктов.
+- Каждый пункт со ссылкой на КОНКРЕТНУЮ статью закона из контекста выше (например, "ст. 22 Закона о защите прав потребителей").
+- Никаких вводных фраз, заголовков и заключений — только сами пункты.
+- Не выдумывай статьи, которых нет в контексте.
+- Если в контексте недостаточно данных для конкретики — верни ровно одну пустую строку.`;
+
+          const aiText = await chatCompletion(
+            [{ role: 'system', content: customPrompt }],
+            { maxTokens: 600 }
+          );
+          customSection = (aiText || '').trim();
+        }
+      } catch (err) {
+        console.error('[NextSteps] RAG/AI custom section failed (non-fatal):', err);
+      }
+
+      const finalMessage = customSection
+        ? `${templateBlock}\n\n**Особенности вашего случая:**\n\n${customSection}`
+        : templateBlock;
+
+      // Save user message
       await supabase.from('chat_messages').insert({
         generation_id: generationId as string,
         user_id: user.id,
         role: 'user',
         content: message,
+        documents: [],
       } as any);
 
-      const repResponse = `**Помощь представителя в суде**
-
-Я могу помочь подобрать квалифицированного юриста для представительства ваших интересов в суде.
-
-**Что включает услуга:**
-1. Подбор юриста по вашей категории дела
-2. Подготовка к судебному заседанию
-3. Представительство в суде
-4. Подготовка апелляции при необходимости
-
-**Стоимость:** от 15 000 ₽ (зависит от сложности дела)
-
-Для подбора представителя, пожалуйста, укажите:
-- Ваш город
-- Желаемую дату первого заседания (если известна)
-
-_Услуга станет доступна после оплаты подготовки документов._`;
-
+      // Save assistant message with the next-steps response
       await supabase.from('chat_messages').insert({
         generation_id: generationId as string,
         user_id: user.id,
         role: 'assistant',
-        content: repResponse,
+        content: finalMessage,
         documents: [],
       } as any);
 
       return NextResponse.json({
-        message: repResponse,
+        message: finalMessage,
         documents: [],
-        showRepresentativeOffer: true,
       });
     }
 
@@ -346,22 +388,13 @@ _Услуга станет доступна после оплаты подгот
         }
       }
 
-      // Add representative offer to the message (отдельно, чтобы документы показывались между ними)
-      const representativeText = `
-
-**Нужна помощь представителя в суде?**
-
-После подготовки ${documents.length === 1 ? 'документа' : 'документов'} я могу помочь найти квалифицированного юриста для представительства ваших интересов в судебном заседании. Напишите "нужен представитель" или "помощь в суде", чтобы узнать подробнее.`;
-
-      const fullMessage = assistantMessage + representativeText;
-
       // Save assistant message with documents
       console.log('💾 Saving message with documents:', documents.length);
       const { error: insertError } = await supabase.from('chat_messages').insert({
         generation_id: generationId as string,
         user_id: user.id,
         role: 'assistant',
-        content: fullMessage,
+        content: assistantMessage,
         documents: documents.length > 0 ? documents : [],
       } as any);
       
@@ -371,12 +404,28 @@ _Услуга станет доступна после оплаты подгот
         console.log('✅ Message with documents saved successfully');
       }
 
+      // Follow-up question: предлагаем рассказать, что делать дальше
+      // (только если документы реально сгенерированы).
+      if (documents.length > 0) {
+        const followUp = buildNextStepsQuestion(documents.length);
+        const { error: followUpError } = await supabase.from('chat_messages').insert({
+          generation_id: generationId as string,
+          user_id: user.id,
+          role: 'assistant',
+          content: followUp,
+          documents: [],
+        } as any);
+
+        if (followUpError) {
+          console.error('❌ Error saving follow-up question:', followUpError);
+        }
+      }
+
       return NextResponse.json({
-        message: fullMessage,
+        message: assistantMessage,
         documents: documents,
         paymentRequired: true,
         price: parsed.price || 500,
-        showRepresentativeOffer: true,
       });
 
     } else {

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { FolderOpen, Loader2, X } from 'lucide-react';
 
 interface CaseTransitionBannerProps {
@@ -32,11 +33,11 @@ export function CaseTransitionBanner({ generationId, query }: CaseTransitionBann
         const data = await response.json();
         router.push(`/cases/${data.case.id}`);
       } else {
-        alert('Ошибка при создании дела');
+        toast.error('Ошибка при создании дела');
       }
     } catch (error) {
       console.error('Error creating case:', error);
-      alert('Ошибка при создании дела');
+      toast.error('Ошибка при создании дела');
     } finally {
       setIsCreating(false);
     }

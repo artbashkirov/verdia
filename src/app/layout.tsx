@@ -3,6 +3,7 @@ import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/lib/theme-context";
 import { ScrollbarHandler, ViewportHandler } from "@/components/layout";
+import { AppToaster } from "@/components/ui";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -69,6 +70,7 @@ export default function RootLayout({
           <ScrollbarHandler />
           <ViewportHandler />
           {children}
+          <AppToaster />
         </ThemeProvider>
       </body>
     </html>

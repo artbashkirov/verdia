@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar, ChatInput, MobileHeader, MobileSidebar } from '@/components/layout';
 import { getRandomQueries } from '@/lib/example-queries';
+import { safeSet, safeRemove } from '@/lib/safe-storage';
 
 export default function ChatPage() {
   const router = useRouter();
@@ -26,18 +27,14 @@ export default function ChatPage() {
   }, []);
 
   const handleSubmit = (message: string) => {
-    // Store query and redirect immediately
-    sessionStorage.setItem('pendingQuery', message);
-    // Clear any cached data
-    sessionStorage.removeItem('cachedResponse');
+    safeSet('pendingQuery', message, 'session');
+    safeRemove('cachedResponse', 'session');
     router.push(`/chat/new?q=${encodeURIComponent(message)}`);
   };
 
   const handleExampleClick = (questionId: number, text: string) => {
-    // Navigate immediately - cache check happens on the new page
-    // Store questionId for potential cache lookup on the new page
-    sessionStorage.setItem('pendingQuery', text);
-    sessionStorage.setItem('pendingQuestionId', questionId.toString());
+    safeSet('pendingQuery', text, 'session');
+    safeSet('pendingQuestionId', questionId.toString(), 'session');
     router.push(`/chat/new?q=${encodeURIComponent(text)}`);
   };
 

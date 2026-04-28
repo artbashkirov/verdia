@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { Sidebar, MobileHeader, MobileSidebar } from '@/components/layout';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
@@ -47,11 +48,11 @@ export default function NewCasePage() {
         router.push(`/cases/${data.case.id}`);
       } else {
         const err = await response.json();
-        alert(err.error || 'Ошибка при создании дела');
+        toast.error(err.error || 'Ошибка при создании дела');
       }
     } catch (error) {
       console.error('Error creating case:', error);
-      alert('Ошибка при создании дела');
+      toast.error('Ошибка при создании дела');
     } finally {
       setIsCreating(false);
     }

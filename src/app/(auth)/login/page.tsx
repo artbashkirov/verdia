@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { AuthLayout } from '@/components/layout';
 import { Button, Input } from '@/components/ui';
 import { createClient } from '@/lib/supabase/client';
+import { getUserWithTimeout } from '@/lib/auth-timeout';
 
 // Проверка что клиент загружен
 if (typeof window === 'undefined') {
@@ -33,8 +34,14 @@ function LoginContent() {
   useEffect(() => {
     const supabase = createClient();
     
-    // Проверяем, авторизован ли уже пользователь
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    // Проверяем, авторизован ли уже пользователь.
+    // С таймаутом — иначе на мобильных при зависшем refresh-токене юзер
+    // может задержаться на страничке без понятного фидбэка.
+    getUserWithTimeout(supabase).then(({ user, timedOut }) => {
+      if (timedOut) {
+        console.warn('[Login] auth getUser timed out — показываем форму входа');
+        return;
+      }
       if (user) {
         window.location.href = '/chat';
       }
@@ -73,10 +80,11 @@ function LoginContent() {
     });
 
     if (signInError) {
-      // Проверяем, может пользователь всё же авторизовался несмотря на ошибку
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        // Авторизация успешна - редиректим
+      // Проверяем, может пользователь всё же авторизовался несмотря на ошибку.
+      // С таймаутом 3 секунды — иначе фолбэк сам по себе может зависнуть
+      // и пользователь увидит вечный спиннер после неудачного логина.
+      const { user, timedOut } = await getUserWithTimeout(supabase, 3000);
+      if (!timedOut && user) {
         window.location.href = '/chat';
         return;
       }

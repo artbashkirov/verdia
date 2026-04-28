@@ -419,7 +419,7 @@ export async function POST(request: NextRequest) {
         let response;
         try {
           response = JSON.parse(responseJson);
-          
+
           // Check if AI needs clarification
           if (response.clarificationNeeded) {
             // Delete the incomplete generation record since we need clarification
@@ -508,7 +508,19 @@ export async function POST(request: NextRequest) {
               level: response.shortAnswer.probability.level
             });
           }
-        } catch {
+        } catch (parseError) {
+          // ВАЖНО: без логирования здесь невозможно понять, ЧТО именно сломалось.
+          // Логируем тип ошибки, сообщение и первые 500 символов сырого ответа,
+          // чтобы воспроизвести и починить (битый JSON / обрезанный AI-ответ / etc).
+          const errMessage = parseError instanceof Error ? parseError.message : String(parseError);
+          const rawPreview = typeof responseJson === 'string'
+            ? responseJson.slice(0, 500)
+            : '<non-string response>';
+          console.error('[generate-stream] AI response parse failed:', {
+            error: errMessage,
+            rawPreview,
+            generationId,
+          });
           sendEvent('error', { message: 'Ошибка обработки ответа' });
           closeController();
           return;
@@ -537,11 +549,6 @@ export async function POST(request: NextRequest) {
         // Step 9.5: Send court prediction (judges, court)
         if (response.courtPrediction) {
           sendEvent('courtPrediction', response.courtPrediction);
-        }
-
-        // Step 9.6: Send defendant analysis
-        if (response.defendantAnalysis) {
-          sendEvent('defendantAnalysis', response.defendantAnalysis);
         }
 
         // Step 9.7: ВАЖНО - Перезаписываем courtCases реальными данными от VPS scraper

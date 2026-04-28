@@ -2,11 +2,13 @@
 
 import { Suspense, useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { toast } from 'sonner';
 import { Sidebar, ChatInput, MobileHeader, MobileSidebar, ProbabilityBlock } from '@/components/layout';
 import { DownloadIcon } from '@/components/icons';
 import { MarkdownRenderer } from '@/components/ui';
 import { generateDocx, downloadBlob } from '@/lib/docx-generator';
 import { useTheme } from '@/lib/theme-context';
+import { safeGet, safeSet, safeRemove } from '@/lib/safe-storage';
 
 interface GenerationResponse {
   courtCases?: Array<{
@@ -90,13 +92,6 @@ interface GenerationResponse {
       casesCount?: number;
     }>;
   };
-  // Defendant analysis
-  defendantAnalysis?: {
-    hasHistory: boolean;
-    summary?: string;
-    riskFactors?: string[];
-    opportunities?: string[];
-  };
 }
 
 // Court cases stats from stream
@@ -153,7 +148,7 @@ function NewChatPageContent() {
 
   // Load visited URLs from localStorage
   useEffect(() => {
-    const stored = localStorage.getItem('visitedCourtCases');
+    const stored = safeGet('visitedCourtCases');
     if (stored) {
       try {
         setVisitedUrls(new Set(JSON.parse(stored)));
@@ -167,7 +162,7 @@ function NewChatPageContent() {
     setVisitedUrls(prev => {
       const updated = new Set(prev);
       updated.add(url);
-      localStorage.setItem('visitedCourtCases', JSON.stringify([...updated]));
+      safeSet('visitedCourtCases', JSON.stringify([...updated]));
       return updated;
     });
   };
@@ -192,8 +187,8 @@ function NewChatPageContent() {
 
     const urlQuery = searchParams.get('q');
     const isCached = searchParams.get('cached') === '1';
-    const storedQuery = sessionStorage.getItem('pendingQuery');
-    const storedQuestionId = sessionStorage.getItem('pendingQuestionId');
+    const storedQuery = safeGet('pendingQuery', 'session');
+    const storedQuestionId = safeGet('pendingQuestionId', 'session');
     const queryToUse = urlQuery || storedQuery;
     
     if (!queryToUse) {
@@ -203,8 +198,8 @@ function NewChatPageContent() {
 
     hasStartedGeneration.current = true;
     setQuery(queryToUse);
-    sessionStorage.removeItem('pendingQuery');
-    sessionStorage.removeItem('pendingQuestionId');
+    safeRemove('pendingQuery', 'session');
+    safeRemove('pendingQuestionId', 'session');
     
     // Show in sidebar immediately with temporary ID
     const newPendingChat = {
@@ -215,22 +210,21 @@ function NewChatPageContent() {
     
     // Also save to localStorage so sidebar shows it when user navigates away
     try {
-      const cachedHistory = localStorage.getItem('chatHistoryCache');
+      const cachedHistory = safeGet('chatHistoryCache');
       const history = cachedHistory ? JSON.parse(cachedHistory) : [];
-      // Add at the beginning with isGenerating: true
       const updatedHistory = [{ ...newPendingChat, isGenerating: true }, ...history.filter((c: { title: string }) => c.title !== newPendingChat.title)];
-      localStorage.setItem('chatHistoryCache', JSON.stringify(updatedHistory));
+      safeSet('chatHistoryCache', JSON.stringify(updatedHistory));
     } catch (e) {
       console.error('Error saving pending chat to localStorage:', e);
     }
     
     // Check for cached response (from sessionStorage or fetch from API)
     if (isCached) {
-      const cachedData = sessionStorage.getItem('cachedResponse');
+      const cachedData = safeGet('cachedResponse', 'session');
       if (cachedData) {
         try {
           const cached: CachedResponseData = JSON.parse(cachedData);
-          sessionStorage.removeItem('cachedResponse');
+          safeRemove('cachedResponse', 'session');
           
           // Use cached data - instant display!
           loadCachedResponse(queryToUse, cached);
@@ -383,9 +377,6 @@ function NewChatPageContent() {
     if (resp.courtPrediction) {
       setResponse(prev => ({ ...prev, courtPrediction: resp.courtPrediction }));
     }
-    if (resp.defendantAnalysis) {
-      setResponse(prev => ({ ...prev, defendantAnalysis: resp.defendantAnalysis }));
-    }
     if (resp.recommendations) {
       setResponse(prev => ({ ...prev, recommendations: resp.recommendations }));
     }
@@ -430,9 +421,8 @@ function NewChatPageContent() {
                 setChatId(data.id);
                 setIsComplete(true);
                 setPendingChat(prev => prev ? { ...prev, id: data.id } : undefined);
-                // Update localStorage cache - mark as complete
                 try {
-                  const cachedHistory = localStorage.getItem('chatHistoryCache');
+                  const cachedHistory = safeGet('chatHistoryCache');
                   if (cachedHistory) {
                     const history = JSON.parse(cachedHistory);
                     const updatedHistory = history.map((c: { id: string; title: string; isGenerating?: boolean }) => 
@@ -440,7 +430,7 @@ function NewChatPageContent() {
                         ? { ...c, id: data.id, isGenerating: false }
                         : c
                     );
-                    localStorage.setItem('chatHistoryCache', JSON.stringify(updatedHistory));
+                    safeSet('chatHistoryCache', JSON.stringify(updatedHistory));
                   }
                 } catch (e) {
                   console.error('Error updating localStorage cache:', e);
@@ -523,9 +513,6 @@ function NewChatPageContent() {
                 case 'courtPrediction':
                   setResponse(prev => ({ ...prev, courtPrediction: data }));
                   break;
-                case 'defendantAnalysis':
-                  setResponse(prev => ({ ...prev, defendantAnalysis: data }));
-                  break;
                 case 'recommendations':
                   setResponse(prev => ({ ...prev, recommendations: data }));
                   break;
@@ -543,9 +530,8 @@ function NewChatPageContent() {
                   // Update pending chat with real ID
                   if (data.id) {
                     setPendingChat(prev => prev ? { ...prev, id: data.id } : undefined);
-                    // Update localStorage cache - mark as complete (not generating)
                     try {
-                      const cachedHistory = localStorage.getItem('chatHistoryCache');
+                      const cachedHistory = safeGet('chatHistoryCache');
                       if (cachedHistory) {
                         const history = JSON.parse(cachedHistory);
                         const updatedHistory = history.map((c: { id: string; title: string; isGenerating?: boolean }) => 
@@ -553,7 +539,7 @@ function NewChatPageContent() {
                             ? { ...c, id: data.id, isGenerating: false }
                             : c
                         );
-                        localStorage.setItem('chatHistoryCache', JSON.stringify(updatedHistory));
+                        safeSet('chatHistoryCache', JSON.stringify(updatedHistory));
                       }
                     } catch (e) {
                       console.error('Error updating localStorage cache:', e);
@@ -653,7 +639,7 @@ function NewChatPageContent() {
         }
         setChatMessages(prev => prev.filter(m => m.id !== userMessage.id));
         setError(errorMessage);
-        alert(errorMessage);
+        toast.error(errorMessage);
         return;
       }
 
@@ -694,7 +680,7 @@ function NewChatPageContent() {
       setChatMessages(prev => prev.filter(m => m.id !== userMessage.id));
       const errorMessage = err instanceof Error ? err.message : 'Произошла неизвестная ошибка';
       setError(errorMessage);
-      alert(`Не удалось отправить сообщение: ${errorMessage}`);
+      toast.error(`Не удалось отправить сообщение: ${errorMessage}`);
     } finally {
       setIsSendingChat(false);
     }
@@ -702,7 +688,7 @@ function NewChatPageContent() {
 
   const handleDownload = async (doc: { id: number; title: string; content?: string; format: string }) => {
     if (!doc.content) {
-      alert('Содержимое документа недоступно. Пожалуйста, попробуйте обновить страницу или обратитесь в поддержку.');
+      toast.error('Содержимое документа недоступно. Попробуйте обновить страницу или обратиться в поддержку.');
       console.error('Document missing content:', doc);
       return;
     }
@@ -729,7 +715,7 @@ function NewChatPageContent() {
         downloadBlob(blob, `${doc.title}.txt`);
       } catch (fallbackErr) {
         console.error('Error creating fallback text file:', fallbackErr);
-        alert('Не удалось создать файл. Пожалуйста, попробуйте еще раз.');
+        toast.error('Не удалось создать файл. Попробуйте ещё раз.');
       }
     } finally {
       setDownloadingId(null);
@@ -739,7 +725,7 @@ function NewChatPageContent() {
   // Download chat-generated document
   const handleChatDocDownload = async (doc: { title: string; content: string }) => {
     if (!doc.content) {
-      alert('Содержимое документа недоступно. Пожалуйста, попробуйте обновить страницу.');
+      toast.error('Содержимое документа недоступно. Попробуйте обновить страницу.');
       console.error('Chat document missing content:', doc);
       return;
     }
@@ -764,7 +750,7 @@ function NewChatPageContent() {
         downloadBlob(blob, `${doc.title}.txt`);
       } catch (fallbackErr) {
         console.error('Error creating fallback text file:', fallbackErr);
-        alert('Не удалось создать файл. Пожалуйста, попробуйте еще раз.');
+        toast.error('Не удалось создать файл. Попробуйте ещё раз.');
       }
     }
   };
@@ -958,7 +944,7 @@ function NewChatPageContent() {
                             // Re-run with clarified query
                             const newQuery = `${query} (${option})`;
                             setQuery(newQuery);
-                            sessionStorage.setItem('pendingQuery', newQuery);
+                            safeSet('pendingQuery', newQuery, 'session');
                             hasStartedGeneration.current = false;
                             router.push(`/chat/new?q=${encodeURIComponent(newQuery)}`);
                           }}
@@ -1180,42 +1166,6 @@ function NewChatPageContent() {
               )}
 
               {response.courtPrediction && <div className="h-px bg-gray-200" />}
-
-              {/* Defendant Analysis */}
-              {response.defendantAnalysis && response.defendantAnalysis.hasHistory && (
-                <div className="flex flex-col gap-4 animate-fadeIn">
-                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
-                    Анализ ответчика
-                  </p>
-                  <div className="text-base text-foreground leading-[24px] break-words">
-                    {response.defendantAnalysis.summary && (
-                      <p className="mb-3">{response.defendantAnalysis.summary}</p>
-                    )}
-                    {response.defendantAnalysis.opportunities && response.defendantAnalysis.opportunities.length > 0 && (
-                      <div className="mb-3">
-                        <p className="text-[16px] font-semibold mb-2 text-green-600 dark:text-green-400">✅ Возможности:</p>
-                        <ul className="list-disc ml-5">
-                          {response.defendantAnalysis.opportunities.map((opp, i) => (
-                            <li key={i} className="mb-1">{opp}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {response.defendantAnalysis.riskFactors && response.defendantAnalysis.riskFactors.length > 0 && (
-                      <div>
-                        <p className="text-[16px] font-semibold mb-2 text-orange-600 dark:text-orange-400">⚠️ Риски:</p>
-                        <ul className="list-disc ml-5">
-                          {response.defendantAnalysis.riskFactors.map((risk, i) => (
-                            <li key={i} className="mb-1">{risk}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {response.defendantAnalysis?.hasHistory && <div className="h-px bg-gray-200" />}
 
                   {/* Recommendations */}
                   {response.recommendations && (
@@ -1483,21 +1433,11 @@ function NewChatPageContent() {
                         ) : (
                           <div className="flex flex-col gap-4">
                             {(() => {
-                              // Разделяем сообщение: текст до "Нужна помощь представителя" и после
-                              const representativeMatch = msg.content.match(/\*\*Нужна помощь представителя/);
-                              let mainText = msg.content;
-                              let representativeText = '';
-                              
-                              if (representativeMatch && representativeMatch.index !== undefined) {
-                                mainText = msg.content.slice(0, representativeMatch.index).trim();
-                                representativeText = msg.content.slice(representativeMatch.index).trim();
-                              }
-                              
                               return (
                                 <>
                                   {/* Основной текст (например, "Документ готов для скачивания") */}
                                   <div className="text-base text-foreground leading-[24px] break-words">
-                                    <MarkdownRenderer content={mainText} />
+                                    <MarkdownRenderer content={msg.content} />
                                   </div>
                                   
                                   {/* Документы для скачивания - сразу после основного текста */}
@@ -1518,13 +1458,6 @@ function NewChatPageContent() {
                                           <DownloadIcon className="w-5 h-5 text-foreground shrink-0" strokeWidth="1.75" />
                                         </button>
                                       ))}
-                                    </div>
-                                  )}
-                                  
-                                  {/* Текст про представителя - после документов */}
-                                  {representativeText && (
-                                    <div className="text-base text-foreground leading-[24px] break-words">
-                                      <MarkdownRenderer content={representativeText} />
                                     </div>
                                   )}
                                 </>

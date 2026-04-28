@@ -2,12 +2,14 @@
 
 import { Suspense, useEffect, useState, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { toast } from 'sonner';
 import { Sidebar, ChatInput, MobileHeader, MobileSidebar, ProbabilityBlock } from '@/components/layout';
 import { DownloadIcon } from '@/components/icons';
 import { MarkdownRenderer } from '@/components/ui';
 import { generateDocx, downloadBlob } from '@/lib/docx-generator';
 import { CaseTransitionBanner } from '@/components/cases/CaseTransitionBanner';
 import { useTheme } from '@/lib/theme-context';
+import { safeGet, safeSet } from '@/lib/safe-storage';
 
 const CASES_ENABLED = process.env.NEXT_PUBLIC_FEATURE_CASES === 'true';
 
@@ -103,7 +105,7 @@ function ChatResultPageContent() {
 
   // Load visited URLs from localStorage
   useEffect(() => {
-    const stored = localStorage.getItem('visitedCourtCases');
+    const stored = safeGet('visitedCourtCases');
     if (stored) {
       try {
         setVisitedUrls(new Set(JSON.parse(stored)));
@@ -117,7 +119,7 @@ function ChatResultPageContent() {
     setVisitedUrls(prev => {
       const updated = new Set(prev);
       updated.add(url);
-      localStorage.setItem('visitedCourtCases', JSON.stringify([...updated]));
+      safeSet('visitedCourtCases', JSON.stringify([...updated]));
       return updated;
     });
   };
@@ -195,37 +197,49 @@ function ChatResultPageContent() {
 
   // Fetch chat messages
   useEffect(() => {
+    const controller = new AbortController();
+
     async function fetchMessages() {
       if (!params.id) return;
-      
+
       const id = Array.isArray(params.id) ? params.id[0] : params.id;
-      
+
       try {
-        const response = await fetch(`/api/chat?generationId=${id}`);
+        const response = await fetch(`/api/chat?generationId=${id}`, {
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
         if (response.ok) {
           const data = await response.json();
           const messages = data.messages || [];
-          
-          // Ensure documents are properly formatted
+
           const normalizedMessages = messages.map((msg: ChatMessage) => ({
             ...msg,
             documents: Array.isArray(msg.documents) ? msg.documents : [],
           }));
-          
-          setChatMessages(normalizedMessages);
-          console.log('📥 Loaded messages with documents:', normalizedMessages.filter((m: ChatMessage) => (m.documents?.length ?? 0) > 0).length);
+
+          if (!controller.signal.aborted) {
+            setChatMessages(normalizedMessages);
+            console.log('📥 Loaded messages with documents:', normalizedMessages.filter((m: ChatMessage) => (m.documents?.length ?? 0) > 0).length);
+          }
         }
       } catch (err) {
+        // Игнорируем отменённые запросы (нормальное поведение при unmount)
+        if ((err as Error)?.name === 'AbortError') return;
         console.error('Error fetching messages:', err);
       }
     }
 
     fetchMessages();
+
+    return () => {
+      controller.abort();
+    };
   }, [params.id]);
 
   useEffect(() => {
     let pollInterval: NodeJS.Timeout | null = null;
-    let cancelled = false;
+    const controller = new AbortController();
 
     async function fetchGeneration() {
       if (!params.id) {
@@ -237,7 +251,7 @@ function ChatResultPageContent() {
       const id = Array.isArray(params.id) ? params.id[0] : params.id;
 
       // First check sessionStorage
-      const stored = sessionStorage.getItem('lastResponse');
+      const stored = safeGet('lastResponse', 'session');
       if (stored) {
         try {
           const data = JSON.parse(stored);
@@ -265,9 +279,11 @@ function ChatResultPageContent() {
       try {
         // Fetch via server API route — avoids browser Supabase SDK
         // occasionally hanging on auth-token refresh.
-        const response = await fetch(`/api/generations/${id}`);
+        const response = await fetch(`/api/generations/${id}`, {
+          signal: controller.signal,
+        });
 
-        if (cancelled) return;
+        if (controller.signal.aborted) return;
 
         if (!response.ok) {
           let errorMessage = 'Не удалось загрузить результат';
@@ -298,13 +314,16 @@ function ChatResultPageContent() {
         // If response is null, poll every 2 seconds until it's ready
         if (!generationData.response) {
           pollInterval = setInterval(async () => {
+            if (controller.signal.aborted) return;
             try {
-              const pollResponse = await fetch(`/api/generations/${id}`);
-              if (cancelled) return;
+              const pollResponse = await fetch(`/api/generations/${id}`, {
+                signal: controller.signal,
+              });
+              if (controller.signal.aborted) return;
               if (!pollResponse.ok) return;
               const pollJson = await pollResponse.json();
               const updatedData = pollJson.generation as Generation;
-              if (updatedData && updatedData.response) {
+              if (updatedData && updatedData.response && !controller.signal.aborted) {
                 setGeneration(updatedData);
                 if (pollInterval) {
                   clearInterval(pollInterval);
@@ -312,12 +331,14 @@ function ChatResultPageContent() {
                 }
               }
             } catch (pollErr) {
+              if ((pollErr as Error)?.name === 'AbortError') return;
               console.error('Polling error:', pollErr);
             }
           }, 2000);
         }
       } catch (err) {
-        if (cancelled) return;
+        if ((err as Error)?.name === 'AbortError') return;
+        if (controller.signal.aborted) return;
         console.error('Unexpected fetchGeneration error:', err);
         setError('Не удалось загрузить результат. Проверьте подключение и обновите страницу.');
         setIsLoading(false);
@@ -327,7 +348,7 @@ function ChatResultPageContent() {
     fetchGeneration();
 
     return () => {
-      cancelled = true;
+      controller.abort();
       if (pollInterval) {
         clearInterval(pollInterval);
       }
@@ -440,7 +461,7 @@ function ChatResultPageContent() {
         // Remove optimistic message on error
         setChatMessages(prev => prev.filter(m => m.id !== userMessage.id));
         setError(errorMessage);
-        alert(errorMessage);
+        toast.error(errorMessage);
         return;
       }
 
@@ -499,7 +520,7 @@ function ChatResultPageContent() {
       setChatMessages(prev => prev.filter(m => m.id !== userMessage.id));
       const errorMessage = err instanceof Error ? err.message : 'Произошла неизвестная ошибка';
       setError(errorMessage);
-      alert(`Не удалось отправить сообщение: ${errorMessage}`);
+      toast.error(`Не удалось отправить сообщение: ${errorMessage}`);
     } finally {
       setIsSending(false);
     }
@@ -508,7 +529,7 @@ function ChatResultPageContent() {
   // Download chat-generated document
   const handleChatDocDownload = async (doc: { title: string; content: string }) => {
     if (!doc.content) {
-      alert('Содержимое документа недоступно. Пожалуйста, попробуйте обновить страницу.');
+      toast.error('Содержимое документа недоступно. Попробуйте обновить страницу.');
       console.error('Chat document missing content:', doc);
       return;
     }
@@ -533,14 +554,14 @@ function ChatResultPageContent() {
         downloadBlob(blob, `${doc.title}.txt`);
       } catch (fallbackErr) {
         console.error('Error creating fallback text file:', fallbackErr);
-        alert('Не удалось создать файл. Пожалуйста, попробуйте еще раз.');
+        toast.error('Не удалось создать файл. Попробуйте ещё раз.');
       }
     }
   };
 
   const handleDownload = async (doc: { id: number; title: string; content?: string; format: string }) => {
     if (!doc.content) {
-      alert('Содержимое документа недоступно. Пожалуйста, попробуйте обновить страницу или обратитесь в поддержку.');
+      toast.error('Содержимое документа недоступно. Попробуйте обновить страницу или обратиться в поддержку.');
       console.error('Document missing content:', doc);
       return;
     }
@@ -569,7 +590,7 @@ function ChatResultPageContent() {
         downloadBlob(blob, `${doc.title}.txt`);
       } catch (fallbackErr) {
         console.error('Error creating fallback text file:', fallbackErr);
-        alert('Не удалось создать файл. Пожалуйста, попробуйте еще раз.');
+        toast.error('Не удалось создать файл. Попробуйте ещё раз.');
       }
     } finally {
       setDownloadingId(null);
@@ -1181,21 +1202,11 @@ function ChatResultPageContent() {
                           // Assistant message - clean text without background
                           <div className="flex flex-col gap-4">
                             {(() => {
-                              // Разделяем сообщение: текст до "Нужна помощь представителя" и после
-                              const representativeMatch = msg.content.match(/\*\*Нужна помощь представителя/);
-                              let mainText = msg.content;
-                              let representativeText = '';
-                              
-                              if (representativeMatch && representativeMatch.index !== undefined) {
-                                mainText = msg.content.slice(0, representativeMatch.index).trim();
-                                representativeText = msg.content.slice(representativeMatch.index).trim();
-                              }
-                              
                               return (
                                 <>
                                   {/* Основной текст (например, "Документ готов для скачивания") */}
                                   <div className="text-base text-foreground leading-[24px] break-words">
-                                    <MarkdownRenderer content={mainText} />
+                                    <MarkdownRenderer content={msg.content} />
                                   </div>
                                   
                                   {/* Документы для скачивания - сразу после основного текста */}
@@ -1216,13 +1227,6 @@ function ChatResultPageContent() {
                                           <DownloadIcon className="w-5 h-5 text-foreground shrink-0" strokeWidth="1.75" />
                                         </button>
                                       ))}
-                                    </div>
-                                  )}
-                                  
-                                  {/* Текст про представителя - после документов */}
-                                  {representativeText && (
-                                    <div className="text-base text-foreground leading-[24px] break-words">
-                                      <MarkdownRenderer content={representativeText} />
                                     </div>
                                   )}
                                 </>

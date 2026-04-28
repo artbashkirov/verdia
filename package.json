@@ -32,7 +32,8 @@
     "puppeteer-core": "^24.34.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "replicate": "^1.4.0"
+    "replicate": "^1.4.0",
+    "sonner": "^1.7.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

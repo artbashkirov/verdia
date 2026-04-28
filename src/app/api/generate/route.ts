@@ -173,10 +173,6 @@ export async function POST(request: NextRequest) {
             documentTypes: ['исковое заявление', 'претензия'],
             estimatedCost: 'от 500 ₽',
           },
-          representativeOffer: {
-            text: 'Также могу помочь найти представителя для участия в судебном заседании.',
-            note: 'Услуга доступна после оплаты подготовки документов',
-          },
         };
       }
       
