@@ -6,10 +6,12 @@ on:
       - main
 
 jobs:
-  # Сначала проверяем что код собирается без ошибок
+  # ─────────────────────────────────────────────────────────────────
+  # 1. Сборка и проверки — без них даже не идём в деплой
+  # ─────────────────────────────────────────────────────────────────
   build-check:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -29,41 +31,147 @@ jobs:
       - name: Build
         run: npm run build
 
-  # Деплой только после успешной проверки билда
+  # ─────────────────────────────────────────────────────────────────
+  # 2. Деплой — rolling reload blue → green с healthcheck'ами.
+  #
+  # Идея: в любой момент времени хотя бы один из двух процессов
+  # (verdia-blue:3000 или verdia-green:3002) обслуживает трафик.
+  # nginx upstream автоматически перекидывает запросы на здоровый.
+  #
+  # Если новый verdia-blue не поднялся за 30 сек — фейлим деплой
+  # ДО того, как трогаем verdia-green. Зелёный продолжает работать
+  # на старой версии — продакшн жив.
+  #
+  # Это true zero-downtime в обычном случае и автоматический rollback
+  # в случае проблем с blue.
+  # ─────────────────────────────────────────────────────────────────
   deploy:
     runs-on: ubuntu-latest
-    needs: build-check  # Ждём успешного завершения build-check
-    
+    needs: build-check
+
     steps:
-      - name: Deploy to VPS
+      - name: Deploy to VPS (rolling blue-green)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
+          # command_timeout — общий таймаут на всю SSH-сессию.
+          # Должен быть больше суммы всех ожиданий ниже:
+          # build (~60s) + 2 × healthcheck (60s) + запас.
+          command_timeout: 10m
           script: |
             set -e
+
+            echo "=========================================="
+            echo "  Deploy: pull + install + build"
+            echo "=========================================="
             cd /opt/verdia-app
             git pull origin main
             npm install --production=false
+
+            # ─────────────────────────────────────────────────────────
+            # Защита от ChunkLoadError у уже открытых вкладок.
+            #
+            # Next.js при `npm run build` пересоздаёт `.next/static/`
+            # с новыми хешированными именами чанков. Старые файлы
+            # удаляются. У пользователя, открывшего сайт ДО деплоя,
+            # SPA пытается догрузить чанк по старому пути → 404 →
+            # сломанный экран (HTML без CSS, нерабочие компоненты).
+            #
+            # Решение: храним архив всех когда-либо собранных чанков
+            # за последние 14 дней в `.next-static-archive/`. После
+            # билда — мерджим архив обратно в `.next/static/` без
+            # перезаписи новых файлов. Старые вкладки догружают свои
+            # чанки, новые — свои. Конфликта по именам нет: имена
+            # содержат хеш билда.
+            #
+            # 14 дней — компромисс между размером диска и реалистичной
+            # длительностью открытой вкладки. Если открыли > 14 дней
+            # назад — сработает клиентский ChunkErrorRecovery (auto-reload).
+            # ─────────────────────────────────────────────────────────
+            ARCHIVE_DIR="/opt/verdia-app/.next-static-archive"
+            mkdir -p "$ARCHIVE_DIR"
+
+            if [ -d /opt/verdia-app/.next/static ]; then
+              echo "[chunks] backup current .next/static → archive"
+              rsync -a /opt/verdia-app/.next/static/ "$ARCHIVE_DIR/" || true
+            fi
+
+            echo "[build] npm run build"
             npm run build
-            # reload вместо restart — graceful shutdown:
-            # PM2 шлёт SIGINT, ждёт корректного завершения текущих реквестов,
-            # потом стартует новый процесс. В fork-mode это всё ещё короткий
-            # простой (1–5 сек), но мягче, чем restart.
-            # Для полностью zero-downtime — см. docs/backlog.md → Zero-downtime deploy.
-            pm2 reload verdia --update-env
+
+            if [ -d "$ARCHIVE_DIR" ]; then
+              echo "[chunks] merge archive → .next/static (without overwriting new files)"
+              rsync -a --ignore-existing "$ARCHIVE_DIR/" /opt/verdia-app/.next/static/ || true
+              # Добавляем только что собранные чанки в архив тоже,
+              # чтобы они пережили следующий деплой.
+              rsync -a /opt/verdia-app/.next/static/ "$ARCHIVE_DIR/" || true
+            fi
+
+            echo "[chunks] cleanup archive (files older than 14 days)"
+            find "$ARCHIVE_DIR" -type f -mtime +14 -delete 2>/dev/null || true
+            find "$ARCHIVE_DIR" -type d -empty -delete 2>/dev/null || true
+
+            ARCHIVE_SIZE=$(du -sh "$ARCHIVE_DIR" 2>/dev/null | cut -f1 || echo "?")
+            echo "[chunks] archive size: $ARCHIVE_SIZE"
+
+            # ─────────────────────────────────────────────
+            # Helper: health-проверка на конкретном порту.
+            # Args: $1 — port, $2 — name (для логов).
+            # Опрашивает /api/health 30 раз с интервалом 1s.
+            # При успехе возвращает 0, при таймауте — 1.
+            # ─────────────────────────────────────────────
+            wait_health() {
+              local port=$1
+              local name=$2
+              for i in $(seq 1 30); do
+                if curl -fsS -o /dev/null --max-time 2 "http://127.0.0.1:${port}/api/health"; then
+                  echo "[$name] healthcheck OK on attempt $i (port $port)"
+                  return 0
+                fi
+                sleep 1
+              done
+              echo "[$name] healthcheck FAILED after 30s on port $port"
+              pm2 logs "$name" --lines 50 --nostream || true
+              return 1
+            }
+
+            # ─────────────────────────────────────────────
+            # Шаг 1: BLUE
+            # Reload verdia-blue (порт 3000). В это время green
+            # на 3002 продолжает обслуживать трафик через nginx.
+            # ─────────────────────────────────────────────
+            echo "=========================================="
+            echo "  Step 1: reload verdia-blue (port 3000)"
+            echo "=========================================="
+            pm2 reload verdia-blue --update-env
+
+            if ! wait_health 3000 verdia-blue; then
+              echo "❌ verdia-blue не поднялся. Зелёный (3002) всё ещё на старой версии."
+              echo "   Продакшн работает, но рассинхронизирован — пушни fix."
+              exit 1
+            fi
+
+            # ─────────────────────────────────────────────
+            # Шаг 2: GREEN
+            # Reload verdia-green (порт 3002). В это время blue
+            # на 3000 уже на новой версии и принимает трафик.
+            # ─────────────────────────────────────────────
+            echo "=========================================="
+            echo "  Step 2: reload verdia-green (port 3002)"
+            echo "=========================================="
+            pm2 reload verdia-green --update-env
+
+            if ! wait_health 3002 verdia-green; then
+              echo "⚠️  verdia-green не поднялся, но verdia-blue уже на новой версии."
+              echo "   Продакшн работает на одном инстансе — нужно вручную"
+              echo "   разобраться, почему green не стартует:"
+              echo "     ssh root@<vps> pm2 logs verdia-green"
+              exit 1
+            fi
+
             pm2 save
-            # Health-check: ждём, пока новый процесс реально начнёт отвечать.
-            # Если не поднялся за 30 сек — фейлим деплой, чтобы это было видно
-            # в Actions, а не висело молча.
-            for i in $(seq 1 30); do
-              if curl -fsS -o /dev/null http://127.0.0.1:3000/api/health; then
-                echo "Healthcheck OK on attempt $i"
-                exit 0
-              fi
-              sleep 1
-            done
-            echo "Healthcheck FAILED — /api/health не ответил на :3000 за 30 сек"
-            pm2 logs verdia --lines 50 --nostream || true
-            exit 1
+            echo "=========================================="
+            echo "  ✅ Deploy complete (zero-downtime)"
+            echo "=========================================="

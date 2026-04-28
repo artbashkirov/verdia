@@ -89,18 +89,71 @@ WebView Telegram/VK (если есть пользователи оттуда).
 
 ## 11. Поведение во время деплоя / падения upstream
 
-- [ ] Во время деплоя (или при ручной остановке pm2) открытие любого URL
-      сайта показывает нашу страницу `502.html` («Сервис обновляется»),
-      а **не** дефолтный nginx 502.
-- [ ] Страница `502.html` сама обновляется в течение ~4–8 секунд после
-      того, как pm2 поднял сервис обратно (без ручного refresh).
+### 11.1. Базовые проверки (актуальны всегда)
+
 - [ ] `GET /api/health` отвечает 200 OK с `{ status: "ok", uptime, timestamp }`,
       когда сервис жив; и не блокирует основной флоу при падении (см.
-      `docs/nginx-config.md` — health не должен попадать под error_page).
-- [ ] В GitHub Actions при сломанном билде шаг build-check падает раньше
+      `docs/nginx-config.md` — health не должен попадать под `error_page`).
+- [ ] При падении ВСЕХ upstream'ов (`pm2 stop verdia-blue verdia-green`)
+      открытие любого URL сайта показывает нашу страницу `502.html`
+      («Сервис обновляется»), а **не** дефолтный nginx 502.
+- [ ] Страница `502.html` сама обновляется в течение ~4–8 секунд после
+      того, как pm2 поднял сервис обратно (без ручного refresh).
+- [ ] В GitHub Actions при сломанном билде шаг `build-check` падает раньше
       деплоя — VPS не получает поломанный код.
 - [ ] В GitHub Actions при упавшем healthcheck после reload — шаг deploy
-      падает с понятным логом (`pm2 logs verdia --lines 50`).
+      падает с понятным логом (`pm2 logs verdia-{blue,green} --lines 50`).
+
+### 11.2. Blue-green failover (после миграции — `docs/migration-blue-green.md`)
+
+- [ ] **Failover blue → green:** `pm2 stop verdia-blue` → сайт продолжает
+      работать без 502 (трафик на green:3002), `curl -I https://ai-verdia.ru/`
+      отдаёт 200. Восстановить: `pm2 start verdia-blue`.
+- [ ] **Failover green → blue:** аналогично с `pm2 stop verdia-green`.
+- [ ] **Rolling deploy при открытом сайте:** пушим коммит в `main`,
+      во время деплоя:
+      - открытая страница не должна сломаться (graceful shutdown,
+        `kill_timeout: 10s`);
+      - refresh во время `pm2 reload verdia-blue` → green обслуживает
+        (response < 1 сек);
+      - refresh во время `pm2 reload verdia-green` → blue обслуживает;
+      - **в сумме за весь цикл деплоя — ни одного 502** (убедиться в
+        DevTools → Network: все запросы 200).
+- [ ] **Fail-fast при поломанной новой версии:** если новый код не
+      поднимается на blue (например, ошибка в build), Actions фейлит
+      деплой ДО того, как трогает green. Зелёный остаётся на старой
+      версии. Сайт продолжает работать (одним инстансом).
+- [ ] **Логи Actions показывают**: `Step 1: reload verdia-blue` →
+      `[verdia-blue] healthcheck OK` → `Step 2: reload verdia-green` →
+      `[verdia-green] healthcheck OK` → `✅ Deploy complete (zero-downtime)`.
+
+### 11.3. Защита от ChunkLoadError при деплое
+
+Контекст: при `npm run build` Next.js пересоздаёт `.next/static/` с новыми
+именами чанков. У пользователя с открытой вкладкой SPA пытается догрузить
+старый чанк → 404 → сломанный экран без CSS/JS. Защита двухслойная:
+сервер хранит архив старых чанков 14 дней + клиент ловит ChunkLoadError
+и делает auto-reload.
+
+- [ ] **Архив сохраняется:** в логах Actions видно строки
+      `[chunks] backup current .next/static → archive`,
+      `[chunks] merge archive → .next/static`,
+      `[chunks] archive size: ~XX MB`.
+- [ ] **На VPS папка существует:** `ls -la /opt/verdia-app/.next-static-archive/`
+      — должна быть, и в ней есть файлы. Размер растёт с каждым деплоем,
+      но не больше нескольких сотен МБ (старше 14 дней удаляется).
+- [ ] **Открытая до деплоя вкладка не ломается:** открыть сайт в браузере,
+      запушить коммит в `main`, дождаться завершения деплоя, **продолжать
+      использовать ту же вкладку** (нажимать на чаты, переключаться
+      между разделами). Все чанки должны догружаться без ошибок,
+      DevTools → Network: ни одного 404 на `_next/static/...`.
+- [ ] **ChunkErrorRecovery работает:** в DevTools Console выполнить
+      `throw new Error('Loading chunk 0 failed')` (имитация). Должна
+      произойти автоматическая перезагрузка страницы. Повторный throw
+      в течение 30 секунд reload не вызывает (anti-loop защита).
+- [ ] **Очистка старых чанков:** через 14+ дней после первого деплоя
+      `find /opt/verdia-app/.next-static-archive -type f -mtime +14 | wc -l`
+      должно быть 0 (cleanup работает).
 
 ## 10. Доступность и тёмная/светлая тема
 

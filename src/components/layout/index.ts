@@ -6,4 +6,5 @@ export { MobileSidebar } from './MobileSidebar';
 export { ScrollbarHandler } from './ScrollbarHandler';
 export { ViewportHandler } from './ViewportHandler';
 export { ProbabilityBlock } from './ProbabilityBlock';
+export { ChunkErrorRecovery } from './ChunkErrorRecovery';
 

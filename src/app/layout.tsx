@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/lib/theme-context";
-import { ScrollbarHandler, ViewportHandler } from "@/components/layout";
+import { ScrollbarHandler, ViewportHandler, ChunkErrorRecovery } from "@/components/layout";
 import { AppToaster } from "@/components/ui";
 
 const inter = Inter({
@@ -69,6 +69,7 @@ export default function RootLayout({
         <ThemeProvider>
           <ScrollbarHandler />
           <ViewportHandler />
+          <ChunkErrorRecovery />
           {children}
           <AppToaster />
         </ThemeProvider>

@@ -129,81 +129,66 @@ AI-галлюцинированный блок «Анализ ответчика
 
 ## 4. Zero-downtime deploy
 
-**Статус:** запланировано  
-**Приоритет:** средний (закрывает класс багов «502 во время деплоя»)
+**Статус:** реализовано в коде, ждёт миграции на VPS  
+**Дата завершения кода:** 2026-04-28
 
-### Проблема
+### Решение
 
-Сейчас деплой устроен так (`.github/workflows/deploy.yml` → шаги `build-check` → `deploy`):
+Выбрана архитектура **blue-green через nginx upstream** (а не PM2 cluster-mode):
 
-1. На VPS: `git pull` → `npm install` → `npm run build` → `pm2 reload verdia`.
-2. PM2 запускает приложение в **fork-mode** (1 инстанс, через `start.sh`,
-   см. `ecosystem.config.js`).
-3. На шаге `pm2 reload` процесс корректно завершается, потом стартует новый
-   — окно простоя 1–5 секунд (а если кэш холодный — до 10–30 секунд).
-4. В это окно nginx видит, что upstream не отвечает, и без специальной
-   настройки возвращает дефолтный «502 Bad Gateway nginx/1.24.0».
+- `verdia-blue` — port 3000
+- `verdia-green` — port 3002 (3001 занят `verdia-scraper`)
+- nginx upstream балансирует между ними и автоматически перекидывает на
+  здоровый при сбое второго (`proxy_next_upstream`).
+- Деплой делает rolling reload: blue → healthcheck → green → healthcheck.
+- В любой момент времени хотя бы один процесс отвечает.
 
-Симптом: пользователь открывает сайт во время деплоя и видит чужую
-страницу 502 (см. репорт от 2026-04-28, 10:06 утра).
+Почему НЕ cluster-mode:
+- PM2 cluster-mode не работает с `start.sh` (bash-скрипт). Переписывать
+  start.sh на Node-стартап «вслепую» опасно — детали env-загрузки на VPS
+  неизвестны.
+- Blue-green работает с любым стартом, проще отлаживается, явный rollback.
 
-### Что уже сделано (частичные меры, 2026-04-28)
+### Что сделано в репо (2026-04-28)
 
-- `pm2 restart` → `pm2 reload --update-env` (graceful shutdown).
-- Healthcheck в `deploy.yml` после reload: пинг `/api/health` 30 раз с
-  интервалом 1 сек, фейлим деплой если не поднялось → проблема видна
-  в Actions, а не «висит молча».
-- Создан endpoint `/api/health` (`src/app/api/health/route.ts`).
-- Брендированная страница `public/502.html` с автообновлением через
-  `/api/health`.
-- Инструкция для nginx `docs/nginx-config.md` (`error_page`,
-  `proxy_next_upstream`, отдельный `/api/health` без `proxy_intercept_errors`).
+- `ecosystem.config.js` — два процесса blue/green с `kill_timeout: 10s`
+  для graceful завершения SSE/streams.
+- `.github/workflows/deploy.yml` — rolling deploy с двумя healthcheck-этапами,
+  fail-fast если blue не поднимается (green продолжает работать на старой
+  версии).
+- `src/app/api/health/route.ts` — health-endpoint.
+- `public/502.html` — брендированная страница «Сервис обновляется» (на
+  крайний случай падения обоих инстансов).
+- `docs/nginx-config.md` — production-конфиг nginx с upstream + failover +
+  кастомные страницы 502 + отдельный `/api/health` без перехвата ошибок.
+- `docs/migration-blue-green.md` — пошаговая инструкция миграции на VPS:
+  start.sh → pm2 → nginx → тесты → откат.
 
-Это закрывает «жёсткий» 502 (пользователь видит брендированную страницу
-вместо nginx-овой, и она автоматически перезагружается, как только
-сервис вернулся), но **окно простоя реально остаётся**.
+### Что нужно сделать на VPS (один раз)
 
-### Что нужно сделать для полного zero-downtime
+См. `docs/migration-blue-green.md`. Кратко:
 
-1. **Перевести `ecosystem.config.js` на Node-точку входа.** Сейчас стартует
-   через bash-скрипт `start.sh`, и PM2 cluster-mode не работает с не-Node
-   скриптами. Варианты:
-   - стартовать `node node_modules/next/dist/bin/next start -p 3000`
-     (или `npm run start` через `pm2-runtime`);
-   - переменные из `.env.production` подгружать через `env_file` в
-     ecosystem-конфиге или через `next.config.ts` (`loadEnvConfig`).
-2. **Включить cluster-mode с 2 инстансами:**
-   ```js
-   instances: 2,
-   exec_mode: 'cluster',
-   wait_ready: true,
-   listen_timeout: 10000,
-   kill_timeout: 5000,
-   ```
-   - `wait_ready: true` + посыл `process.send('ready')` после старта Next →
-     PM2 не убивает старый воркер, пока новый не «ready».
-   - 2 инстанса по числу обычно достаточно — в любой момент один из них
-     обслуживает.
-3. **(Опция-максимум) Blue-green через nginx upstream.** Поднять второй
-   pm2-процесс на порту 3001, в nginx `upstream verdia_app { server :3000; server :3001 backup; }`. Деплой по очереди рестартит каждый, второй
-   обслуживает. Бесплатно даёт ноль простоя даже при cold-start.
-4. **Проверить совместимость Next.js 16 с cluster-mode.** На бумаге —
-   полностью stateless, проблем быть не должно. На практике — прогнать
-   нагрузочный тест после переключения, проверить, что нет утечек памяти
-   на 2x инстансах.
-5. **Регрессия.** Добавить в `docs/manual-regression.md` сценарий
-   «деплой при открытом сайте» и убедиться, что пользователь не видит
-   ни 502, ни сброса формы.
+1. Убедиться, что новый код задеплоился (или забрать через `git pull`).
+2. Привести `start.sh` к виду, поддерживающему `$PORT` (см. `Шаг 1`).
+3. `pm2 delete verdia` → `pm2 start ecosystem.config.js` (запустятся blue + green).
+4. Скопировать `public/502.html` в `/var/www/verdia/`.
+5. Обновить nginx-конфиг по `docs/nginx-config.md`.
+6. Прогнать 5 тестов из `docs/migration-blue-green.md` (failover при
+   падении одного, кастомная 502 при падении обоих, реальный деплой).
 
-### Зависимости
+### Что не покрывается blue-green (для будущих доработок)
 
-- Знание содержимого `start.sh` на VPS (что именно он экспортирует и как
-  запускает Next).
-- Доступ к VPS для безопасного переключения (есть откатный план: вернуть
-  старый `ecosystem.config.js` и `pm2 reload`).
-- Лимит RAM на VPS — cluster-mode удваивает потребление; если сервер
-  слабый, идти не на cluster-mode, а на blue-green с одним инстансом
-  каждой версии (RAM растёт умеренно, только в момент перекладки).
+- **Падение всей VPS** — пользователь видит `502.html`. Решается
+  horizontal failover на второй сервер (отдельная задача, не в этом пункте).
+- **Миграции БД с breaking changes** — между blue и green в моменте rolling
+  reload секунды две существуют обе версии кода. Если миграция ломает
+  совместимость с предыдущей версией — нужен двухфазный деплой
+  (совместимая миграция → деплой → миграция-чистка).
+- **Кеши Next.js** (`revalidate`, `cache: 'force-cache'`) — могут отдавать
+  старый контент. Проверять при использовании на проде.
+- **Если RAM на VPS < 1 ГБ свободной** — green можно держать выключенным,
+  тогда работает только брендированная 502, не zero-downtime. См. FAQ в
+  `docs/migration-blue-green.md`.
 
 ---
 
@@ -225,3 +210,5 @@ AI-галлюцинированный блок «Анализ ответчика
 - **2026-04-28** — отключён флоу «Помощь представителя в суде» (см. чат истории). Должен быть проработан позже как отдельная фича (партнёрство с юристами / биржа представителей). _Если решим возвращать — добавить отдельный пункт в этот документ._
 - **2026-04-28** — частичные меры против 502 во время деплоя: `pm2 reload` + `/api/health` + healthcheck в Actions + брендированная страница `public/502.html` + инструкция nginx (`docs/nginx-config.md`). Полный zero-downtime — пункт 4 этого бэклога.
 - **2026-04-28** — фикс CI: `package-lock.json` синхронизирован с `package.json` после добавления `sonner`. Проблема: `npm ci` строго требует совпадения lockfile и package.json — стоит добавить локальный pre-push hook или Actions-шаг, который проверяет это до пуша.
+- **2026-04-28** — реализован полный zero-downtime через blue-green: `ecosystem.config.js` (два процесса blue/green на 3000 + 3002), `deploy.yml` (rolling reload с двумя healthcheck-этапами и fail-fast), `docs/migration-blue-green.md` (инструкция миграции VPS), обновлённый `docs/nginx-config.md` (upstream c failover). См. пункт 4 — ждёт миграции на VPS.
+- **2026-04-28** — фикс **ChunkLoadError** при деплое (сломанный экран без CSS/JS у уже открытых вкладок): в `deploy.yml` добавлено сохранение `.next-static-archive/` (14 дней) и мердж старых чанков в новый билд + клиентский safety-net `src/components/layout/ChunkErrorRecovery.tsx` с auto-reload и anti-loop защитой. Это второй слой надёжности к blue-green: blue-green закрывает 502, archive — chunks. Подробнее — раздел 11.3 в `docs/manual-regression.md`.
