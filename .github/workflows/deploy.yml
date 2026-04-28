@@ -42,9 +42,28 @@ jobs:
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            set -e
             cd /opt/verdia-app
             git pull origin main
             npm install --production=false
             npm run build
-            pm2 restart verdia --update-env
+            # reload вместо restart — graceful shutdown:
+            # PM2 шлёт SIGINT, ждёт корректного завершения текущих реквестов,
+            # потом стартует новый процесс. В fork-mode это всё ещё короткий
+            # простой (1–5 сек), но мягче, чем restart.
+            # Для полностью zero-downtime — см. docs/backlog.md → Zero-downtime deploy.
+            pm2 reload verdia --update-env
             pm2 save
+            # Health-check: ждём, пока новый процесс реально начнёт отвечать.
+            # Если не поднялся за 30 сек — фейлим деплой, чтобы это было видно
+            # в Actions, а не висело молча.
+            for i in $(seq 1 30); do
+              if curl -fsS -o /dev/null http://127.0.0.1:3000/api/health; then
+                echo "Healthcheck OK on attempt $i"
+                exit 0
+              fi
+              sleep 1
+            done
+            echo "Healthcheck FAILED — /api/health не ответил на :3000 за 30 сек"
+            pm2 logs verdia --lines 50 --nostream || true
+            exit 1

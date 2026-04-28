@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Verdia — обновляется</title>
+    <meta name="robots" content="noindex" />
+    <!--
+      ВНИМАНИЕ: страница-плейсхолдер для случаев, когда upstream (Next.js)
+      временно недоступен (деплой, перезапуск, краш). Дизайн утверждается
+      отдельно — пока намеренно нейтральный, без самостоятельных решений
+      по бренду.
+
+      Логика:
+      - страница отдаётся nginx-ом напрямую через `error_page 502 503 504`,
+        НЕ через proxy_pass (важно: иначе при падении Next она тоже не
+        откроется);
+      - JS каждые 4 секунды пингает /api/health; как только пришёл 200 —
+        перезагружает страницу, и пользователь оказывается обратно в приложении;
+      - meta refresh используется как fallback, если JS отключён.
+
+      См. docs/nginx-config.md — там инструкция по подключению этой страницы
+      к nginx.
+    -->
+    <meta http-equiv="refresh" content="15" />
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #ffffff;
+        color: #111111;
+        font-family:
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          Roboto,
+          Oxygen,
+          Ubuntu,
+          Cantarell,
+          'Helvetica Neue',
+          Arial,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      .wrap {
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        text-align: center;
+      }
+      .logo {
+        width: 48px;
+        height: 48px;
+        margin-bottom: 24px;
+      }
+      h1 {
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0 0 8px;
+        line-height: 1.3;
+      }
+      p {
+        font-size: 15px;
+        line-height: 1.5;
+        color: #555555;
+        margin: 0 0 24px;
+        max-width: 360px;
+      }
+      .pulse {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #111111;
+        animation: pulse 1.4s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 0.25;
+          transform: scale(0.8);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      .status {
+        font-size: 13px;
+        color: #888888;
+        margin-top: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap" role="status" aria-live="polite">
+      <svg
+        class="logo"
+        viewBox="0 0 32 32"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+      >
+        <rect width="32" height="32" rx="6" fill="#000000" />
+        <path
+          d="M8 9L16 23L24 9"
+          stroke="#FFFFFF"
+          stroke-width="3"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+      <h1>Сервис обновляется</h1>
+      <p>
+        Мы выкатываем новую версию или сервер перезагружается. Это займёт несколько секунд —
+        страница обновится автоматически.
+      </p>
+      <span class="pulse" aria-hidden="true"></span>
+      <div class="status" id="status">Ждём ответа сервера…</div>
+    </div>
+    <script>
+      (function () {
+        var statusEl = document.getElementById('status');
+        var attempts = 0;
+        function ping() {
+          attempts += 1;
+          if (statusEl) {
+            statusEl.textContent = 'Проверяем соединение… (попытка ' + attempts + ')';
+          }
+          fetch('/api/health', { cache: 'no-store' })
+            .then(function (r) {
+              if (r && r.ok) {
+                if (statusEl) statusEl.textContent = 'Сервис снова в сети, обновляем…';
+                window.location.reload();
+              } else {
+                schedule();
+              }
+            })
+            .catch(function () {
+              schedule();
+            });
+        }
+        function schedule() {
+          setTimeout(ping, 4000);
+        }
+        schedule();
+      })();
+    </script>
+  </body>
+</html>
