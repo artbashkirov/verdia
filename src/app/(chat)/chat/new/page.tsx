@@ -1184,7 +1184,8 @@ function NewChatPageContent() {
               {response.recommendations && <div className="h-px bg-gray-200" />}
 
               {/* Clarification request - ask for defendant info */}
-              {clarificationRequest && isComplete && !refinedData && (
+              {/* TODO: вернуть, когда будет подключена база для поиска по ФИО/городу/компании */}
+              {false && clarificationRequest && isComplete && !refinedData && (
                 <div className="flex flex-col gap-4 animate-fadeIn">
                   <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                     Уточнить поиск
@@ -1227,7 +1228,7 @@ function NewChatPageContent() {
                 </div>
               )}
 
-              {clarificationRequest && !refinedData && <div className="h-px bg-gray-200" />}
+              {false && clarificationRequest && !refinedData && <div className="h-px bg-gray-200" />}
 
               {/* Refined search results */}
               {refinedData && (
