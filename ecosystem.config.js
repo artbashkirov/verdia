@@ -4,8 +4,9 @@
  * Архитектура:
  * - `verdia-blue`  — порт 3000
  * - `verdia-green` — порт 3002 (3001 занят скрейпером!)
- * - оба процесса запускают тот же `start.sh`, но с разным `PORT` через env.
- * - оба читают одинаковый билд из `/opt/verdia-app/.next`.
+ * - оба процесса запускаются через `npm start` (= `next start`).
+ * - оба читают одинаковый билд из `/opt/verdia-app/.next` и переменные
+ *   из `.env.production` (это делает сам Next.js при NODE_ENV=production).
  *
  * Балансировка между ними — на стороне nginx (upstream c
  * `proxy_next_upstream`), см. `docs/nginx-config.md`.
@@ -18,11 +19,10 @@
  * Между шагами 2 и 3 второй процесс продолжает обслуживать трафик —
  * пользователь не видит даже короткого простоя.
  *
- * Требования к `start.sh` (на VPS, в /opt/verdia-app/start.sh):
- * - подгружает переменные из `.env.production`;
- * - запускает Next.js на порту `$PORT` (по умолчанию 3000, но мы передаём
- *   явно 3000 / 3002 через env). Если start.sh жёстко прибит к 3000 —
- *   обновить его согласно `docs/migration-blue-green.md`.
+ * Почему НЕ через `./start.sh`:
+ * Раньше pm2 запускал процесс командой `pm2 start npm --name verdia -- start`,
+ * никакого start.sh не существовало (это был артефакт старой версии конфига).
+ * Прямой запуск через `npm start` проще и не зависит от наличия скрипта-обёртки.
  *
  * Важно про graceful shutdown:
  * - `kill_timeout: 10000` (10s) — у Next 16 могут быть открытые SSE/streams
@@ -33,12 +33,19 @@
  * - `min_uptime: 10s` — если процесс падает быстрее 10 секунд после старта,
  *   pm2 считает его «не поднявшимся» и не перезапускает бесконечно
  *   (защита от crash loop при битой конфигурации).
+ *
+ * Важно про память (`NODE_OPTIONS=--max-old-space-size=512`):
+ * - Лимит 512 МБ на heap каждого процесса. На 1-ГБ VPS это страховка от
+ *   OOM: два инстанса × 512 МБ = 1 ГБ максимум для Node-heap (плюс RSS
+ *   overhead ~50–100 МБ на каждый). Со swap'ом 2 ГБ это безопасно.
+ * - Если процесс упирается в лимит и начинает GC-thrashing — это
+ *   индикатор «пора апгрейдить тариф VPS».
  */
 
 const commonAppDefaults = {
-  script: './start.sh',
+  script: 'npm',
+  args: 'start',
   cwd: '/opt/verdia-app',
-  interpreter: '/bin/bash',
   instances: 1,
   exec_mode: 'fork',
   log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
@@ -57,6 +64,7 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: '3000',
+        NODE_OPTIONS: '--max-old-space-size=512',
       },
       error_file: '/root/.pm2/logs/verdia-blue-error.log',
       out_file: '/root/.pm2/logs/verdia-blue-out.log',
@@ -67,6 +75,7 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         PORT: '3002',
+        NODE_OPTIONS: '--max-old-space-size=512',
       },
       error_file: '/root/.pm2/logs/verdia-green-error.log',
       out_file: '/root/.pm2/logs/verdia-green-out.log',

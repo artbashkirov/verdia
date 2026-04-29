@@ -64,85 +64,18 @@ nproc
 
 ---
 
-## Шаг 1. Привести `start.sh` к виду, поддерживающему `$PORT`
+## Шаг 1. (Пропускается — start.sh не используется)
 
-### 1.1. Посмотреть текущий start.sh
-
-```bash
-cat /opt/verdia-app/start.sh
-```
-
-Возможные варианты:
-
-**Вариант A — уже использует `$PORT`:**
-```bash
-#!/bin/bash
-set -a
-source .env.production
-set +a
-exec npm start -- -p ${PORT:-3000}
-```
-или
-```bash
-exec node node_modules/next/dist/bin/next start -p ${PORT:-3000}
-```
-✅ Ничего менять не надо, переходи к шагу 2.
-
-**Вариант B — порт 3000 захардкожен:**
-```bash
-#!/bin/bash
-set -a
-source .env.production
-set +a
-exec npm start
-# или: exec npx next start -p 3000
-```
-🛠 Нужно обновить (см. 1.2).
-
-### 1.2. Обновить start.sh
-
-Сделать резервную копию и записать новую версию:
-
-```bash
-sudo cp /opt/verdia-app/start.sh /opt/verdia-app/start.sh.bak
-
-sudo tee /opt/verdia-app/start.sh > /dev/null <<'EOF'
-#!/bin/bash
-# Запуск Verdia. Порт берётся из переменной окружения PORT
-# (передаётся через ecosystem.config.js: 3000 для blue, 3002 для green).
-# По умолчанию — 3000, чтобы старый ручной запуск тоже работал.
-
-set -e
-cd "$(dirname "$0")"
-
-# Переменные из .env.production
-if [ -f .env.production ]; then
-  set -a
-  source .env.production
-  set +a
-fi
-
-PORT="${PORT:-3000}"
-echo "[start.sh] starting Next.js on port $PORT"
-
-exec npm start -- -p "$PORT"
-EOF
-
-sudo chmod +x /opt/verdia-app/start.sh
-```
-
-### 1.3. Проверить, что start.sh запускается с разными портами
-
-В **отдельном** терминале (не убивая текущий процесс):
-
-```bash
-PORT=3099 /opt/verdia-app/start.sh
-# Должен подняться Next на 3099
-# Ctrl+C чтобы остановить
-```
-
-Если падает — разобраться (`npm start` определён? `.env.production`
-читается?). Не идти дальше с поломанным start.sh.
+> Ранее в этом документе был шаг по приведению `start.sh` к виду с `$PORT`.
+> На практике на VPS текущий процесс `verdia` запущен напрямую через
+> `pm2 start npm --name verdia -- start`, без скрипта-обёртки. Файла
+> `start.sh` нет (`cat /opt/verdia-app/start.sh: No such file or directory`).
+>
+> Поэтому в новом `ecosystem.config.js` мы тоже стартуем через `npm start`
+> с передачей `PORT` через env. Никакого `start.sh` создавать не нужно.
+>
+> Если на твоём VPS вдруг есть свой `start.sh` (например, сделанный руками
+> ранее) — он может остаться, но новый pm2-конфиг его всё равно не использует.
 
 ---
 
