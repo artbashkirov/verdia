@@ -161,45 +161,63 @@ sudo ls -la /var/www/verdia/502.html
 
 ## Шаг 4. Обновить nginx-конфиг
 
-### 4.1. Сделать бэкап
+> **Имя файла на VPS — `verdia`** (не `ai-verdia.ru`). Если у тебя
+> другое имя — используй найденное (`ls /etc/nginx/sites-enabled/`).
+
+### 4.1. Сделать бэкап (если ещё не делал на этапе диагностики)
 
 ```bash
-sudo cp /etc/nginx/sites-available/ai-verdia.ru /etc/nginx/sites-available/ai-verdia.ru.bak
+sudo cp /etc/nginx/sites-available/verdia /etc/nginx/sites-available/verdia.bak
 ```
 
-(если файл называется иначе — `nginx -T 2>/dev/null | grep -B 5 "ai-verdia.ru"`
-покажет точный путь).
+### 4.2. Применить новый конфиг — **через git, а не heredoc**
 
-### 4.2. Применить новый конфиг
-
-Открыть в редакторе:
+Канонический файл лежит в репозитории `deploy/nginx/verdia.conf`.
+**Не копируй большие блоки конфига вручную через heredoc** — длинные
+многострочные блоки в SSH часто слипаются и режутся. Используй git:
 
 ```bash
-sudo nano /etc/nginx/sites-available/ai-verdia.ru
+cd /opt/verdia-app
+git pull origin main
+
+# Скопировать каноничный конфиг из репо в системный путь
+sudo cp /opt/verdia-app/deploy/nginx/verdia.conf /etc/nginx/sites-available/verdia
 ```
 
-Заменить содержимое в соответствии с `docs/nginx-config.md` →
-**Шаг 2 «Обновить server-блок nginx»**. Ключевые изменения:
+Проверить, что файл записался корректно:
 
-1. **Upstream-блок** становится с двумя серверами (3000 + 3002).
-2. **error_page 502 503 504 /502.html;** + `location = /502.html { ... internal; }`.
-3. **Отдельный `location = /api/health`** с `proxy_intercept_errors off`.
-4. **proxy_next_upstream** в `location /` для прозрачного failover.
+```bash
+head -20 /etc/nginx/sites-available/verdia
+```
+
+Должны увидеть `upstream verdia_app { ... }` и список двух `server 127.0.0.1:...`.
 
 ### 4.3. Проверить и применить
 
 ```bash
 sudo nginx -t
-# Должно: "syntax is ok", "test is successful"
-
-sudo systemctl reload nginx
-# reload, не restart — без простоя
 ```
 
-Если `nginx -t` ругается — НЕ делай reload, разберись с синтаксисом
-(сообщение nginx обычно точное: file:line). Если совсем не получается —
-`sudo cp /etc/nginx/sites-available/ai-verdia.ru.bak /etc/nginx/sites-available/ai-verdia.ru`
-и снова `nginx -t && systemctl reload nginx`.
+Ожидание:
+```
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+```
+
+⛔ Если показал `error` — **НЕ делай reload**. Откати:
+```bash
+sudo cp /etc/nginx/sites-available/verdia.bak /etc/nginx/sites-available/verdia
+sudo nginx -t  # должно стать ОК
+```
+
+Если `nginx -t` зелёный:
+
+```bash
+sudo systemctl reload nginx
+```
+
+`reload` — без даунтайма, текущие соединения дорабатывают на старом конфиге,
+новые идут уже с failover.
 
 ---
 
