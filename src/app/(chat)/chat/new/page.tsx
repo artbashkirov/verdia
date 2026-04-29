@@ -115,6 +115,8 @@ interface ClarificationData {
   options: string[];
 }
 
+const SHOW_CLARIFICATION_FORM: boolean = false;
+
 function NewChatPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1184,8 +1186,8 @@ function NewChatPageContent() {
               {response.recommendations && <div className="h-px bg-gray-200" />}
 
               {/* Clarification request - ask for defendant info */}
-              {/* TODO: вернуть, когда будет подключена база для поиска по ФИО/городу/компании */}
-              {false && clarificationRequest && isComplete && !refinedData && (
+              {/* TODO: вернуть, когда будет подключена база для поиска по ФИО/городу/компании. Чтобы вернуть — поставить SHOW_CLARIFICATION_FORM = true в константе наверху файла (см. docs/backlog.md, п. 1) */}
+              {SHOW_CLARIFICATION_FORM && clarificationRequest && isComplete && !refinedData && (
                 <div className="flex flex-col gap-4 animate-fadeIn">
                   <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                     Уточнить поиск
@@ -1228,7 +1230,7 @@ function NewChatPageContent() {
                 </div>
               )}
 
-              {false && clarificationRequest && !refinedData && <div className="h-px bg-gray-200" />}
+              {SHOW_CLARIFICATION_FORM && clarificationRequest && !refinedData && <div className="h-px bg-gray-200" />}
 
               {/* Refined search results */}
               {refinedData && (
