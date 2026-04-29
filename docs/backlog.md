@@ -43,7 +43,8 @@
 - Сама форма (`clarificationRequest` + `defendantForm`) и её результат (`refinedData`) **остаются в коде** и были рабочими — они шли на реальный скрейпер по `sudact.ru`.
 - Но без полноценного флоу (валидация ФИО/ИНН, фильтр релевантности, обработка пустых результатов, кэш в `saved_defendants`) форма создавала впечатление, что мы «реально проверяем человека по базам» — чего пока нет.
 - Решено: скрыть форму до того момента, как будет подключена база с осмысленным поведением во всех сценариях.
-- **Как именно скрыто:** в `src/app/(chat)/chat/new/page.tsx` рендер обёрнут в `{false && clarificationRequest && ...}` (строки ~1188 и ~1231). Логика, состояние (`defendantForm`, `setDefendantForm`, `handleDefendantSubmit`, `isRefining`) и API-роут `/api/refine-search` остались — чтобы при возврате не пересобирать их с нуля.
+- **Как именно скрыто:** в `src/app/(chat)/chat/new/page.tsx` объявлена module-level константа `const SHOW_CLARIFICATION_FORM: boolean = false;` (~строка 117), и оба рендер-блока обёрнуты в `{SHOW_CLARIFICATION_FORM && clarificationRequest && ...}` (строки ~1190 и ~1233). Логика, состояние (`defendantForm`, `setDefendantForm`, `handleDefendantSubmit`, `isRefining`) и API-роут `/api/refine-search` остались — чтобы при возврате не пересобирать их с нуля.
+- **Почему через typed-константу, а не литерал `false`:** при `{false && clarificationRequest && ...}` TypeScript считает блок мёртвым кодом и **не делает narrowing** для `clarificationRequest` внутри JSX → `tsc` падает с `'clarificationRequest' is possibly 'null'` (CI build #99). Явный тип `: boolean` снимает literal-инференцию и возвращает narrowing.
 
 ### Что нужно сделать, чтобы вернуть фичу
 
@@ -59,9 +60,9 @@
 
 В `src/app/(chat)/chat/new/page.tsx`:
 
-1. Найти строку `{false && clarificationRequest && isComplete && !refinedData && (` (~1188) — убрать `false &&`.
-2. Найти строку `{false && clarificationRequest && !refinedData && <div className="h-px bg-gray-200" />}` (~1231) — убрать `false &&`.
-3. Удалить TODO-комментарий `{/* TODO: вернуть, когда будет подключена база для поиска по ФИО/городу/компании */}` над блоком.
+1. В `src/app/(chat)/chat/new/page.tsx` (~строка 117) поменять `const SHOW_CLARIFICATION_FORM: boolean = false;` на `true`. Этого **достаточно** для возврата формы и разделителя — оба рендер-блока на ~1190 и ~1233 уже завязаны на эту константу.
+2. (Опционально) Удалить саму константу и `SHOW_CLARIFICATION_FORM &&` из обоих условий, если решили не оставлять feature-flag.
+3. Удалить TODO-комментарий `{/* TODO: вернуть, когда будет подключена база... */}` над блоком формы.
 4. Прогнать сценарии регрессии (см. п. 7 выше).
 5. Проверить, что бэкенд `src/app/api/generate-stream/route.ts` всё ещё кладёт `clarificationRequest` в response (на момент 2026-04-29 — кладёт, поле просто игнорируется фронтом).
 
@@ -432,4 +433,4 @@ Error getting user in middleware: Auth session missing!
 - **2026-04-28** — реализован полный zero-downtime через blue-green: `ecosystem.config.js` (два процесса blue/green на 3000 + 3002), `deploy.yml` (rolling reload с двумя healthcheck-этапами и fail-fast), `docs/migration-blue-green.md` (инструкция миграции VPS), обновлённый `docs/nginx-config.md` (upstream c failover). См. пункт 4 — ждёт миграции на VPS.
 - **2026-04-28** — фикс **ChunkLoadError** при деплое (сломанный экран без CSS/JS у уже открытых вкладок): в `deploy.yml` добавлено сохранение `.next-static-archive/` (14 дней) и мердж старых чанков в новый билд + клиентский safety-net `src/components/layout/ChunkErrorRecovery.tsx` с auto-reload и anti-loop защитой. Это второй слой надёжности к blue-green: blue-green закрывает 502, archive — chunks. Подробнее — раздел 11.3 в `docs/manual-regression.md`.
 - **2026-04-29** — добавлен раздел **5. Технический долг и обнаруженные баги** (7 пунктов: OpenAI 403, Server Action stale, бот-сканеры, WebSocket-заголовки, sites-enabled-симлинк, шум `Auth session missing`, мусор в `/opt/verdia-app`). Это вещи, найденные по ходу blue-green миграции 2026-04-28..29, но сознательно не починенные сейчас, чтобы не размазывать фокус. Каждый пункт — с симптомом, причиной, конкретным планом фикса.
-- **2026-04-29** — форма **«Уточнить поиск»** (поля «ФИО ответчика» + «Город регистрации») в `src/app/(chat)/chat/new/page.tsx` скрыта через `{false && clarificationRequest && ...}` (строки ~1188 и ~1231). Причина: без полноценного флоу (валидация, фильтр релевантности, обработка пустых результатов, кэш) форма создавала впечатление «реальной проверки человека по базам», чего пока нет. Логика, состояние, обработчик `handleDefendantSubmit` и API-роут `/api/refine-search` оставлены — при возврате достаточно снять обёртку. Полное описание возврата — в пункте 1 этого бэклога, секция «Как механически вернуть форму «Уточнить поиск».
+- **2026-04-29** — форма **«Уточнить поиск»** (поля «ФИО ответчика» + «Город регистрации») в `src/app/(chat)/chat/new/page.tsx` скрыта через module-level флаг `const SHOW_CLARIFICATION_FORM: boolean = false;` (~строка 117), оба рендер-блока (~1190 и ~1233) проверяют этот флаг. Причина: без полноценного флоу (валидация, фильтр релевантности, обработка пустых результатов, кэш) форма создавала впечатление «реальной проверки человека по базам», чего пока нет. Логика, состояние, обработчик `handleDefendantSubmit` и API-роут `/api/refine-search` оставлены — при возврате достаточно поменять флаг на `true`. Изначально использовали литерал `false &&`, но он сломал TypeScript-narrowing (CI build #99 упал с `'clarificationRequest' is possibly 'null'`) — typed-константа решила обе задачи. Полное описание возврата — в пункте 1, секция «Как механически вернуть форму».
