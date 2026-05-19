@@ -45,29 +45,30 @@ export const openai = new Proxy({} as OpenAI, {
 
 // Helper function to call OpenAI directly
 async function callOpenAI(
-  prompt: string, 
-  systemPrompt?: string, 
+  prompt: string,
+  systemPrompt?: string,
   maxTokens: number = 3000,
-  jsonMode: boolean = false
+  jsonMode: boolean = false,
+  model?: string,
 ): Promise<string> {
   const apiKey = process.env.OPENAI_API_KEY;
-  
+
   if (!apiKey) {
     throw new Error('OPENAI_API_KEY is not configured');
   }
-  
+
   const client = getOpenAI();
-  
+
   const messages: Array<{ role: 'system' | 'user'; content: string }> = [];
-  
+
   if (systemPrompt) {
     messages.push({ role: 'system', content: systemPrompt });
   }
   messages.push({ role: 'user', content: prompt });
-  
+
   try {
     const response = await client.chat.completions.create({
-      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+      model: model || process.env.OPENAI_MODEL || 'gpt-4o-mini',
       messages,
       max_tokens: maxTokens,
       temperature: 0.7,
@@ -88,20 +89,29 @@ async function callOpenAI(
 }
 
 // Universal function to call AI (Gemini — основная для анализа исков, или OpenAI)
+export interface CallAIOptions {
+  /** Принудительно использовать конкретного провайдера, минуя getAIProvider(). */
+  forceProvider?: AIProvider;
+  /** Конкретная модель: для gemini — slug Replicate (`google/gemini-2.5-pro`),
+   *  для openai — id из API (`gpt-4o`). Перебивает env-переменные. */
+  model?: string;
+}
+
 export async function callAI(
-  prompt: string, 
-  systemPrompt?: string, 
+  prompt: string,
+  systemPrompt?: string,
   maxTokens: number = 3000,
-  jsonMode: boolean = false
+  jsonMode: boolean = false,
+  options: CallAIOptions = {},
 ): Promise<string> {
-  const provider = getAIProvider();
-  
-  console.log(`[callAI] Using provider: ${provider}`);
-  
+  const provider = options.forceProvider ?? getAIProvider();
+
+  console.log(`[callAI] Using provider: ${provider}${options.model ? ` model=${options.model}` : ''}`);
+
   if (provider === 'openai') {
-    return callOpenAI(prompt, systemPrompt, maxTokens, jsonMode);
+    return callOpenAI(prompt, systemPrompt, maxTokens, jsonMode, options.model);
   } else {
-    return callGemini(prompt, systemPrompt, maxTokens);
+    return callGemini(prompt, systemPrompt, maxTokens, options.model);
   }
 }
 
@@ -134,7 +144,12 @@ async function openaiChatCompletion(
 
 // Helper function to call Gemini via Cloudflare Worker proxy
 // Worker proxies requests to Replicate API from a non-blocked region
-async function callGemini(prompt: string, systemPrompt?: string, maxTokens: number = 3000): Promise<string> {
+async function callGemini(
+  prompt: string,
+  systemPrompt?: string,
+  maxTokens: number = 3000,
+  model?: string,
+): Promise<string> {
   const workerUrl = process.env.CLOUDFLARE_WORKER_URL?.trim();
   const workerSecret = process.env.CLOUDFLARE_WORKER_SECRET?.trim();
   
@@ -189,7 +204,7 @@ async function callGemini(prompt: string, systemPrompt?: string, maxTokens: numb
         'X-Worker-Secret': workerSecret,
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: model || process.env.GEMINI_MODEL || 'google/gemini-2.5-flash',
         input: {
           prompt: fullPrompt,
           max_tokens: maxTokens,
@@ -295,7 +310,7 @@ export async function generateSearchQuery(userQuery: string): Promise<string> {
 
 // Enhanced legal response generation with full court data
 export async function generateLegalResponse(
-  userQuery: string, 
+  userQuery: string,
   searchResults: {
     cases: CourtCase[];
     stats: {
@@ -310,7 +325,8 @@ export async function generateLegalResponse(
     defendantHistory?: DefendantHistory | null;
     searchTerms: string;
     category: string;
-  }
+  },
+  options: CallAIOptions = {},
 ): Promise<string> {
   const { SYSTEM_PROMPT } = await import('./prompts');
   
@@ -344,8 +360,8 @@ ${courtCasesFormatted.map(c => `- ${c.title} [${c.result}]`).join('\n')}
 - Ответ строго в формате JSON`;
 
   try {
-    const result = await callAI(context, SYSTEM_PROMPT, 2500, true);
-    
+    const result = await callAI(context, SYSTEM_PROMPT, 2500, true, options);
+
     // Try to extract JSON from response
     const jsonMatch = result.match(/\{[\s\S]*\}/);
     if (jsonMatch) {

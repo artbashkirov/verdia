@@ -7,7 +7,12 @@ import { Sidebar, ChatInput, ProbabilityBlock } from '@/components/layout';
 import { DownloadIcon } from '@/components/icons';
 import { generateDocx, downloadBlob } from '@/lib/docx-generator';
 import { useTheme } from '@/lib/theme-context';
-import { safeGet, safeSet } from '@/lib/safe-storage';
+import { safeGet, safeSet, safeRemove } from '@/lib/safe-storage';
+import {
+  buildEffectiveMessageWithAttachments,
+  serializeAttachmentsForSession,
+  type ChatAttachment,
+} from '@/types/chat-attachment';
 
 interface GenerationResponse {
   courtCases: Array<{
@@ -130,8 +135,29 @@ function ResultContent() {
     router.push('/chat');
   };
 
-  const handleSubmit = async () => {
-    router.push('/chat');
+  const handleSubmit = (message: string, attachments?: ChatAttachment[]) => {
+    const list = attachments ?? [];
+    const effectiveMessage = buildEffectiveMessageWithAttachments(message, list);
+    if (!effectiveMessage) {
+      router.push('/chat');
+      return;
+    }
+
+    safeSet('pendingQuery', effectiveMessage, 'session');
+    safeRemove('cachedResponse', 'session');
+    if (list.length > 0) {
+      const payload = serializeAttachmentsForSession(list);
+      const stored = payload ? safeSet('pendingAttachments', payload, 'session') : false;
+      safeRemove('pendingAttachment', 'session');
+      if (!stored) {
+        toast.error('Не удалось сохранить документы для отправки. Попробуйте меньше или более лёгкие файлы.');
+        return;
+      }
+    } else {
+      safeRemove('pendingAttachments', 'session');
+      safeRemove('pendingAttachment', 'session');
+    }
+    router.push(`/chat/new?q=${encodeURIComponent(effectiveMessage)}`);
   };
 
   const handleDownload = async (doc: { id: number; title: string; content?: string; format: string }) => {

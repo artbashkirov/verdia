@@ -166,3 +166,19 @@ export function getMimeTypeFromExtension(ext: string): string | null {
   };
   return map[ext] || null;
 }
+
+/** Safari/WebView иногда отдают пустой `file.type` — определяем по расширению. */
+export function resolveFileMimeType(fileName: string, mimeType: string): string | null {
+  const normalized = (mimeType || '').trim().toLowerCase();
+  if (normalized === 'image/jpg') {
+    return 'image/jpeg';
+  }
+  if (normalized && isSupportedMimeType(normalized)) {
+    return normalized;
+  }
+  const fromExtension = getMimeTypeFromExtension(getFileExtension(fileName));
+  if (fromExtension && isSupportedMimeType(fromExtension)) {
+    return fromExtension;
+  }
+  return null;
+}

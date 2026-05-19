@@ -10,6 +10,14 @@ import { generateDocx, downloadBlob } from '@/lib/docx-generator';
 import { CaseTransitionBanner } from '@/components/cases/CaseTransitionBanner';
 import { useTheme } from '@/lib/theme-context';
 import { safeGet, safeSet } from '@/lib/safe-storage';
+import {
+  stripAttachmentsSuffix,
+  formatAttachmentSize,
+  buildEffectiveMessageWithAttachments,
+  toAttachmentMetaList,
+  type ChatAttachment,
+  type ChatAttachmentMeta,
+} from '@/types/chat-attachment';
 
 const CASES_ENABLED = process.env.NEXT_PUBLIC_FEATURE_CASES === 'true';
 
@@ -19,6 +27,8 @@ interface ChatMessage {
   content: string;
   created_at: string;
   documents?: Array<{ title: string; content: string }>;
+  attachment?: { fileName: string; mimeType: string; size: number } | null;
+  attachments?: ChatAttachmentMeta[];
 }
 
 interface GenerationResponse {
@@ -213,10 +223,20 @@ function ChatResultPageContent() {
           const data = await response.json();
           const messages = data.messages || [];
 
-          const normalizedMessages = messages.map((msg: ChatMessage) => ({
-            ...msg,
-            documents: Array.isArray(msg.documents) ? msg.documents : [],
-          }));
+          const normalizedMessages = messages.map((msg: ChatMessage) => {
+            const attachments =
+              Array.isArray(msg.attachments) && msg.attachments.length > 0
+                ? msg.attachments
+                : msg.attachment
+                  ? [msg.attachment]
+                  : [];
+            return {
+              ...msg,
+              documents: Array.isArray(msg.documents) ? msg.documents : [],
+              attachments,
+              attachment: attachments[0] ?? null,
+            };
+          });
 
           if (!controller.signal.aborted) {
             setChatMessages(normalizedMessages);
@@ -407,32 +427,36 @@ function ChatResultPageContent() {
     return 'Печатает...';
   };
 
-  const handleSubmit = async (message: string) => {
-    if (!message || !message.trim()) {
+  const handleSubmit = async (message: string, attachments?: ChatAttachment[]) => {
+    const list = attachments ?? [];
+    const effectiveMessage = buildEffectiveMessageWithAttachments(message, list);
+    if (!effectiveMessage) {
       return;
     }
-    
+
     if (isSending) {
       return;
     }
-    
+
     if (!chatId || chatId.trim() === '') {
       setError('ID чата не найден. Пожалуйста, обновите страницу.');
       return;
     }
 
     setIsSending(true);
-    setLastUserMessage(message);
+    setLastUserMessage(effectiveMessage);
 
-    // Optimistically add user message
+    const attachmentMeta = toAttachmentMetaList(list);
     const userMessage: ChatMessage = {
       id: `temp-${Date.now()}`,
       role: 'user',
-      content: message,
+      content: effectiveMessage,
       created_at: new Date().toISOString(),
+      attachments: attachmentMeta,
+      attachment: attachmentMeta[0] ?? null,
     };
     setChatMessages(prev => [...prev, userMessage]);
-    
+
     // Прокручиваем сразу после добавления сообщения пользователя
     setTimeout(() => {
       scrollToBottom();
@@ -444,7 +468,8 @@ function ChatResultPageContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           generationId: chatId,
-          message,
+          message: effectiveMessage,
+          attachments: list,
         }),
       });
 
@@ -483,11 +508,21 @@ function ChatResultPageContent() {
           const messages = messagesData.messages || [];
           
           // Ensure documents are properly formatted
-          const normalizedMessages = messages.map((msg: ChatMessage) => ({
-            ...msg,
-            documents: Array.isArray(msg.documents) ? msg.documents : [],
-          }));
-          
+          const normalizedMessages = messages.map((msg: ChatMessage) => {
+            const attachments =
+              Array.isArray(msg.attachments) && msg.attachments.length > 0
+                ? msg.attachments
+                : msg.attachment
+                  ? [msg.attachment]
+                  : [];
+            return {
+              ...msg,
+              documents: Array.isArray(msg.documents) ? msg.documents : [],
+              attachments,
+              attachment: attachments[0] ?? null,
+            };
+          });
+
           // Replace all messages with fresh data from server
           setChatMessages(normalizedMessages);
         } else {
@@ -498,6 +533,8 @@ function ChatResultPageContent() {
             content: data.message,
             created_at: new Date().toISOString(),
             documents: data.documents || [],
+            attachments: [],
+            attachment: null,
           };
           setChatMessages(prev => [...prev, assistantMessage]);
         }
@@ -510,6 +547,7 @@ function ChatResultPageContent() {
           content: data.message,
           created_at: new Date().toISOString(),
           documents: data.documents || [],
+          attachment: null,
         };
         setChatMessages(prev => [...prev, assistantMessage]);
       }
@@ -1193,10 +1231,57 @@ function ChatResultPageContent() {
                       <div key={msg.id}>
                         {msg.role === 'user' ? (
                           // User message - right aligned with dark background
-                          <div className="flex justify-end">
-                            <div className="max-w-[85%] px-4 py-3 bg-[#212121] text-white rounded-2xl">
-                              <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-                            </div>
+                          <div className="flex flex-col items-end gap-2">
+                            {(msg.attachments?.length
+                              ? msg.attachments
+                              : msg.attachment
+                                ? [msg.attachment]
+                                : []
+                            ).map((att, attIdx) => (
+                              <div
+                                key={`${att.fileName}-${attIdx}`}
+                                className="flex items-center max-w-[85%]"
+                                style={{
+                                  gap: '8px',
+                                  padding: '8px 12px',
+                                  borderRadius: '12px',
+                                  backgroundColor: 'var(--input-bg)',
+                                  border: '1px solid #CCCCCC',
+                                }}
+                              >
+                                <span className="text-base" aria-hidden="true">📎</span>
+                                <div className="flex flex-col min-w-0">
+                                  <span
+                                    className="text-foreground truncate"
+                                    style={{ fontSize: '13px', lineHeight: '16px', fontWeight: 500 }}
+                                    title={att.fileName}
+                                  >
+                                    {att.fileName}
+                                  </span>
+                                  <span
+                                    className="text-[#808080]"
+                                    style={{ fontSize: '11px', lineHeight: '14px' }}
+                                  >
+                                    {formatAttachmentSize(att.size)}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                            {(() => {
+                              const attachmentList =
+                                msg.attachments?.length
+                                  ? msg.attachments
+                                  : msg.attachment
+                                    ? [msg.attachment]
+                                    : [];
+                              const visible = stripAttachmentsSuffix(msg.content, attachmentList);
+                              if (!visible) return null;
+                              return (
+                                <div className="max-w-[85%] px-4 py-3 bg-[#212121] text-white rounded-2xl">
+                                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{visible}</p>
+                                </div>
+                              );
+                            })()}
                           </div>
                         ) : (
                           // Assistant message - clean text without background

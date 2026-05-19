@@ -5,6 +5,12 @@ import { searchCourtCases } from '@/lib/court-search';
 import { getLawContext } from '@/lib/rag';
 import { exampleQueries } from '@/lib/example-queries';
 import type { UserProfile, PersonType } from '@/types/database';
+import {
+  encodeAttachmentsForPrompt,
+  normalizeAttachmentsFromBody,
+  appendAttachmentMarkersToQuery,
+  type ChatAttachment,
+} from '@/types/chat-attachment';
 
 // Check if query is an example question and return its ID (1-based)
 function getExampleQuestionId(query: string): number | null {
@@ -108,25 +114,71 @@ function formatPlaintiffContext(profile: UserProfile | null): string {
   return context;
 }
 
+// Максимум символов из каждого документа, которые мы подмешиваем в
+// семантический поиск (court cases + RAG). Полный текст уйдёт в AI-промпт
+// отдельно; здесь важны только ключевые слова, иначе embedding-модель
+// упадёт по токенам, а sudact.ru не сможет распарсить такой запрос.
+const SEARCH_DOC_CHARS = 1500;
+
+function buildSearchableQuery(userText: string, list: ChatAttachment[]): string {
+  const cleanedUser = (userText || '').trim();
+  if (!list.length) return cleanedUser;
+
+  const excerpts = list
+    .map((att) => (att.extractedText || '').trim().slice(0, SEARCH_DOC_CHARS))
+    .filter(Boolean)
+    .join('\n\n');
+
+  if (!excerpts) return cleanedUser;
+  if (!cleanedUser) return excerpts;
+  return `${cleanedUser}\n\n${excerpts}`;
+}
+
+function buildChatTitle(userText: string, list: ChatAttachment[]): string {
+  const cleanedUser = (userText || '').trim();
+  if (cleanedUser) return cleanedUser.slice(0, 100);
+  if (list.length === 1) {
+    return `Анализ документа: ${list[0].fileName}`.slice(0, 100);
+  }
+  if (list.length > 1) {
+    return `Анализ документов (${list.length})`;
+  }
+  return 'Новый запрос';
+}
+
 export async function POST(request: NextRequest) {
-  // Parse JSON before creating stream (request body can only be read once)
-  let query: string;
+  let userQuery: string;
   let defendantName: string | undefined;
   let defendantLocation: string | undefined;
   let useCachedResponse: boolean = false;
+  let attachments: ChatAttachment[] = [];
   try {
     const body = await request.json();
-    query = body.query;
+    userQuery = typeof body.query === 'string' ? body.query : '';
     defendantName = body.defendantName;
     defendantLocation = body.defendantLocation;
     useCachedResponse = body.useCachedResponse || false;
+    attachments = normalizeAttachmentsFromBody(body);
   } catch {
     return new Response(JSON.stringify({ error: 'Invalid request' }), { status: 400 });
   }
 
-  if (!query) {
+  userQuery = (userQuery || '').trim();
+  // chatTitle — то, что видит пользователь и хранится в БД как `query`.
+  // Без маркеров «📎 file.jpg · 184 КБ» — иначе вверху страницы и в
+  // сайдбаре висит мусор. Сами вложения отдельно лежат в chat_messages.
+  // searchableQuery — выжимка для семантического поиска.
+  const chatTitle = buildChatTitle(userQuery, attachments);
+  const searchableQuery = buildSearchableQuery(userQuery, attachments);
+
+  if (!chatTitle && attachments.length === 0) {
     return new Response(JSON.stringify({ error: 'Query required' }), { status: 400 });
   }
+
+  // В легаси-коде ниже использовалось одно имя `query` для всего сразу.
+  // Чтобы не переписывать десятки обращений, оставляем алиас на chatTitle
+  // — это и то, что попадёт в БД, и то, что отрисуется в <h1>.
+  const query = chatTitle;
 
   // If using cached response, just create generation record and return ID
   if (useCachedResponse) {
@@ -206,7 +258,7 @@ export async function POST(request: NextRequest) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             await (supabase.from('chat_history') as any).insert({
               user_id: user.id,
-              title: query.slice(0, 100),
+              title: chatTitle,
               generation_id: generation.id,
             });
 
@@ -333,21 +385,24 @@ export async function POST(request: NextRequest) {
         // Step 1: Send "searching" status
         sendEvent('status', { stage: 'searching', message: 'Ищу судебные дела...' });
 
-        const parties = extractParties(query);
-        
-        // Use provided defendant info or extracted from query
+        // Ответчика ищем и в тексте пользователя, и в документах — ИНН/ООО
+        // часто упоминаются только в самом договоре/претензии.
+        const parties = extractParties(searchableQuery);
+
         const finalDefendantName = defendantName || parties.defendantName;
         const finalDefendantLocation = defendantLocation || parties.defendantLocation || 'Москва';
-        
-        // Step 2: Search court cases + RAG law articles in parallel
+
+        // Поиск дел и закона ведём по searchableQuery (короткая выжимка из
+        // документов + текст пользователя), иначе sudact и embedding не
+        // справятся с многокилобайтным телом.
         const [searchResults, ragResult] = await Promise.all([
-          searchCourtCases(query, {
+          searchCourtCases(searchableQuery, {
             maxResults: 5,
             defendantName: finalDefendantName,
             defendantLocation: finalDefendantLocation,
             plaintiffLocation: userProfile?.registration_city,
           }),
-          getLawContext(query, { matchCount: 5, matchThreshold: 0.3 }).catch(err => {
+          getLawContext(searchableQuery, { matchCount: 5, matchThreshold: 0.3 }).catch(err => {
             console.error('[RAG] Error (non-fatal):', err);
             return { context: '', articles: [] };
           }),
@@ -404,17 +459,100 @@ export async function POST(request: NextRequest) {
 
         // Build enhanced query with plaintiff context + RAG law context
         const plaintiffContext = formatPlaintiffContext(userProfile);
-        
+
+        // AI получает текст документов с лимитом 12K символов на каждый
+        // (≈3 страницы юридического текста — обычно достаточно для сути).
+        // Полные 30K на 3 файла = 90K символов, gpt-4o-mini тогда генерирует
+        // ответ ~60+ секунд и часто упирается в таймауты Cloudflare Worker.
+        const AI_CHARS_PER_DOC = 12000;
+        const attachmentContext = attachments.length
+          ? encodeAttachmentsForPrompt(attachments, AI_CHARS_PER_DOC)
+          : '';
+
+        const aiBaseQuery = attachments.length
+          ? (userQuery || 'Проанализируй прикреплённые документы и определи суть дела')
+          : query;
+
         const enhancedSearchResults = {
           ...searchResults,
           plaintiffContext,
         };
 
-        // Step 5: Generate AI response (with RAG law context injected)
-        const responseJson = await generateLegalResponse(
-          query + plaintiffContext + lawContext, 
-          enhancedSearchResults
-        );
+        // Для запросов с документами: ПЕРВЫМ пробуем быструю надёжную
+        // модель (gpt-4o, ~15-25с). Если она упадёт — fallback ниже
+        // деградирует до дефолтной (gemini-flash / gpt-4o-mini).
+        //
+        // Gemini 3 Pro/2.5 Pro reasoning-модели могут отвечать 2-5 минут
+        // на большом контексте, и Cloudflare Worker часто рвёт соединение
+        // по 30-секундному CPU-лимиту. Включить можно явно через env:
+        //   DOCS_AI_MODEL=google/gemini-3-pro  (медленно, дорого, но топ)
+        //   DOCS_AI_MODEL=gpt-4o               (по умолчанию — быстро)
+        //   DOCS_AI_MODEL=gpt-4.1              (новее, ещё быстрее)
+        const docsModel = process.env.DOCS_AI_MODEL || 'gpt-4o';
+        const docsProvider: 'openai' | 'gemini' =
+          docsModel.startsWith('google/') || docsModel.startsWith('gemini')
+            ? 'gemini'
+            : 'openai';
+
+        const aiOptions = attachments.length
+          ? { forceProvider: docsProvider, model: docsModel }
+          : undefined;
+
+        const aiPrompt =
+          aiBaseQuery + plaintiffContext + attachmentContext + lawContext;
+
+        // Защищаем стрим от подвисания. Если AI не ответил за заданное
+        // время — отдаём пользователю чёткую ошибку вместо вечного спиннера.
+        const AI_TIMEOUT_MS = attachments.length ? 180_000 : 90_000;
+        const runAi = async (opts?: typeof aiOptions): Promise<string> => {
+          return generateLegalResponse(aiPrompt, enhancedSearchResults, opts);
+        };
+
+        const responseJson = await Promise.race<string>([
+          runAi(aiOptions).catch(async (err: unknown) => {
+            // Если усиленная модель недоступна (404 / провайдер не настроен),
+            // не валим весь запрос — деградируем до дефолтной модели и
+            // продолжаем. Пользователь получит ответ, пусть и упрощённый.
+            const message = err instanceof Error ? err.message : String(err);
+            if (
+              aiOptions &&
+              (message.includes('404') ||
+                message.includes('not configured') ||
+                message.includes('Worker proxy error'))
+            ) {
+              console.warn(
+                '[generate-stream] strong model failed, falling back to default:',
+                message,
+              );
+              return runAi(undefined);
+            }
+            throw err;
+          }),
+          new Promise<string>((_, reject) =>
+            setTimeout(
+              () => reject(new Error('AI_TIMEOUT')),
+              AI_TIMEOUT_MS,
+            ),
+          ),
+        ]).catch((err: unknown) => {
+          if (err instanceof Error && err.message === 'AI_TIMEOUT') {
+            console.error('[generate-stream] AI timeout after', AI_TIMEOUT_MS, 'ms', {
+              generationId,
+              attachmentsCount: attachments.length,
+              promptChars:
+                aiBaseQuery.length +
+                plaintiffContext.length +
+                attachmentContext.length +
+                lawContext.length,
+            });
+            throw new Error(
+              attachments.length
+                ? 'Ответ занимает слишком много времени. Попробуйте отправить меньше документов или сократить запрос.'
+                : 'Ответ занимает слишком много времени. Попробуйте переформулировать запрос.',
+            );
+          }
+          throw err;
+        });
         
         let response;
         try {
@@ -568,7 +706,7 @@ export async function POST(request: NextRequest) {
 
         // Step 10.5: Send clarification request if defendant not specified
         if (!finalDefendantName) {
-          const defendantPlaceholder = getDefendantPlaceholder(query);
+          const defendantPlaceholder = getDefendantPlaceholder(searchableQuery);
           sendEvent('clarificationRequest', {
             type: 'defendant',
             message: 'Для более точного анализа укажите данные ответчика',
@@ -590,7 +728,7 @@ export async function POST(request: NextRequest) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           await (supabase.from('chat_history') as any).insert({
             user_id: user.id,
-            title: query.slice(0, 100),
+            title: chatTitle,
             generation_id: generationId,
           });
         }

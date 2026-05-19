@@ -2,9 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { Sidebar, ChatInput, MobileHeader, MobileSidebar } from '@/components/layout';
 import { getRandomQueries } from '@/lib/example-queries';
 import { safeSet, safeRemove } from '@/lib/safe-storage';
+import {
+  buildEffectiveMessageWithAttachments,
+  serializeAttachmentsForSession,
+  type ChatAttachment,
+} from '@/types/chat-attachment';
 
 export default function ChatPage() {
   const router = useRouter();
@@ -26,15 +32,33 @@ export default function ChatPage() {
     });
   }, []);
 
-  const handleSubmit = (message: string) => {
-    safeSet('pendingQuery', message, 'session');
+  const handleSubmit = (message: string, attachments?: ChatAttachment[]) => {
+    const list = attachments ?? [];
+    const effectiveMessage = buildEffectiveMessageWithAttachments(message, list);
+    if (!effectiveMessage) return;
+
+    safeSet('pendingQuery', effectiveMessage, 'session');
     safeRemove('cachedResponse', 'session');
-    router.push(`/chat/new?q=${encodeURIComponent(message)}`);
+    if (list.length > 0) {
+      const payload = serializeAttachmentsForSession(list);
+      const stored = payload ? safeSet('pendingAttachments', payload, 'session') : false;
+      safeRemove('pendingAttachment', 'session');
+      if (!stored) {
+        toast.error('Не удалось сохранить документы для отправки. Попробуйте меньше или более лёгкие файлы.');
+        return;
+      }
+    } else {
+      safeRemove('pendingAttachments', 'session');
+      safeRemove('pendingAttachment', 'session');
+    }
+    router.push(`/chat/new?q=${encodeURIComponent(effectiveMessage)}`);
   };
 
   const handleExampleClick = (questionId: number, text: string) => {
     safeSet('pendingQuery', text, 'session');
     safeSet('pendingQuestionId', questionId.toString(), 'session');
+    safeRemove('pendingAttachments', 'session');
+    safeRemove('pendingAttachment', 'session');
     router.push(`/chat/new?q=${encodeURIComponent(text)}`);
   };
 

@@ -9,6 +9,15 @@ import { MarkdownRenderer } from '@/components/ui';
 import { generateDocx, downloadBlob } from '@/lib/docx-generator';
 import { useTheme } from '@/lib/theme-context';
 import { safeGet, safeSet, safeRemove } from '@/lib/safe-storage';
+import {
+  stripAttachmentsSuffix,
+  formatAttachmentSize,
+  buildEffectiveMessageWithAttachments,
+  parseAttachmentsFromSession,
+  toAttachmentMetaList,
+  type ChatAttachment,
+  type ChatAttachmentMeta,
+} from '@/types/chat-attachment';
 
 interface GenerationResponse {
   courtCases?: Array<{
@@ -143,7 +152,15 @@ function NewChatPageContent() {
   const contentRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const hasStartedGeneration = useRef(false);
-  const [chatMessages, setChatMessages] = useState<Array<{ id: string; role: 'user' | 'assistant'; content: string; created_at: string; documents?: Array<{ title: string; content: string }> }>>([]);
+  const [chatMessages, setChatMessages] = useState<Array<{
+    id: string;
+    role: 'user' | 'assistant';
+    content: string;
+    created_at: string;
+    documents?: Array<{ title: string; content: string }>;
+    attachment?: { fileName: string; mimeType: string; size: number } | null;
+    attachments?: ChatAttachmentMeta[];
+  }>>([]);
   const [isSendingChat, setIsSendingChat] = useState(false);
   const [lastUserMessage, setLastUserMessage] = useState<string>('');
   const [cachedResponseInfo, setCachedResponseInfo] = useState<{ createdAt: string } | null>(null);
@@ -199,14 +216,40 @@ function NewChatPageContent() {
     }
 
     hasStartedGeneration.current = true;
-    setQuery(queryToUse);
     safeRemove('pendingQuery', 'session');
     safeRemove('pendingQuestionId', 'session');
-    
+
+    // Поднимаем прикреплённые к первому запросу документы (если есть).
+    // Хранятся в sessionStorage, потому что слишком большие для URL.
+    let pendingAttachments: ChatAttachment[] = [];
+    const storedAttachments = safeGet('pendingAttachments', 'session');
+    if (storedAttachments) {
+      pendingAttachments = parseAttachmentsFromSession(storedAttachments);
+      safeRemove('pendingAttachments', 'session');
+    } else {
+      const storedAttachment = safeGet('pendingAttachment', 'session');
+      if (storedAttachment) {
+        pendingAttachments = parseAttachmentsFromSession(storedAttachment);
+        safeRemove('pendingAttachment', 'session');
+      }
+    }
+
+    // В заголовке <h1> показываем только осмысленный текст (вопрос
+    // пользователя или «Анализ документов»). Без «📎 file.jpg · 184 КБ»,
+    // иначе наверху страницы висит мусор. Сам файл AI получает отдельно.
+    const cleanTitle = queryToUse.trim() || (
+      pendingAttachments.length === 1
+        ? `Анализ документа: ${pendingAttachments[0].fileName}`
+        : pendingAttachments.length > 1
+          ? `Анализ документов (${pendingAttachments.length})`
+          : ''
+    );
+    setQuery(cleanTitle);
+
     // Show in sidebar immediately with temporary ID
     const newPendingChat = {
       id: 'pending-' + Date.now(),
-      title: queryToUse.slice(0, 50) + (queryToUse.length > 50 ? '...' : ''),
+      title: cleanTitle.slice(0, 50) + (cleanTitle.length > 50 ? '...' : ''),
     };
     setPendingChat(newPendingChat);
     
@@ -258,7 +301,7 @@ function NewChatPageContent() {
         .catch(err => console.error('Cache check failed:', err));
     }
     
-    generateResponseStream(queryToUse);
+    generateResponseStream(queryToUse, pendingAttachments);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -273,18 +316,30 @@ function NewChatPageContent() {
           const messagesData = await messagesResponse.json();
           const messages = messagesData.messages || [];
           
-          // Ensure documents are properly formatted
-          interface MessageType { 
-            id: string; 
-            role: 'user' | 'assistant'; 
-            content: string; 
-            created_at: string; 
-            documents?: Array<{ title: string; content: string }> 
+          // Ensure documents/attachment are properly formatted
+          interface MessageType {
+            id: string;
+            role: 'user' | 'assistant';
+            content: string;
+            created_at: string;
+            documents?: Array<{ title: string; content: string }>;
+            attachment?: { fileName: string; mimeType: string; size: number } | null;
+    attachments?: ChatAttachmentMeta[];
           }
-          const normalizedMessages = messages.map((msg: MessageType) => ({
-            ...msg,
-            documents: Array.isArray(msg.documents) ? msg.documents : [],
-          }));
+          const normalizedMessages = messages.map((msg: MessageType) => {
+            const attachments =
+              Array.isArray(msg.attachments) && msg.attachments.length > 0
+                ? msg.attachments
+                : msg.attachment
+                  ? [msg.attachment]
+                  : [];
+            return {
+              ...msg,
+              documents: Array.isArray(msg.documents) ? msg.documents : [],
+              attachments,
+              attachment: attachments[0] ?? null,
+            };
+          });
           
           setChatMessages(normalizedMessages);
           console.log('📥 Loaded messages with documents:', normalizedMessages.filter((m: MessageType) => (m.documents?.length ?? 0) > 0).length);
@@ -455,12 +510,15 @@ function NewChatPageContent() {
   };
 
   // Streaming generation - shows results as they arrive
-  const generateResponseStream = async (queryText: string) => {
+  const generateResponseStream = async (
+    queryText: string,
+    attachments: ChatAttachment[] = [],
+  ) => {
     try {
       const res = await fetch('/api/generate-stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: queryText }),
+        body: JSON.stringify({ query: queryText, attachments }),
       });
 
       if (!res.ok) {
@@ -599,20 +657,24 @@ function NewChatPageContent() {
   };
 
   // Handle chat continuation after generation is complete
-  const handleChatSubmit = async (message: string) => {
-    if (!message.trim() || !chatId || isGenerating || isSendingChat) {
+  const handleChatSubmit = async (message: string, attachments?: ChatAttachment[]) => {
+    const list = attachments ?? [];
+    const effectiveMessage = buildEffectiveMessageWithAttachments(message, list);
+    if (!effectiveMessage || !chatId || isGenerating || isSendingChat) {
       return;
     }
 
     setIsSendingChat(true);
-    setLastUserMessage(message);
+    setLastUserMessage(effectiveMessage);
 
-    // Add user message optimistically
+    const attachmentMeta = toAttachmentMetaList(list);
     const userMessage = {
       id: `temp-user-${Date.now()}`,
       role: 'user' as const,
-      content: message,
+      content: effectiveMessage,
       created_at: new Date().toISOString(),
+      attachments: attachmentMeta,
+      attachment: attachmentMeta[0] ?? null,
     };
     setChatMessages(prev => [...prev, userMessage]);
     
@@ -627,7 +689,8 @@ function NewChatPageContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           generationId: chatId,
-          message,
+          message: effectiveMessage,
+          attachments: list,
         }),
       });
 
@@ -658,6 +721,8 @@ function NewChatPageContent() {
         content: data.message,
         created_at: new Date().toISOString(),
         documents: data.documents || [],
+        attachments: [],
+        attachment: null,
       };
       setChatMessages(prev => [...prev, assistantMessage]);
       
@@ -671,7 +736,22 @@ function NewChatPageContent() {
         const messagesResponse = await fetch(`/api/chat?generationId=${chatId}`);
         if (messagesResponse.ok) {
           const messagesData = await messagesResponse.json();
-          setChatMessages(messagesData.messages || []);
+          const messages = messagesData.messages || [];
+          const normalizedMessages = messages.map((msg: typeof chatMessages[number]) => {
+            const attachmentList =
+              Array.isArray(msg.attachments) && msg.attachments.length > 0
+                ? msg.attachments
+                : msg.attachment
+                  ? [msg.attachment]
+                  : [];
+            return {
+              ...msg,
+              documents: Array.isArray(msg.documents) ? msg.documents : [],
+              attachments: attachmentList,
+              attachment: attachmentList[0] ?? null,
+            };
+          });
+          setChatMessages(normalizedMessages);
         }
       } catch (reloadErr) {
         console.error('Error reloading messages:', reloadErr);
@@ -1428,10 +1508,57 @@ function NewChatPageContent() {
                     {chatMessages.map((msg) => (
                       <div key={msg.id}>
                         {msg.role === 'user' ? (
-                          <div className="flex justify-end">
-                            <div className="max-w-[85%] px-4 py-3 bg-[#212121] text-white rounded-2xl">
-                              <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-                            </div>
+                          <div className="flex flex-col items-end gap-2">
+                            {(msg.attachments?.length
+                              ? msg.attachments
+                              : msg.attachment
+                                ? [msg.attachment]
+                                : []
+                            ).map((att, attIdx) => (
+                              <div
+                                key={`${att.fileName}-${attIdx}`}
+                                className="flex items-center max-w-[85%]"
+                                style={{
+                                  gap: '8px',
+                                  padding: '8px 12px',
+                                  borderRadius: '12px',
+                                  backgroundColor: 'var(--input-bg)',
+                                  border: '1px solid #CCCCCC',
+                                }}
+                              >
+                                <span className="text-base" aria-hidden="true">📎</span>
+                                <div className="flex flex-col min-w-0">
+                                  <span
+                                    className="text-foreground truncate"
+                                    style={{ fontSize: '13px', lineHeight: '16px', fontWeight: 500 }}
+                                    title={att.fileName}
+                                  >
+                                    {att.fileName}
+                                  </span>
+                                  <span
+                                    className="text-[#808080]"
+                                    style={{ fontSize: '11px', lineHeight: '14px' }}
+                                  >
+                                    {formatAttachmentSize(att.size)}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                            {(() => {
+                              const attachmentList =
+                                msg.attachments?.length
+                                  ? msg.attachments
+                                  : msg.attachment
+                                    ? [msg.attachment]
+                                    : [];
+                              const visible = stripAttachmentsSuffix(msg.content, attachmentList);
+                              if (!visible) return null;
+                              return (
+                                <div className="max-w-[85%] px-4 py-3 bg-[#212121] text-white rounded-2xl">
+                                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{visible}</p>
+                                </div>
+                              );
+                            })()}
                           </div>
                         ) : (
                           <div className="flex flex-col gap-4">

@@ -10,6 +10,16 @@ import {
   detectDocumentType,
 } from '@/lib/next-steps-templates';
 import type { UserProfile } from '@/types/database';
+import {
+  encodeAttachmentsInMessage,
+  encodeAttachmentsForPrompt,
+  parseAttachmentsFromMessage,
+  normalizeAttachmentsFromBody,
+  buildEffectiveMessageWithAttachments,
+  toAttachmentMetaList,
+  appendAttachmentMarkersToQuery,
+  type ChatAttachment,
+} from '@/types/chat-attachment';
 
 // Format plaintiff info for document generation
 function formatPlaintiffForDocuments(profile: UserProfile | null): string {
@@ -139,14 +149,27 @@ export async function POST(request: NextRequest) {
     }
 
     const { generationId, message } = body;
-    
-    if (!generationId || !message) {
-      console.error('Chat API: Missing required fields', { generationId: !!generationId, message: !!message });
+
+    const attachments = normalizeAttachmentsFromBody(body);
+
+    const trimmedMessage = typeof message === 'string' ? message.trim() : '';
+    const effectiveMessage = buildEffectiveMessageWithAttachments(trimmedMessage, attachments);
+
+    if (!generationId || !effectiveMessage) {
+      console.error('Chat API: Missing required fields', {
+        generationId: !!generationId,
+        message: !!effectiveMessage,
+      });
       return NextResponse.json(
         { error: 'Не указан ID чата или сообщение' },
         { status: 400 }
       );
     }
+
+    const messageForStorage = encodeAttachmentsInMessage(effectiveMessage, attachments);
+    const messageForAi = attachments.length
+      ? `${effectiveMessage}${encodeAttachmentsForPrompt(attachments)}`
+      : effectiveMessage;
 
     // Get the original generation for context
     const { data: generation, error: genError } = await supabase
@@ -185,10 +208,12 @@ export async function POST(request: NextRequest) {
     // Это должно проверяться ДО isAgreement, иначе "да" триггернет повторную генерацию документов.
     const lastAssistantMsg = [...prevMsgs].reverse().find(m => m.role === 'assistant');
     const wasFollowUpQuestion = !!lastAssistantMsg && NEXT_STEPS_QUESTION_MARKER.test(lastAssistantMsg.content);
-    const wantsNextSteps = wasFollowUpQuestion && isAffirmativeForNextSteps(message);
+    const wantsNextSteps = wasFollowUpQuestion && isAffirmativeForNextSteps(effectiveMessage);
 
-    // Determine message type
-    const shouldGenerateDocuments = !wantsNextSteps && (isDocumentRequest(message) || isAgreement(message));
+    // Determine message type — анализируем именно текст пользователя
+    // (без приклеенного документа), иначе любой загруженный файл будет
+    // ошибочно классифицироваться как запрос на генерацию иска.
+    const shouldGenerateDocuments = !wantsNextSteps && (isDocumentRequest(effectiveMessage) || isAgreement(effectiveMessage));
 
     // Build context from original generation
     const contextSummary = `
@@ -261,7 +286,7 @@ ${lawContext}
         generation_id: generationId as string,
         user_id: user.id,
         role: 'user',
-        content: message,
+        content: messageForStorage,
         documents: [],
       } as any);
 
@@ -302,21 +327,27 @@ ${lawContext}
       if (previousMessages && previousMessages.length > 0) {
         const recentMessages = (previousMessages as Array<{ role: string; content: string }>).slice(-4);
         recentMessages.forEach((msg) => {
+          // Из истории убираем скрытый блок с JSON-вложением — оставляем
+          // только видимый текст + AI-видимый маркер документа. Полный
+          // текст документа уже подмешан выше для текущего сообщения
+          // через `messageForAi`; для прошлых — обрезаем до 500 символов
+          // (как и раньше), чтобы не раздувать промпт.
+          const visible = parseAttachmentsFromMessage(msg.content).visibleContent;
           messages.push({
             role: msg.role as 'user' | 'assistant',
-            content: msg.content.slice(0, 500),
+            content: visible.slice(0, 500),
           });
         });
       }
 
-      messages.push({ role: 'user', content: message });
+      messages.push({ role: 'user', content: messageForAi });
 
       // Save user message
       await supabase.from('chat_messages').insert({
         generation_id: generationId as string,
         user_id: user.id,
         role: 'user',
-        content: message,
+        content: messageForStorage,
         documents: [],
       } as any);
 
@@ -432,14 +463,16 @@ ${lawContext}
       // Regular chat flow — enrich with RAG law context
       let lawContext = '';
       try {
-        const ragResult = await getLawContext(message, { matchCount: 3, matchThreshold: 0.35 });
+        // Для RAG-поиска берём только текст пользователя (без полного
+        // тела документа) — иначе embedding теряет фокус на вопросе.
+        const ragResult = await getLawContext(effectiveMessage, { matchCount: 3, matchThreshold: 0.35 });
         lawContext = ragResult.context;
       } catch (err) {
         console.error('[RAG] Chat error (non-fatal):', err);
       }
 
-      const systemWithRag = lawContext 
-        ? CHAT_SYSTEM_PROMPT + lawContext 
+      const systemWithRag = lawContext
+        ? CHAT_SYSTEM_PROMPT + lawContext
         : CHAT_SYSTEM_PROMPT;
 
       const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
@@ -450,6 +483,9 @@ ${lawContext}
 
       if (previousMessages && previousMessages.length > 0) {
         (previousMessages as Array<{ role: string; content: string }>).forEach(msg => {
+          // Прошлые сообщения отдаём AI как есть (вложение там уже
+          // закодировано как видимый маркер + скрытый блок). HTML-комментарий
+          // не мешает LLM понимать структуру.
           messages.push({
             role: msg.role as 'user' | 'assistant',
             content: msg.content,
@@ -457,14 +493,14 @@ ${lawContext}
         });
       }
 
-      messages.push({ role: 'user', content: message });
+      messages.push({ role: 'user', content: messageForAi });
 
       // Save user message
       await supabase.from('chat_messages').insert({
         generation_id: generationId as string,
         user_id: user.id,
         role: 'user',
-        content: message,
+        content: messageForStorage,
         documents: [],
       } as any);
 
@@ -472,7 +508,7 @@ ${lawContext}
       let assistantMessage = await chatCompletion(messages, { maxTokens: 1500 }) || 'Извините, произошла ошибка.';
 
       // Check if this looks like a question about documents and add offer
-      if (/что дальше|как подать|следующ|документ|куда обращ/i.test(message)) {
+      if (/что дальше|как подать|следующ|документ|куда обращ/i.test(effectiveMessage)) {
         assistantMessage += `\n\n**Хотите, чтобы я подготовил необходимые документы?**\n\nМогу составить исковое заявление, претензию или ходатайство на основе вашей ситуации. Напишите "да" или "составь документы", чтобы начать.`;
       }
 
@@ -539,10 +575,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Normalize documents field - ensure it's always an array
+    // Plus extract attached file metadata из скрытого блока: для UI важно
+    // показать «скрепку» с именем файла, а скрытый JSON (с полным текстом
+    // документа) клиенту отдавать не нужно — это и трафик, и лишние данные.
     const normalizedMessages = (messages || []).map((msg: any) => {
       let documents = msg.documents;
-      
-      // Handle different formats from database
+
       if (!documents) {
         documents = [];
       } else if (typeof documents === 'string') {
@@ -555,10 +593,19 @@ export async function GET(request: NextRequest) {
       } else if (!Array.isArray(documents)) {
         documents = [];
       }
-      
+
+      const parsed = parseAttachmentsFromMessage(
+        typeof msg.content === 'string' ? msg.content : '',
+      );
+
+      const attachmentsForClient = toAttachmentMetaList(parsed.attachments);
+
       return {
         ...msg,
+        content: parsed.visibleContent,
         documents: documents || [],
+        attachments: attachmentsForClient,
+        attachment: attachmentsForClient[0] ?? null,
       };
     });
 
