@@ -532,6 +532,11 @@ function NewChatPageContent() {
 
       const decoder = new TextDecoder();
       let buffer = '';
+      // Когда стрим пришёл из triage-флоу (документы), сразу после
+      // complete редиректим на /chat/[id]. Там уже есть полноценный
+      // рендер DocumentTriageView с кнопками действий — мы не хотим
+      // дублировать тот же UI на /chat/new.
+      let isTriageStream = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -579,9 +584,26 @@ function NewChatPageContent() {
                 case 'clarificationRequest':
                   setClarificationRequest(data);
                   break;
+                case 'documentTriage':
+                  // Сервер прислал результат первичного анализа
+                  // документов. Заголовок в шапке тоже обновляем —
+                  // он теперь отражает суть дела, а не «Проанализируй
+                  // прикреплённые документы».
+                  isTriageStream = true;
+                  if (typeof data?.chatTitle === 'string' && data.chatTitle) {
+                    setQuery(data.chatTitle);
+                  }
+                  setStatusMessage('Готово');
+                  break;
                 case 'complete':
                   // If this is an existing generation (user already has this query), redirect to it
                   if (data.existing || data.inProgress) {
+                    router.replace(`/chat/${data.id}`);
+                    return;
+                  }
+                  // Триаж — отдельная страница /chat/[id] с другим
+                  // layout. Сразу редиректим вместо рендеринга здесь.
+                  if (isTriageStream && data.id) {
                     router.replace(`/chat/${data.id}`);
                     return;
                   }

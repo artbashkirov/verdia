@@ -17,7 +17,6 @@ import {
   normalizeAttachmentsFromBody,
   buildEffectiveMessageWithAttachments,
   toAttachmentMetaList,
-  appendAttachmentMarkersToQuery,
   type ChatAttachment,
 } from '@/types/chat-attachment';
 
@@ -216,7 +215,36 @@ export async function POST(request: NextRequest) {
     const shouldGenerateDocuments = !wantsNextSteps && (isDocumentRequest(effectiveMessage) || isAgreement(effectiveMessage));
 
     // Build context from original generation
-    const contextSummary = `
+    // Для triage-чатов (когда первый запрос был «прислал документы, без
+    // вопроса») генерация хранит другой формат — без shortAnswer/legalAnalysis,
+    // зато с caseTitle и summary. Контекст-промпт переключаем отдельно,
+    // иначе AI получит вереницу «(пусто) (пусто) (пусто)» и сгенерирует
+    // болванку, не привязанную к делу.
+    const isTriageChat = gen.response?._mode === 'document-triage';
+    const contextSummary = isTriageChat
+      ? `
+Тип задачи: пользователь прислал документ(ы), и мы провели первичный анализ.
+Заголовок дела: ${gen.response?.caseTitle || gen.query}
+Краткая суть: ${gen.response?.summary || '(не определена)'}
+Тип документа: ${gen.response?.documentType || 'unknown'}
+${Array.isArray(gen.response?.documentBreakdown) && gen.response.documentBreakdown.length > 0
+  ? `Что в документах:\n${gen.response.documentBreakdown
+      .map((d: { fileName: string; type: string; summary: string }) =>
+        `- ${d.type || 'Документ'} (${d.fileName}): ${d.summary || '-'}`,
+      )
+      .join('\n')}`
+  : ''}
+${Array.isArray(gen.response?.missingInfo) && gen.response.missingInfo.length > 0
+  ? `Чего не хватает в материалах:\n- ${gen.response.missingInfo.join('\n- ')}`
+  : ''}
+
+ВАЖНО для тебя: полный текст исходных документов пользователя приложен ниже
+в его первом сообщении (внутри блока с маркерами «📎»). Опирайся на конкретные
+факты, имена, даты и суммы оттуда. НЕ выдумывай данные. Если для качественного
+ответа не хватает информации — задай уточняющий вопрос пользователю, а не
+выдавай шаблон с плейсхолдерами.
+`
+      : `
 Изначальный вопрос: "${gen.query}"
 
 Краткий ответ: ${gen.response?.shortAnswer?.title || ''} ${gen.response?.shortAnswer?.content || ''}
@@ -323,16 +351,43 @@ ${lawContext}
         { role: 'assistant', content: 'Понял контекст и данные истца. Готов создать документы.' },
       ];
 
-      // Add previous chat context
+      // Для triage-чатов сначала отдельно подмешиваем ПОЛНЫЙ текст всех
+      // приложенных документов из первого user-сообщения — без него AI
+      // не сможет составить конкретный документ (выдаст болванку с
+      // плейсхолдерами). Для обычных чатов это не нужно: там есть
+      // shortAnswer/legalAnalysis в contextSummary.
+      if (isTriageChat) {
+        const allAttachments: ChatAttachment[] = [];
+        for (const m of prevMsgs) {
+          const parsed = parseAttachmentsFromMessage(m.content);
+          for (const att of parsed.attachments) {
+            if (att && att.extractedText) {
+              allAttachments.push(att);
+            }
+          }
+        }
+        if (allAttachments.length > 0) {
+          // 14K символов на документ ≈ 4 страницы юридического текста.
+          // Если документов 3+ — итого ~45K симв., gpt-4o справляется.
+          const docsBlock = encodeAttachmentsForPrompt(allAttachments, 14000);
+          messages.push({
+            role: 'user',
+            content: `Вот исходные документы пользователя (полный текст):${docsBlock}`,
+          });
+          messages.push({
+            role: 'assistant',
+            content: 'Документы получены. Опираюсь на них при подготовке ответа.',
+          });
+        }
+      }
+
+      // Add previous chat context (visible-only). Полный текст документов
+      // уже подмешан выше; здесь только текстовая переписка пользователя.
       if (previousMessages && previousMessages.length > 0) {
         const recentMessages = (previousMessages as Array<{ role: string; content: string }>).slice(-4);
         recentMessages.forEach((msg) => {
-          // Из истории убираем скрытый блок с JSON-вложением — оставляем
-          // только видимый текст + AI-видимый маркер документа. Полный
-          // текст документа уже подмешан выше для текущего сообщения
-          // через `messageForAi`; для прошлых — обрезаем до 500 символов
-          // (как и раньше), чтобы не раздувать промпт.
           const visible = parseAttachmentsFromMessage(msg.content).visibleContent;
+          if (!visible.trim()) return;
           messages.push({
             role: msg.role as 'user' | 'assistant',
             content: visible.slice(0, 500),
@@ -481,11 +536,35 @@ ${lawContext}
         { role: 'assistant', content: 'Понял. Чем могу помочь?' },
       ];
 
+      // В triage-чате AI должен иметь полный текст приложенных документов,
+      // иначе ответы будут общими. Подмешиваем их перед историей.
+      if (isTriageChat) {
+        const allAttachments: ChatAttachment[] = [];
+        for (const m of prevMsgs) {
+          const parsed = parseAttachmentsFromMessage(m.content);
+          for (const att of parsed.attachments) {
+            if (att && att.extractedText) {
+              allAttachments.push(att);
+            }
+          }
+        }
+        if (allAttachments.length > 0) {
+          const docsBlock = encodeAttachmentsForPrompt(allAttachments, 14000);
+          messages.push({
+            role: 'user',
+            content: `Вот исходные документы пользователя (полный текст):${docsBlock}`,
+          });
+          messages.push({
+            role: 'assistant',
+            content: 'Документы получены. Опираюсь на них при ответе.',
+          });
+        }
+      }
+
       if (previousMessages && previousMessages.length > 0) {
         (previousMessages as Array<{ role: string; content: string }>).forEach(msg => {
           // Прошлые сообщения отдаём AI как есть (вложение там уже
-          // закодировано как видимый маркер + скрытый блок). HTML-комментарий
-          // не мешает LLM понимать структуру.
+          // закодировано как видимый маркер + скрытый блок).
           messages.push({
             role: msg.role as 'user' | 'assistant',
             content: msg.content,

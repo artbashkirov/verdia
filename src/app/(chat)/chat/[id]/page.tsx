@@ -8,6 +8,7 @@ import { DownloadIcon } from '@/components/icons';
 import { MarkdownRenderer } from '@/components/ui';
 import { generateDocx, downloadBlob } from '@/lib/docx-generator';
 import { CaseTransitionBanner } from '@/components/cases/CaseTransitionBanner';
+import { DocumentTriageView, type DocumentTriageData } from '@/components/chat/DocumentTriageView';
 import { useTheme } from '@/lib/theme-context';
 import { safeGet, safeSet } from '@/lib/safe-storage';
 import {
@@ -32,12 +33,12 @@ interface ChatMessage {
 }
 
 interface GenerationResponse {
-  courtCases: Array<{
+  courtCases?: Array<{
     id: number;
     title: string;
     url: string;
   }>;
-  shortAnswer: {
+  shortAnswer?: {
     title: string;
     content: string;
     probability?: {
@@ -51,24 +52,24 @@ interface GenerationResponse {
       unknown?: number;
     };
   };
-  legalAnalysis: {
+  legalAnalysis?: {
     title: string;
     intro: string;
     points: string[];
     bases: string[];
   };
-  practiceAnalysis: {
+  practiceAnalysis?: {
     intro: string;
-    satisfied: {
+    satisfied?: {
       title: string;
       points: string[];
     };
-    rejected: {
+    rejected?: {
       title: string;
       points: string[];
     };
   };
-  probability: {
+  probability?: {
     percentage?: number;
     level: string;
     factors?: string[];
@@ -81,14 +82,26 @@ interface GenerationResponse {
     rejected?: number;
     unknown?: number;
   };
-  recommendations: string[];
-  documents: Array<{
+  recommendations?: string[];
+  documents?: Array<{
     id: number;
     title: string;
     description: string;
     format: string;
     content?: string;
   }>;
+  // Triage-режим: AI распарсил документы и предложил действия. Поля
+  // выше при этом пустые — рисуем отдельный DocumentTriageView.
+  _mode?: 'document-triage' | string;
+  _status?: 'generating' | 'failed' | 'complete' | string;
+  // Полный triage-результат лежит прямо в response.
+  caseTitle?: string;
+  summary?: string;
+  documentBreakdown?: DocumentTriageData['documentBreakdown'];
+  documentType?: string;
+  suggestedActions?: DocumentTriageData['suggestedActions'];
+  missingInfo?: string[];
+  userQuestions?: string[];
 }
 
 interface Generation {
@@ -331,8 +344,23 @@ function ChatResultPageContent() {
         setGeneration(generationData);
         setIsLoading(false);
 
-        // If response is null, poll every 2 seconds until it's ready
+        // If response is null, poll every 2 seconds until it's ready.
+        // После POLL_TIMEOUT_MS без ответа считаем чат «зомби» и показываем
+        // ошибку, чтобы пользователь не сидел перед вечным лоадером.
         if (!generationData.response) {
+          const POLL_TIMEOUT_MS = 3 * 60 * 1000;
+          const startedAt = Date.now();
+          const createdAtMs = generationData.created_at
+            ? new Date(generationData.created_at).getTime()
+            : startedAt;
+
+          // Если запись уже старая (например, открыли вчерашнюю незавершённую
+          // генерацию) — сразу показываем ошибку без polling.
+          if (Date.now() - createdAtMs > POLL_TIMEOUT_MS) {
+            setError('Генерация не завершилась (возможно, упала вчера). Создайте новый запрос.');
+            return;
+          }
+
           pollInterval = setInterval(async () => {
             if (controller.signal.aborted) return;
             try {
@@ -348,6 +376,18 @@ function ChatResultPageContent() {
                 if (pollInterval) {
                   clearInterval(pollInterval);
                   pollInterval = null;
+                }
+                return;
+              }
+
+              // Таймаут polling — генерация мертва, прекращаем долбить API.
+              if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
+                if (pollInterval) {
+                  clearInterval(pollInterval);
+                  pollInterval = null;
+                }
+                if (!controller.signal.aborted) {
+                  setError('Ответ не пришёл за 3 минуты. Возможно, генерация прервалась — попробуйте создать новый запрос.');
                 }
               }
             } catch (pollErr) {
@@ -672,9 +712,56 @@ function ChatResultPageContent() {
 
   // Check if generation is in progress (no response OR response has _status: 'generating')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const isGenerating = generation && (!generation.response || (generation.response as any)?._status === 'generating');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const partialCourtCases = (generation?.response as any)?.courtCases;
+  const responseObj = generation?.response as any;
+  const isGenerating = generation && (!generation.response || responseObj?._status === 'generating');
+  const isFailedGeneration = responseObj?._status === 'failed';
+  const partialCourtCases = responseObj?.courtCases;
+
+  // Если AI упал/таймаут — показываем ошибку с кнопкой «новый запрос»,
+  // вместо того чтобы рендерить пустой результат с подписями секций.
+  if (generation && isFailedGeneration && !isGenerating) {
+    const errorMessage =
+      typeof responseObj?.error === 'string'
+        ? responseObj.error
+        : 'Генерация не завершилась.';
+    return (
+      <div className="flex bg-background h-screen mobile-fixed-layout" style={{ width: '100%' }}>
+        <MobileHeader
+          onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          isMenuOpen={isMobileMenuOpen}
+          onNewChat={handleNewChat}
+        />
+        <MobileSidebar
+          isOpen={isMobileMenuOpen}
+          onClose={() => setIsMobileMenuOpen(false)}
+          currentChatId={chatId}
+          onNewChat={handleNewChat}
+        />
+        <Sidebar currentChatId={chatId} onNewChat={handleNewChat} className="hidden md:flex" />
+        <div className="flex-1 flex flex-col min-w-0 p-0 md:p-2 md:pl-0 md:pb-2 pt-[56px] md:pt-2 bg-[#17181A] overflow-hidden">
+          <div className="flex-1 bg-background md:rounded-2xl relative flex flex-col overflow-hidden">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden pt-6 md:pt-14 px-0 relative pb-[calc(56px+48px)] md:pb-[calc(56px+64px)]">
+              <div className="w-full max-w-[660px] mx-auto flex flex-col gap-6 break-words px-4">
+                <h1 className="text-[20px] lg:text-[32px] font-medium text-foreground leading-[28px] lg:leading-[40px] tracking-tight break-words md:mt-0">
+                  {generation?.query}
+                </h1>
+                <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-400 text-sm">
+                  {errorMessage}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleNewChat}
+                  className="self-start px-4 py-2 rounded-xl bg-foreground text-background text-sm font-medium"
+                >
+                  Создать новый запрос
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   
   if (isGenerating) {
     return (
@@ -877,6 +964,7 @@ function ChatResultPageContent() {
   }
 
   const { query, response } = generation;
+  const isTriage = response?._mode === 'document-triage';
 
   return (
     <div className="flex bg-background h-screen max-w-[100vw] mobile-fixed-layout" style={{
@@ -915,8 +1003,37 @@ function ChatResultPageContent() {
                 {query}
               </h1>
 
-              {/* Court cases */}
-              {response.courtCases && response.courtCases.length > 0 && (
+              {/* === DOCUMENT TRIAGE MODE === */}
+              {/* Когда пользователь прислал документы, мы НЕ рисуем секции
+                  «правовой анализ» / «практика» / «вероятность» — для них
+                  нужен контекст желаемого действия. Вместо этого показываем
+                  краткий разбор и кнопки следующих шагов. После клика по
+                  кнопке (либо ручного сообщения в чате) уже считаем полный
+                  анализ под выбранное направление. */}
+              {response._mode === 'document-triage' ? (
+                <DocumentTriageView
+                  triage={{
+                    caseTitle: response.caseTitle || query,
+                    summary: response.summary || '',
+                    documentBreakdown: response.documentBreakdown || [],
+                    documentType: response.documentType || 'unknown',
+                    suggestedActions: response.suggestedActions || [],
+                    missingInfo: response.missingInfo || [],
+                    userQuestions: response.userQuestions || [],
+                  }}
+                  chatId={chatId}
+                  isBusy={isSending}
+                  onActionStart={async (action) => {
+                    // Действие — это просто обычное сообщение пользователю
+                    // в чат, с заранее подготовленным промптом. Полный
+                    // анализ под action делает /api/chat.
+                    await handleSubmit(action.actionPrompt);
+                  }}
+                />
+              ) : null}
+
+              {/* Court cases (только в обычном флоу) */}
+              {!isTriage && response.courtCases && response.courtCases.length > 0 && (
                 <div className="flex flex-col gap-4 -mx-4 md:mx-0">
                   <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px] px-4 md:px-0">
                     Судебные дела
@@ -970,10 +1087,10 @@ function ChatResultPageContent() {
               )}
 
               {/* Divider */}
-              <div className="h-px bg-gray-200" />
+              {!isTriage && <div className="h-px bg-gray-200" />}
 
               {/* Short answer */}
-              {response.shortAnswer && (
+              {!isTriage && response.shortAnswer && (
                 <div className="flex flex-col gap-4">
                   <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                     Краткий ответ
@@ -992,10 +1109,10 @@ function ChatResultPageContent() {
               )}
 
               {/* Divider */}
-              <div className="h-px bg-gray-200" />
+              {!isTriage && <div className="h-px bg-gray-200" />}
 
               {/* Legal analysis */}
-              {response.legalAnalysis && (
+              {!isTriage && response.legalAnalysis && (
                 <div className="flex flex-col gap-4">
                   <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                     Правовой анализ
@@ -1025,47 +1142,72 @@ function ChatResultPageContent() {
               )}
 
               {/* Divider */}
-              <div className="h-px bg-gray-200" />
+              {!isTriage && <div className="h-px bg-gray-200" />}
 
               {/* Practice analysis */}
-              {response.practiceAnalysis && (
-                <div className="flex flex-col gap-4">
-                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
-                    Анализ судебной практики
-                  </p>
-                  <div className="text-base text-foreground leading-[24px] break-words">
-                    <p className="mb-3 break-words">{response.practiceAnalysis.intro}</p>
-                    
-                    {response.practiceAnalysis.satisfied && (
-                      <>
-                            <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 mt-3 lg:mt-4 break-words">{response.practiceAnalysis.satisfied.title}</p>
-                        <ul className="list-disc ml-5 mb-3 break-words">
-                          {response.practiceAnalysis.satisfied.points.map((point, i) => (
-                            <li key={i} className="mb-2 last:mb-0 break-words">{point}</li>
-                          ))}
-                        </ul>
-                      </>
-                    )}
-                    
-                    {response.practiceAnalysis.rejected && (
-                      <>
-                            <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 mt-3 lg:mt-4 break-words">{response.practiceAnalysis.rejected.title}</p>
-                        <ul className="list-disc ml-5 break-words">
-                          {response.practiceAnalysis.rejected.points.map((point, i) => (
-                            <li key={i} className="mb-2 last:mb-0 break-words">{point}</li>
-                          ))}
-                        </ul>
-                      </>
-                    )}
+              {/* В триаже не показываем; в обычном режиме скрываем
+                  «Когда удовлетворяют» / «Когда отказывают», если AI вернул
+                  пустые points — раньше пользователь видел голые заголовки. */}
+              {!isTriage && response.practiceAnalysis && (() => {
+                const hasSatisfied =
+                  !!response.practiceAnalysis.satisfied &&
+                  (response.practiceAnalysis.satisfied.points?.length ?? 0) > 0;
+                const hasRejected =
+                  !!response.practiceAnalysis.rejected &&
+                  (response.practiceAnalysis.rejected.points?.length ?? 0) > 0;
+                const hasIntro =
+                  typeof response.practiceAnalysis.intro === 'string' &&
+                  response.practiceAnalysis.intro.trim().length > 0;
+                if (!hasSatisfied && !hasRejected && !hasIntro) return null;
+                return (
+                  <div className="flex flex-col gap-4">
+                    <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
+                      Анализ судебной практики
+                    </p>
+                    <div className="text-base text-foreground leading-[24px] break-words">
+                      {hasIntro && (
+                        <p className="mb-3 break-words">
+                          {response.practiceAnalysis.intro}
+                        </p>
+                      )}
+                      {hasSatisfied && (
+                        <>
+                          <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 mt-3 lg:mt-4 break-words">
+                            {response.practiceAnalysis.satisfied!.title}
+                          </p>
+                          <ul className="list-disc ml-5 mb-3 break-words">
+                            {response.practiceAnalysis.satisfied!.points.map((point, i) => (
+                              <li key={i} className="mb-2 last:mb-0 break-words">
+                                {point}
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
+                      {hasRejected && (
+                        <>
+                          <p className="text-[18px] lg:text-[24px] leading-[24px] lg:leading-[30px] font-semibold mb-3 mt-3 lg:mt-4 break-words">
+                            {response.practiceAnalysis.rejected!.title}
+                          </p>
+                          <ul className="list-disc ml-5 break-words">
+                            {response.practiceAnalysis.rejected!.points.map((point, i) => (
+                              <li key={i} className="mb-2 last:mb-0 break-words">
+                                {point}
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Divider */}
-              <div className="h-px bg-gray-200" />
+              {!isTriage && <div className="h-px bg-gray-200" />}
 
               {/* Recommendations */}
-              {response.recommendations && (
+              {!isTriage && response.recommendations && (
                 <div className="flex flex-col gap-4">
                   <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                     Рекомендованные действия
@@ -1079,7 +1221,7 @@ function ChatResultPageContent() {
               )}
 
               {/* Case transition banner — gated behind NEXT_PUBLIC_FEATURE_CASES */}
-              {CASES_ENABLED && generation && (
+              {!isTriage && CASES_ENABLED && generation && (
                 <CaseTransitionBanner
                   generationId={chatId}
                   query={query}
@@ -1087,60 +1229,62 @@ function ChatResultPageContent() {
               )}
 
               {/* Divider */}
-              <div className="h-px bg-gray-200" />
+              {!isTriage && <div className="h-px bg-gray-200" />}
 
               {/* Next Steps - Document Offer */}
-              <div className="flex flex-col gap-4">
-                <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
-                  Что дальше?
-                </p>
-                <div className="p-4 rounded-xl bg-[#F3F3F3]">
-                  <p className="text-base text-foreground mb-4">
-                    <strong>Хотите, чтобы я подготовил документы?</strong>
+              {!isTriage && (
+                <div className="flex flex-col gap-4">
+                  <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
+                    Что дальше?
                   </p>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Напишите в чат какой документ вам нужен:
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => handleSubmit('Составь исковое заявление')}
-                      disabled={isSending}
-                      className="px-4 py-2 text-sm font-medium rounded-xl bg-[#212121] text-white hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
-                    >
-                      Исковое заявление
-                    </button>
-                    <button
-                      onClick={() => handleSubmit('Составь претензию')}
-                      disabled={isSending}
-                      className="px-4 py-2 text-sm font-medium rounded-xl bg-[#212121] text-white hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
-                    >
-                      Претензия
-                    </button>
-                    <button
-                      onClick={() => handleSubmit('Составь ходатайство')}
-                      disabled={isSending}
-                      className="px-4 py-2 text-sm font-medium rounded-xl bg-[#212121] text-white hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
-                    >
-                      Ходатайство
-                    </button>
-                    <button
-                      onClick={() => handleSubmit('Составь возражения на иск')}
-                      disabled={isSending}
-                      className="px-4 py-2 text-sm font-medium rounded-xl bg-[#212121] text-white hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
-                    >
-                      Возражения на иск
-                    </button>
+                  <div className="p-4 rounded-xl bg-[#F3F3F3]">
+                    <p className="text-base text-foreground mb-4">
+                      <strong>Хотите, чтобы я подготовил документы?</strong>
+                    </p>
+                    <p className="text-sm text-gray-500 mb-4">
+                      Напишите в чат какой документ вам нужен:
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => handleSubmit('Составь исковое заявление')}
+                        disabled={isSending}
+                        className="px-4 py-2 text-sm font-medium rounded-xl bg-[#212121] text-white hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
+                      >
+                        Исковое заявление
+                      </button>
+                      <button
+                        onClick={() => handleSubmit('Составь претензию')}
+                        disabled={isSending}
+                        className="px-4 py-2 text-sm font-medium rounded-xl bg-[#212121] text-white hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
+                      >
+                        Претензия
+                      </button>
+                      <button
+                        onClick={() => handleSubmit('Составь ходатайство')}
+                        disabled={isSending}
+                        className="px-4 py-2 text-sm font-medium rounded-xl bg-[#212121] text-white hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
+                      >
+                        Ходатайство
+                      </button>
+                      <button
+                        onClick={() => handleSubmit('Составь возражения на иск')}
+                        disabled={isSending}
+                        className="px-4 py-2 text-sm font-medium rounded-xl bg-[#212121] text-white hover:bg-[#3a3a3a] transition-colors disabled:opacity-50"
+                      >
+                        Возражения на иск
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Divider - only show if documents follow */}
-              {response.documents && response.documents.length > 0 && (
+              {!isTriage && response.documents && response.documents.length > 0 && (
                 <div className="h-px bg-gray-200" />
               )}
 
               {/* Documents */}
-              {response.documents && response.documents.length > 0 && (
+              {!isTriage && response.documents && response.documents.length > 0 && (
                 <div className="flex flex-col gap-4">
                   <p className="text-[11px] lg:text-[12px] font-medium text-gray-400 uppercase tracking-tight leading-[14px] lg:leading-[14px]">
                     Подготовленные документы

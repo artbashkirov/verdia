@@ -1,14 +1,14 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { generateLegalResponse } from '@/lib/openai';
+import { generateLegalResponse, analyzeDocuments } from '@/lib/openai';
 import { searchCourtCases } from '@/lib/court-search';
 import { getLawContext } from '@/lib/rag';
 import { exampleQueries } from '@/lib/example-queries';
 import type { UserProfile, PersonType } from '@/types/database';
 import {
   encodeAttachmentsForPrompt,
+  encodeAttachmentsInMessage,
   normalizeAttachmentsFromBody,
-  appendAttachmentMarkersToQuery,
   type ChatAttachment,
 } from '@/types/chat-attachment';
 
@@ -311,6 +311,11 @@ export async function POST(request: NextRequest) {
         }
       };
 
+      // Поднимаем эти переменные в скоуп start(), чтобы catch-блок мог
+      // записать ошибку в БД даже если падение случилось до их инициализации.
+      let generationId: string | undefined;
+      let courtCasesDataForError: Array<unknown> = [];
+
       try {
         // Check authentication
         const supabase = await createClient();
@@ -322,38 +327,62 @@ export async function POST(request: NextRequest) {
           return;
         }
 
-        // Check if user already has a generation with the same query (within last 24 hours)
-        // This prevents duplicate entries when user clicks the same question multiple times
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: existingGeneration } = await (supabase.from('generations') as any)
-          .select('id, response, created_at')
-          .eq('user_id', user.id)
-          .eq('query', query)
-          .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
+        // Запросы с вложениями всегда уникальны (другой набор файлов = другой
+        // контекст), поэтому ниже дубли проверяются только для текстовых
+        // запросов. Триаж по документам уйдёт по своей ветке.
+        if (attachments.length === 0) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { data: existingGeneration } = await (supabase.from('generations') as any)
+            .select('id, response, created_at')
+            .eq('user_id', user.id)
+            .eq('query', query)
+            .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
 
-        if (existingGeneration) {
-          // If we found an existing generation, redirect to it instead of creating a new one
-          if (existingGeneration.response) {
-            // Generation is complete - send complete event to redirect
-            sendEvent('complete', { 
-              id: existingGeneration.id, 
-              query, 
-              existing: true 
-            });
-            closeController();
-            return;
-          } else {
-            // Generation is in progress - redirect to it (user can wait there)
-            sendEvent('complete', { 
-              id: existingGeneration.id, 
-              query, 
-              inProgress: true 
-            });
-            closeController();
-            return;
+          if (existingGeneration) {
+            const createdAtMs = new Date(existingGeneration.created_at).getTime();
+            const ageMs = Date.now() - createdAtMs;
+            // Зомби-чат: запись есть, но ответа нет, и прошло уже >2 минут.
+            // Не редиректим на него (там вечный лоадер), а создаём новый
+            // чат и попутно помечаем зомби как failed, чтобы он не мешал.
+            const STALE_THRESHOLD_MS = 2 * 60 * 1000;
+            const isZombie = !existingGeneration.response && ageMs > STALE_THRESHOLD_MS;
+
+            if (isZombie) {
+              try {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                await (supabase.from('generations') as any)
+                  .update({
+                    response: {
+                      _status: 'failed',
+                      error: 'Генерация прервалась (таймаут или ошибка сервера).',
+                    },
+                  })
+                  .eq('id', existingGeneration.id);
+              } catch (markErr) {
+                console.warn('[generate-stream] failed to mark zombie generation:', markErr);
+              }
+            } else if (existingGeneration.response) {
+              sendEvent('complete', {
+                id: existingGeneration.id,
+                query,
+                existing: true,
+              });
+              closeController();
+              return;
+            } else {
+              // Свежая «в процессе» — редиректим на неё, пользователь
+              // увидит результат той же самой генерации.
+              sendEvent('complete', {
+                id: existingGeneration.id,
+                query,
+                inProgress: true,
+              });
+              closeController();
+              return;
+            }
           }
         }
 
@@ -380,7 +409,158 @@ export async function POST(request: NextRequest) {
           .select()
           .single();
         
-        const generationId = initialGeneration?.id;
+        generationId = initialGeneration?.id;
+
+        // ===================================================================
+        // ВЕТКА A: ДОКУМЕНТЫ — БЫСТРЫЙ TRIAGE БЕЗ ПОИСКА ДЕЛ
+        // ===================================================================
+        // Если пользователь прислал документы, мы НЕ запускаем обычный полный
+        // флоу (поиск sudact + RAG + полный анализ практики). Документ сам
+        // диктует контекст: пока неизвестно, что человек хочет сделать с этим
+        // документом (возразить? обжаловать? найти риски?), поиск похожих
+        // дел и анализ практики бессмысленны и медленны.
+        //
+        // Вместо этого делаем 1 вызов AI — быстрый первичный анализ + список
+        // конкретных действий, из которых пользователь выберет следующий шаг.
+        // Поиск дел и полная генерация уйдут в /api/document-action.
+        if (attachments.length > 0) {
+          sendEvent('status', {
+            stage: 'analyzing',
+            message: 'Анализирую документы (15–30 секунд)...',
+          });
+
+          // На triage даём AI больше текста на файл (≈4 стр.), всё равно
+          // дел не ищем и общий промпт остаётся компактным.
+          const TRIAGE_CHARS_PER_DOC = 14000;
+          const attachmentContext = encodeAttachmentsForPrompt(
+            attachments,
+            TRIAGE_CHARS_PER_DOC,
+          );
+
+          // Та же логика выбора модели, что и в полном флоу — env
+          // DOCS_AI_MODEL может переключить на gemini-3-pro и т.п.
+          const docsModel = process.env.DOCS_AI_MODEL || 'gpt-4o';
+          const docsProvider: 'openai' | 'gemini' =
+            docsModel.startsWith('google/') || docsModel.startsWith('gemini')
+              ? 'gemini'
+              : 'openai';
+
+          const TRIAGE_TIMEOUT_MS = 120_000;
+
+          const runTriage = (forceDefault = false) =>
+            analyzeDocuments(
+              userQuery || '',
+              attachmentContext,
+              forceDefault
+                ? undefined
+                : { forceProvider: docsProvider, model: docsModel },
+            );
+
+          let triage;
+          try {
+            triage = await Promise.race([
+              runTriage().catch(async (err: unknown) => {
+                // Fallback на дефолтную модель, если усиленная не настроена/404.
+                const msg = err instanceof Error ? err.message : String(err);
+                if (
+                  msg.includes('404') ||
+                  msg.includes('not configured') ||
+                  msg.includes('Worker proxy error')
+                ) {
+                  console.warn(
+                    '[generate-stream/triage] strong model failed, falling back:',
+                    msg,
+                  );
+                  return runTriage(true);
+                }
+                throw err;
+              }),
+              new Promise<never>((_, reject) =>
+                setTimeout(
+                  () => reject(new Error('AI_TIMEOUT')),
+                  TRIAGE_TIMEOUT_MS,
+                ),
+              ),
+            ]);
+          } catch (err) {
+            if (err instanceof Error && err.message === 'AI_TIMEOUT') {
+              console.error(
+                '[generate-stream/triage] timeout after',
+                TRIAGE_TIMEOUT_MS,
+                'ms',
+              );
+              throw new Error(
+                'Анализ документов занимает слишком много времени. Попробуйте отправить меньше документов.',
+              );
+            }
+            throw err;
+          }
+
+          // Заголовок чата теперь — это caseTitle от AI. Перезаписываем
+          // как саму запись generations.query, так и chat_history.title,
+          // чтобы в сайдбаре и в шапке появилась суть дела вместо
+          // «Проанализируй прикреплённые документы».
+          const triageTitle = triage.caseTitle || chatTitle;
+
+          if (generationId) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (supabase.from('generations') as any)
+              .update({
+                query: triageTitle,
+                response: {
+                  ...triage,
+                  // На клиенте по этому маркеру отрисовывается отдельный
+                  // triage-layout (без секций «практика» / «вероятность»).
+                  _mode: 'document-triage',
+                  _status: 'complete',
+                },
+              })
+              .eq('id', generationId);
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (supabase.from('chat_history') as any).insert({
+              user_id: user.id,
+              title: triageTitle,
+              generation_id: generationId,
+            });
+
+            // Сохраняем первое user-сообщение с приложенными документами
+            // прямо в chat_messages. Текст пользователя обычно пустой
+            // (он просто прислал файлы), но сами файлы — с extractedText —
+            // нужны последующим /api/chat-вызовам, чтобы под выбранное
+            // действие (возражение, апелляция, ...) AI имел полный текст
+            // исходных документов, а не только triage-выжимку.
+            const initialUserText = userQuery || '';
+            const encodedInitialMessage = encodeAttachmentsInMessage(
+              initialUserText,
+              attachments,
+            );
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (supabase.from('chat_messages') as any).insert({
+              generation_id: generationId,
+              user_id: user.id,
+              role: 'user',
+              content: encodedInitialMessage,
+              documents: [],
+            });
+          }
+
+          // Отдаём фронту единое событие — у нас новая схема ответа.
+          sendEvent('documentTriage', {
+            ...triage,
+            chatTitle: triageTitle,
+          });
+          sendEvent('complete', {
+            id: generationId,
+            query: triageTitle,
+          });
+          closeController();
+          return;
+        }
+
+        // ===================================================================
+        // ВЕТКА B: ОБЫЧНЫЙ ФЛОУ — ТЕКСТОВЫЙ ЗАПРОС БЕЗ ДОКУМЕНТОВ
+        // ===================================================================
 
         // Step 1: Send "searching" status
         sendEvent('status', { stage: 'searching', message: 'Ищу судебные дела...' });
@@ -429,6 +609,7 @@ export async function POST(request: NextRequest) {
           court: c.court || '',
           isSearchLink: c.isSearchLink || false,
         }));
+        courtCasesDataForError = courtCasesData;
 
         // Step 3: Send court cases immediately via SSE
         sendEvent('courtCases', {
@@ -460,95 +641,30 @@ export async function POST(request: NextRequest) {
         // Build enhanced query with plaintiff context + RAG law context
         const plaintiffContext = formatPlaintiffContext(userProfile);
 
-        // AI получает текст документов с лимитом 12K символов на каждый
-        // (≈3 страницы юридического текста — обычно достаточно для сути).
-        // Полные 30K на 3 файла = 90K символов, gpt-4o-mini тогда генерирует
-        // ответ ~60+ секунд и часто упирается в таймауты Cloudflare Worker.
-        const AI_CHARS_PER_DOC = 12000;
-        const attachmentContext = attachments.length
-          ? encodeAttachmentsForPrompt(attachments, AI_CHARS_PER_DOC)
-          : '';
-
-        const aiBaseQuery = attachments.length
-          ? (userQuery || 'Проанализируй прикреплённые документы и определи суть дела')
-          : query;
-
+        // В этой ветке вложений нет — они ушли в triage выше.
+        const aiPrompt = query + plaintiffContext + lawContext;
         const enhancedSearchResults = {
           ...searchResults,
           plaintiffContext,
         };
 
-        // Для запросов с документами: ПЕРВЫМ пробуем быструю надёжную
-        // модель (gpt-4o, ~15-25с). Если она упадёт — fallback ниже
-        // деградирует до дефолтной (gemini-flash / gpt-4o-mini).
-        //
-        // Gemini 3 Pro/2.5 Pro reasoning-модели могут отвечать 2-5 минут
-        // на большом контексте, и Cloudflare Worker часто рвёт соединение
-        // по 30-секундному CPU-лимиту. Включить можно явно через env:
-        //   DOCS_AI_MODEL=google/gemini-3-pro  (медленно, дорого, но топ)
-        //   DOCS_AI_MODEL=gpt-4o               (по умолчанию — быстро)
-        //   DOCS_AI_MODEL=gpt-4.1              (новее, ещё быстрее)
-        const docsModel = process.env.DOCS_AI_MODEL || 'gpt-4o';
-        const docsProvider: 'openai' | 'gemini' =
-          docsModel.startsWith('google/') || docsModel.startsWith('gemini')
-            ? 'gemini'
-            : 'openai';
-
-        const aiOptions = attachments.length
-          ? { forceProvider: docsProvider, model: docsModel }
-          : undefined;
-
-        const aiPrompt =
-          aiBaseQuery + plaintiffContext + attachmentContext + lawContext;
-
         // Защищаем стрим от подвисания. Если AI не ответил за заданное
         // время — отдаём пользователю чёткую ошибку вместо вечного спиннера.
-        const AI_TIMEOUT_MS = attachments.length ? 180_000 : 90_000;
-        const runAi = async (opts?: typeof aiOptions): Promise<string> => {
-          return generateLegalResponse(aiPrompt, enhancedSearchResults, opts);
-        };
+        const AI_TIMEOUT_MS = 90_000;
 
         const responseJson = await Promise.race<string>([
-          runAi(aiOptions).catch(async (err: unknown) => {
-            // Если усиленная модель недоступна (404 / провайдер не настроен),
-            // не валим весь запрос — деградируем до дефолтной модели и
-            // продолжаем. Пользователь получит ответ, пусть и упрощённый.
-            const message = err instanceof Error ? err.message : String(err);
-            if (
-              aiOptions &&
-              (message.includes('404') ||
-                message.includes('not configured') ||
-                message.includes('Worker proxy error'))
-            ) {
-              console.warn(
-                '[generate-stream] strong model failed, falling back to default:',
-                message,
-              );
-              return runAi(undefined);
-            }
-            throw err;
-          }),
+          generateLegalResponse(aiPrompt, enhancedSearchResults),
           new Promise<string>((_, reject) =>
-            setTimeout(
-              () => reject(new Error('AI_TIMEOUT')),
-              AI_TIMEOUT_MS,
-            ),
+            setTimeout(() => reject(new Error('AI_TIMEOUT')), AI_TIMEOUT_MS),
           ),
         ]).catch((err: unknown) => {
           if (err instanceof Error && err.message === 'AI_TIMEOUT') {
             console.error('[generate-stream] AI timeout after', AI_TIMEOUT_MS, 'ms', {
               generationId,
-              attachmentsCount: attachments.length,
-              promptChars:
-                aiBaseQuery.length +
-                plaintiffContext.length +
-                attachmentContext.length +
-                lawContext.length,
+              promptChars: aiPrompt.length,
             });
             throw new Error(
-              attachments.length
-                ? 'Ответ занимает слишком много времени. Попробуйте отправить меньше документов или сократить запрос.'
-                : 'Ответ занимает слишком много времени. Попробуйте переформулировать запрос.',
+              'Ответ занимает слишком много времени. Попробуйте переформулировать запрос.',
             );
           }
           throw err;
@@ -772,9 +888,32 @@ export async function POST(request: NextRequest) {
 
       } catch (error) {
         console.error('Stream error:', error);
-        sendEvent('error', { 
-          message: error instanceof Error ? error.message : 'Произошла ошибка' 
-        });
+        const errorMessage =
+          error instanceof Error ? error.message : 'Произошла ошибка';
+
+        // Помечаем generation как failed в БД, чтобы при перезагрузке
+        // страницы пользователь увидел ошибку, а не вечный лоадер
+        // (раньше тут оставалась запись с response = null = «зомби»).
+        if (generationId) {
+          try {
+            const supabaseForError = await createClient();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (supabaseForError.from('generations') as any)
+              .update({
+                response: {
+                  _status: 'failed',
+                  error: errorMessage,
+                  // Сохраняем уже найденные дела, чтобы при ретрае не пропали.
+                  courtCases: courtCasesDataForError,
+                },
+              })
+              .eq('id', generationId);
+          } catch (markErr) {
+            console.error('[generate-stream] failed to write error status:', markErr);
+          }
+        }
+
+        sendEvent('error', { message: errorMessage });
       } finally {
         closeController();
       }

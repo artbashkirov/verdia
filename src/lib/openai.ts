@@ -296,6 +296,124 @@ export async function geminiChatCompletion(
   return chatCompletion(messages, options);
 }
 
+/**
+ * Результат быстрого первичного анализа пользовательских документов.
+ * Используется только когда есть прикреплённые файлы — даёт пользователю
+ * понимание, что именно прислал AI, и список конкретных следующих действий.
+ */
+export interface DocumentTriageAction {
+  id: string;
+  label: string;
+  description: string;
+  needsCases: boolean;
+  needsLaw: boolean;
+  actionPrompt: string;
+}
+
+export interface DocumentTriageResult {
+  caseTitle: string;
+  summary: string;
+  documentBreakdown: Array<{
+    fileName: string;
+    type: string;
+    summary: string;
+  }>;
+  documentType: string;
+  suggestedActions: DocumentTriageAction[];
+  missingInfo: string[];
+  userQuestions: string[];
+  /** Маркер для UI: чтобы отличить triage от полного анализа. */
+  _mode: 'document-triage';
+}
+
+/**
+ * Быстрый первичный анализ прикреплённых документов. Не делает поиск
+ * судебной практики и не генерирует итоговый ответ — это задача второго
+ * шага (после того как пользователь выберет действие).
+ */
+export async function analyzeDocuments(
+  userQuery: string,
+  attachmentsText: string,
+  options: CallAIOptions = {},
+): Promise<DocumentTriageResult> {
+  const { DOCUMENT_TRIAGE_PROMPT } = await import('./prompts');
+
+  const prompt = `Запрос пользователя: ${userQuery || '(пользователь не написал текст, только прислал документы)'}
+
+${attachmentsText}
+
+Проведи первичный анализ. Верни JSON по схеме из системного промпта.`;
+
+  let raw = '';
+  try {
+    raw = await callAI(prompt, DOCUMENT_TRIAGE_PROMPT, 1800, true, options);
+  } catch (err) {
+    console.error('[analyzeDocuments] AI call failed:', err);
+    throw err;
+  }
+
+  // AI иногда оборачивает JSON в markdown — берём первый { … } блок.
+  const match = raw.match(/\{[\s\S]*\}/);
+  const jsonString = match ? match[0] : raw;
+
+  let parsed: Partial<DocumentTriageResult>;
+  try {
+    parsed = JSON.parse(jsonString) as Partial<DocumentTriageResult>;
+  } catch (err) {
+    console.error('[analyzeDocuments] JSON parse failed:', err, 'raw:', raw.slice(0, 500));
+    throw new Error('AI вернул некорректный ответ при анализе документов');
+  }
+
+  // Жёстко санитизируем результат — UI не должен падать, если AI пропустил поле.
+  return {
+    caseTitle:
+      typeof parsed.caseTitle === 'string' && parsed.caseTitle.trim()
+        ? parsed.caseTitle.trim()
+        : 'Анализ документов',
+    summary:
+      typeof parsed.summary === 'string'
+        ? parsed.summary.trim()
+        : '',
+    documentBreakdown: Array.isArray(parsed.documentBreakdown)
+      ? parsed.documentBreakdown
+          .filter((d): d is DocumentTriageResult['documentBreakdown'][number] =>
+            !!d && typeof d === 'object',
+          )
+          .map((d) => ({
+            fileName: typeof d.fileName === 'string' ? d.fileName : '',
+            type: typeof d.type === 'string' ? d.type : 'Документ',
+            summary: typeof d.summary === 'string' ? d.summary : '',
+          }))
+      : [],
+    documentType:
+      typeof parsed.documentType === 'string' ? parsed.documentType : 'unknown',
+    suggestedActions: Array.isArray(parsed.suggestedActions)
+      ? parsed.suggestedActions
+          .filter((a): a is DocumentTriageAction => !!a && typeof a === 'object')
+          .map((a, i) => ({
+            id:
+              typeof a.id === 'string' && a.id.trim()
+                ? a.id
+                : `action_${i + 1}`,
+            label: typeof a.label === 'string' ? a.label : 'Действие',
+            description: typeof a.description === 'string' ? a.description : '',
+            needsCases: a.needsCases !== false,
+            needsLaw: a.needsLaw !== false,
+            actionPrompt:
+              typeof a.actionPrompt === 'string' ? a.actionPrompt : '',
+          }))
+          .slice(0, 6)
+      : [],
+    missingInfo: Array.isArray(parsed.missingInfo)
+      ? parsed.missingInfo.filter((m): m is string => typeof m === 'string').slice(0, 5)
+      : [],
+    userQuestions: Array.isArray(parsed.userQuestions)
+      ? parsed.userQuestions.filter((m): m is string => typeof m === 'string').slice(0, 3)
+      : [],
+    _mode: 'document-triage',
+  };
+}
+
 export async function generateSearchQuery(userQuery: string): Promise<string> {
   const { SEARCH_QUERY_PROMPT } = await import('./prompts');
   
