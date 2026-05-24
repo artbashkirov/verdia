@@ -344,13 +344,37 @@ ${attachmentsText}
 
 Проведи первичный анализ. Верни JSON по схеме из системного промпта.`;
 
+  // Полное логирование — мы видели случаи, когда AI выдумывал контент,
+  // несуществующий в документе. Чтобы быстро ловить, какая часть пайплайна
+  // даёт галлюцинацию (OCR? prompt? сам AI?), пишем длины каждого блока
+  // и первые/последние символы — это поможет на проде по логам разобрать
+  // конкретный кейс без переотправки документов.
+  const docDelimiters = attachmentsText.match(/--- НАЧАЛО ДОКУМЕНТА ---/g) || [];
+  const ocrFailureMarkers = (attachmentsText.match(/\[OCR-system:/g) || []).length;
+  console.log('[analyzeDocuments] sending to AI:', {
+    userQueryLen: userQuery.length,
+    attachmentsTextLen: attachmentsText.length,
+    docsWithContent: docDelimiters.length,
+    docsWithOcrFailure: ocrFailureMarkers,
+    promptHeadPreview: prompt.slice(0, 300),
+    promptTailPreview: prompt.slice(-300),
+  });
+
   let raw = '';
   try {
-    raw = await callAI(prompt, DOCUMENT_TRIAGE_PROMPT, 1800, true, options);
+    // 3500 токенов — достаточно для подробного breakdown 3-х документов
+    // с suggestedActions и missingInfo. Раньше было 1800, при котором AI
+    // обрезал ответ и иногда заполнял пропуски галлюцинациями.
+    raw = await callAI(prompt, DOCUMENT_TRIAGE_PROMPT, 3500, true, options);
   } catch (err) {
     console.error('[analyzeDocuments] AI call failed:', err);
     throw err;
   }
+
+  console.log('[analyzeDocuments] AI raw response:', {
+    rawLen: raw.length,
+    rawPreview: raw.slice(0, 600),
+  });
 
   // AI иногда оборачивает JSON в markdown — берём первый { … } блок.
   const match = raw.match(/\{[\s\S]*\}/);
