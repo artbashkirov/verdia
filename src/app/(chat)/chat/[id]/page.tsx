@@ -344,10 +344,24 @@ function ChatResultPageContent() {
         setGeneration(generationData);
         setIsLoading(false);
 
-        // If response is null, poll every 2 seconds until it's ready.
-        // После POLL_TIMEOUT_MS без ответа считаем чат «зомби» и показываем
-        // ошибку, чтобы пользователь не сидел перед вечным лоадером.
-        if (!generationData.response) {
+        // Что считать «надо ещё поллить»:
+        // - response отсутствует (только что создали запись);
+        // - response.status = 'generating' (промежуточное состояние с
+        //   уже найденными court cases, но без финального JSON);
+        // - response существует, но без _mode и без shortAnswer/_status —
+        //   это «частичный» промежуточный апдейт (например, при triage
+        //   мы записываем _mode='document-triage' и _status='complete';
+        //   при обычном flow финал содержит shortAnswer).
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const isFinalResponse = (resp: any): boolean => {
+          if (!resp) return false;
+          if (resp._status === 'failed') return true;
+          if (resp._status === 'generating') return false;
+          if (resp._mode === 'document-triage') return resp._status === 'complete';
+          return !!resp.shortAnswer; // обычный flow финализируется shortAnswer
+        };
+
+        if (!isFinalResponse(generationData.response)) {
           const POLL_TIMEOUT_MS = 3 * 60 * 1000;
           const startedAt = Date.now();
           const createdAtMs = generationData.created_at
@@ -371,8 +385,14 @@ function ChatResultPageContent() {
               if (!pollResponse.ok) return;
               const pollJson = await pollResponse.json();
               const updatedData = pollJson.generation as Generation;
-              if (updatedData && updatedData.response && !controller.signal.aborted) {
-                setGeneration(updatedData);
+              if (!updatedData || controller.signal.aborted) return;
+
+              // Обновляем generation каждый тик — это позволяет UI
+              // подхватить свежий query/title даже до полной готовности
+              // response (например, когда triage перезаписал заголовок).
+              setGeneration(updatedData);
+
+              if (isFinalResponse(updatedData.response)) {
                 if (pollInterval) {
                   clearInterval(pollInterval);
                   pollInterval = null;

@@ -134,9 +134,30 @@ function buildSearchableQuery(userText: string, list: ChatAttachment[]): string 
   return `${cleanedUser}\n\n${excerpts}`;
 }
 
+// Фразы-заглушки, которые клиент подставляет в input, когда пользователь
+// прислал документы без текста. Если они приходят в userQuery — это не
+// настоящий вопрос, а fallback из buildEffectiveMessageWithAttachments,
+// и тащить его в шапку чата нельзя — иначе у пользователя в сайдбаре
+// окажется 10 чатов с одинаковым «Проанализируй прикреплённые документы».
+const ATTACHMENT_PLACEHOLDER_PATTERNS = [
+  /^проанализируй\s+прикреплённ(?:ый|ые)\s+документ/i,
+  /^проанализируй\s+документ/i,
+  /^analyze\s+attached\s+document/i,
+];
+
+function isAttachmentPlaceholderText(text: string): boolean {
+  const trimmed = (text || '').trim();
+  if (!trimmed) return false;
+  return ATTACHMENT_PLACEHOLDER_PATTERNS.some((re) => re.test(trimmed));
+}
+
 function buildChatTitle(userText: string, list: ChatAttachment[]): string {
   const cleanedUser = (userText || '').trim();
-  if (cleanedUser) return cleanedUser.slice(0, 100);
+  // Игнорируем клиентский placeholder — лучше пусть будет «Анализ документов (N)»,
+  // пока triage не успел подставить осмысленный caseTitle.
+  if (cleanedUser && !isAttachmentPlaceholderText(cleanedUser)) {
+    return cleanedUser.slice(0, 100);
+  }
   if (list.length === 1) {
     return `Анализ документа: ${list[0].fileName}`.slice(0, 100);
   }
@@ -164,6 +185,20 @@ export async function POST(request: NextRequest) {
   }
 
   userQuery = (userQuery || '').trim();
+
+  console.log('[generate-stream] POST received', {
+    userQueryLen: userQuery.length,
+    userQueryPreview: userQuery.slice(0, 80),
+    attachmentsCount: attachments.length,
+    attachmentsMeta: attachments.map((a) => ({
+      fileName: a.fileName,
+      mimeType: a.mimeType,
+      hasExtractedText: !!a.extractedText,
+      extractedTextLen: a.extractedText?.length ?? 0,
+    })),
+    useCachedResponse,
+  });
+
   // chatTitle — то, что видит пользователь и хранится в БД как `query`.
   // Без маркеров «📎 file.jpg · 184 КБ» — иначе вверху страницы и в
   // сайдбаре висит мусор. Сами вложения отдельно лежат в chat_messages.
@@ -424,6 +459,12 @@ export async function POST(request: NextRequest) {
         // конкретных действий, из которых пользователь выберет следующий шаг.
         // Поиск дел и полная генерация уйдут в /api/document-action.
         if (attachments.length > 0) {
+          console.log('[generate-stream] entering TRIAGE branch', {
+            generationId,
+            attachmentsCount: attachments.length,
+            userQueryLen: userQuery.length,
+          });
+
           sendEvent('status', {
             stage: 'analyzing',
             message: 'Анализирую документы (15–30 секунд)...',
@@ -437,44 +478,17 @@ export async function POST(request: NextRequest) {
             TRIAGE_CHARS_PER_DOC,
           );
 
-          // Та же логика выбора модели, что и в полном флоу — env
-          // DOCS_AI_MODEL может переключить на gemini-3-pro и т.п.
-          const docsModel = process.env.DOCS_AI_MODEL || 'gpt-4o';
-          const docsProvider: 'openai' | 'gemini' =
-            docsModel.startsWith('google/') || docsModel.startsWith('gemini')
-              ? 'gemini'
-              : 'openai';
-
+          // Triage идёт через тот же AI-провайдер, что и весь остальной
+          // проект (определяется getAIProvider() в src/lib/openai.ts).
+          // Обычно это Gemini через Cloudflare Worker (GEMINI_MODEL env).
+          // Отдельный оверрайд намеренно убран: если пользователь хочет
+          // другую модель для документов — он меняет её для всего проекта.
           const TRIAGE_TIMEOUT_MS = 120_000;
-
-          const runTriage = (forceDefault = false) =>
-            analyzeDocuments(
-              userQuery || '',
-              attachmentContext,
-              forceDefault
-                ? undefined
-                : { forceProvider: docsProvider, model: docsModel },
-            );
 
           let triage;
           try {
             triage = await Promise.race([
-              runTriage().catch(async (err: unknown) => {
-                // Fallback на дефолтную модель, если усиленная не настроена/404.
-                const msg = err instanceof Error ? err.message : String(err);
-                if (
-                  msg.includes('404') ||
-                  msg.includes('not configured') ||
-                  msg.includes('Worker proxy error')
-                ) {
-                  console.warn(
-                    '[generate-stream/triage] strong model failed, falling back:',
-                    msg,
-                  );
-                  return runTriage(true);
-                }
-                throw err;
-              }),
+              analyzeDocuments(userQuery || '', attachmentContext),
               new Promise<never>((_, reject) =>
                 setTimeout(
                   () => reject(new Error('AI_TIMEOUT')),
@@ -483,6 +497,11 @@ export async function POST(request: NextRequest) {
               ),
             ]);
           } catch (err) {
+            console.error('[generate-stream/triage] FAILED', {
+              generationId,
+              error: err instanceof Error ? err.message : String(err),
+              stack: err instanceof Error ? err.stack : undefined,
+            });
             if (err instanceof Error && err.message === 'AI_TIMEOUT') {
               console.error(
                 '[generate-stream/triage] timeout after',
@@ -495,6 +514,13 @@ export async function POST(request: NextRequest) {
             }
             throw err;
           }
+
+          console.log('[generate-stream/triage] SUCCESS', {
+            generationId,
+            caseTitle: triage.caseTitle,
+            actionsCount: triage.suggestedActions.length,
+            breakdownCount: triage.documentBreakdown.length,
+          });
 
           // Заголовок чата теперь — это caseTitle от AI. Перезаписываем
           // как саму запись generations.query, так и chat_history.title,
