@@ -151,18 +151,18 @@ export function DocumentTriageView({
               {triage.documentBreakdown.map((doc, idx) => (
                 <div
                   key={`${doc.fileName}-${idx}`}
-                  className="p-4 rounded-xl bg-[#F3F3F3] dark:bg-[#1E1E1F] flex flex-col gap-2"
+                  className="p-4 rounded-xl bg-[#F3F3F3] flex flex-col gap-2"
                 >
                   <div className="flex items-start justify-between gap-3 flex-wrap">
-                    <p className="text-[15px] font-semibold text-foreground break-words">
+                    <p className="text-[15px] font-semibold text-[#212121] break-words">
                       {doc.type || 'Документ'}
                     </p>
-                    <p className="text-[12px] text-gray-400 break-all" title={doc.fileName}>
+                    <p className="text-[12px] text-gray-500 break-all" title={doc.fileName}>
                       {doc.fileName}
                     </p>
                   </div>
                   {doc.summary && (
-                    <p className="text-[14px] text-foreground leading-[20px] break-words whitespace-pre-line">
+                    <p className="text-[14px] text-[#212121] leading-[20px] break-words whitespace-pre-line">
                       {doc.summary}
                     </p>
                   )}
@@ -216,8 +216,8 @@ export function DocumentTriageView({
           <div className={DIVIDER} />
           <div className="flex flex-col gap-4">
             <p className={SECTION_LABEL_CLASS}>Что дальше?</p>
-            <div className="p-4 rounded-xl bg-[#F3F3F3] dark:bg-[#1E1E1F]">
-              <p className="text-base text-foreground mb-2">
+            <div className="p-4 rounded-xl bg-[#F3F3F3]">
+              <p className="text-base text-[#212121] mb-2">
                 <strong>Выберите, чем я могу помочь по этому делу:</strong>
               </p>
               <p className="text-sm text-gray-500 mb-4">

@@ -88,21 +88,94 @@ async function parseDOCX(buffer: Buffer): Promise<ParsedDocument> {
 async function parseImage(
   buffer: Buffer,
   mimeType: string,
-  _fileName: string
+  fileName: string
 ): Promise<ParsedDocument> {
   const base64 = buffer.toString('base64');
   const dataUri = `data:${mimeType};base64,${base64}`;
 
+  // Двухступенчатый OCR: сначала быстрая модель (gemini-2.5-flash). Если
+  // она вернула пустоту или явный отказ — пробуем pro-модель. Часто Flash
+  // не справляется со снимками с искажением (фото документа под углом
+  // на сиденье машины — пример из практики), а Pro вытягивает.
+  const FAST_MODEL = 'google/gemini-2.5-flash';
+  const STRONG_MODEL = 'google/gemini-2.5-pro';
+
   try {
-    const text = await extractTextFromImageViaAI(dataUri);
-    return { text };
+    console.log(`[OCR] start fast model for "${fileName}" (${Math.round(buffer.length / 1024)}KB)`);
+    const fastText = await extractTextFromImageViaAI(dataUri, FAST_MODEL);
+    const fastClean = sanitizeOcrText(fastText);
+
+    if (fastClean) {
+      console.log(`[OCR] fast model OK for "${fileName}": ${fastClean.length} chars`);
+      return { text: fastClean };
+    }
+
+    console.warn(`[OCR] fast model returned empty for "${fileName}", trying strong model`);
+    const strongText = await extractTextFromImageViaAI(dataUri, STRONG_MODEL);
+    const strongClean = sanitizeOcrText(strongText);
+
+    if (strongClean) {
+      console.log(`[OCR] strong model OK for "${fileName}": ${strongClean.length} chars`);
+      return { text: strongClean };
+    }
+
+    console.warn(`[OCR] both models returned empty for "${fileName}"`);
+    return { text: '' };
   } catch (error) {
-    console.error('Image OCR error:', error);
+    console.error(`[OCR] error for "${fileName}":`, error);
+    // Пробуем strong как полный fallback. Если и он упал — отдаём пусто
+    // (выше в upload-роуте превратится в «опишите содержимое в сообщении»).
+    try {
+      console.warn(`[OCR] retrying with strong model after error for "${fileName}"`);
+      const fallbackText = await extractTextFromImageViaAI(dataUri, STRONG_MODEL);
+      const fallbackClean = sanitizeOcrText(fallbackText);
+      if (fallbackClean) {
+        console.log(`[OCR] strong fallback OK for "${fileName}": ${fallbackClean.length} chars`);
+        return { text: fallbackClean };
+      }
+    } catch (fallbackErr) {
+      console.error(`[OCR] strong fallback also failed for "${fileName}":`, fallbackErr);
+    }
     throw new Error('Не удалось распознать текст на изображении.');
   }
 }
 
-async function extractTextFromImageViaAI(dataUri: string): Promise<string> {
+/**
+ * Чистит ответ OCR-модели от служебных фраз и определяет, действительно
+ * ли в результате есть полезный текст. Раньше «Текст не обнаружен» или
+ * markdown-обёртка попадали в extractedText как valid result и triage
+ * считал, что в документе ничего нет.
+ */
+function sanitizeOcrText(raw: string): string {
+  const text = (raw || '').trim();
+  if (!text) return '';
+
+  // Снимаем markdown-обёртки ```...```
+  const stripped = text
+    .replace(/^```[a-z]*\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+
+  // Явные «модель сдалась» — считаем пустым, попробуем сильнее.
+  const refusalPatterns = [
+    /^текст\s+не\s+обнаружен\.?$/i,
+    /^на\s+изображении\s+нет\s+текста\.?$/i,
+    /^не\s+удалось\s+распознать/i,
+    /^no\s+text\s+(detected|found)\.?$/i,
+    /^i\s+(can'?t|cannot)\s+(see|read|extract)/i,
+  ];
+  if (refusalPatterns.some((re) => re.test(stripped))) return '';
+
+  // Слишком короткий ответ (< 10 символов) — почти наверняка отказ.
+  if (stripped.length < 10) return '';
+
+  return stripped;
+}
+
+async function extractTextFromImageViaAI(
+  dataUri: string,
+  model: string,
+): Promise<string> {
   const workerUrl = process.env.CLOUDFLARE_WORKER_URL;
   const workerSecret = process.env.CLOUDFLARE_WORKER_SECRET;
 
@@ -117,19 +190,29 @@ async function extractTextFromImageViaAI(dataUri: string): Promise<string> {
       'X-Worker-Secret': workerSecret,
     },
     body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
+      model,
       input: {
-        prompt: `Ты — OCR-система. Извлеки весь текст с этого изображения документа. 
-Верни только текст документа, без комментариев. 
-Если на изображении нет текста, верни "Текст не обнаружен".
-Сохраняй структуру текста (абзацы, списки) насколько это возможно.`,
+        // Более настойчивый промпт: даже если фото плохое, надо вытащить
+        // максимум текста. Старая версия слишком легко отказывалась.
+        prompt: `Ты — OCR-система. Внимательно изучи это изображение документа и извлеки ВЕСЬ видимый текст.
+
+ПРАВИЛА:
+- Выведи только сам текст документа, без своих комментариев и вступлений.
+- Сохраняй структуру: абзацы, списки, заголовки.
+- Даже если фото нечёткое, под углом, с тенью или плохим освещением — извлеки максимум того, что можешь разобрать.
+- Если часть текста совсем не читается, просто пропусти её, а остальное верни.
+- НЕ возвращай "Текст не обнаружен", если хоть что-то читаемо.
+- Только если буквально пустое изображение или сплошной шум — верни "OCR_FAILED".`,
         image: dataUri,
       },
     }),
   });
 
   if (!response.ok) {
-    throw new Error(`Gemini Vision API error: ${response.status}`);
+    const bodyText = await response.text().catch(() => '');
+    throw new Error(
+      `Gemini Vision API error: ${response.status} ${bodyText.slice(0, 200)}`,
+    );
   }
 
   const data = await response.json();
