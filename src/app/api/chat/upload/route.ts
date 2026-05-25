@@ -68,11 +68,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log('[chat/upload] received file', {
+      name: file.name,
+      type: file.type,
+      resolvedMimeType: mimeType,
+      sizeBytes: file.size,
+    });
+
     let extractedText = '';
     try {
       const buffer = Buffer.from(await file.arrayBuffer());
+      console.log('[chat/upload] calling parseDocument', {
+        name: file.name,
+        mimeType,
+        bufferLen: buffer.length,
+      });
       const parsed = await parseDocument(buffer, mimeType, file.name);
       extractedText = (parsed.text || '').trim();
+      console.log('[chat/upload] parseDocument done', {
+        name: file.name,
+        extractedTextLen: extractedText.length,
+        preview: extractedText.slice(0, 150),
+      });
     } catch (err) {
       console.error('[chat/upload] parse failed:', {
         name: file.name,

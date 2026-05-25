@@ -22,12 +22,21 @@ import {
 
 const CASES_ENABLED = process.env.NEXT_PUBLIC_FEATURE_CASES === 'true';
 
+// Документы в ответе ассистента бывают двух видов:
+//   1. Обычные документы для скачивания: { title, content }
+//   2. Inline triage-результат (когда пользователь дослал ещё фото
+//      в triage-чат и AI пересчитал разбор): { type: 'triage', ...DocumentTriageData }
+//   Различаем по наличию `type === 'triage'`.
+type ChatDocument =
+  | { title: string; content: string; type?: undefined }
+  | ({ type: 'triage' } & DocumentTriageData);
+
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   created_at: string;
-  documents?: Array<{ title: string; content: string }>;
+  documents?: ChatDocument[];
   attachment?: { fileName: string; mimeType: string; size: number } | null;
   attachments?: ChatAttachmentMeta[];
 }
@@ -94,6 +103,7 @@ interface GenerationResponse {
   // выше при этом пустые — рисуем отдельный DocumentTriageView.
   _mode?: 'document-triage' | string;
   _status?: 'generating' | 'failed' | 'complete' | string;
+  _quality?: 'ok' | 'low_ocr' | 'hallucination_detected' | string;
   // Полный triage-результат лежит прямо в response.
   caseTitle?: string;
   summary?: string;
@@ -986,6 +996,17 @@ function ChatResultPageContent() {
   const { query, response } = generation;
   const isTriage = response?._mode === 'document-triage';
 
+  // В triage-режиме первое user-сообщение (с прикреплёнными документами)
+  // мы показываем НАВЕРХУ — оно по смыслу первая реплика всего диалога,
+  // а triage-view с разбором — первый ответ AI. В «Продолжении диалога»
+  // его прятаем, чтобы не дублировать. В обычном режиме ничего не меняем.
+  const initialUserMessage = isTriage
+    ? chatMessages.find((m) => m.role === 'user') ?? null
+    : null;
+  const continuationMessages = isTriage && initialUserMessage
+    ? chatMessages.filter((m) => m.id !== initialUserMessage.id)
+    : chatMessages;
+
   return (
     <div className="flex bg-background h-screen max-w-[100vw] mobile-fixed-layout" style={{
       width: '100%'
@@ -1018,10 +1039,77 @@ function ChatResultPageContent() {
             }}
           >
             <div className="w-full max-w-[660px] mx-auto flex flex-col gap-8 px-4" style={{ position: 'relative', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
-              {/* Query */}
+              {/* Заголовок чата. В обычном флоу — текст запроса
+                  пользователя; в triage-режиме предпочитаем caseTitle
+                  («Административный иск ИФНС №24…»), потому что сам
+                  query там — служебная фраза «Проанализируй прикреплённые
+                  документы». Если caseTitle ещё нет (рано загрузили) —
+                  показываем query как fallback. */}
               <h1 className="text-[20px] lg:text-[32px] font-medium text-foreground leading-[28px] lg:leading-[40px] tracking-tight break-words md:mt-0">
-                {query}
+                {isTriage ? (response.caseTitle || query) : query}
               </h1>
+
+              {/* Initial user message в triage-режиме — отображаем как
+                  первую реплику пользователя (с приложенными файлами)
+                  ДО триаж-разбора. Стили — те же, что в «Продолжении
+                  диалога», чтобы визуал чата был единый. */}
+              {isTriage && initialUserMessage && (
+                <div className="flex flex-col items-end gap-2">
+                  {(initialUserMessage.attachments?.length
+                    ? initialUserMessage.attachments
+                    : initialUserMessage.attachment
+                      ? [initialUserMessage.attachment]
+                      : []
+                  ).map((att, attIdx) => (
+                    <div
+                      key={`init-${att.fileName}-${attIdx}`}
+                      className="flex items-center max-w-[85%]"
+                      style={{
+                        gap: '8px',
+                        padding: '8px 12px',
+                        borderRadius: '12px',
+                        backgroundColor: 'var(--input-bg)',
+                        border: '1px solid #CCCCCC',
+                      }}
+                    >
+                      <span className="text-base" aria-hidden="true">📎</span>
+                      <div className="flex flex-col min-w-0">
+                        <span
+                          className="text-foreground truncate"
+                          style={{ fontSize: '13px', lineHeight: '16px', fontWeight: 500 }}
+                          title={att.fileName}
+                        >
+                          {att.fileName}
+                        </span>
+                        <span
+                          className="text-[#808080]"
+                          style={{ fontSize: '11px', lineHeight: '14px' }}
+                        >
+                          {formatAttachmentSize(att.size)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {(() => {
+                    const attachmentList =
+                      initialUserMessage.attachments?.length
+                        ? initialUserMessage.attachments
+                        : initialUserMessage.attachment
+                          ? [initialUserMessage.attachment]
+                          : [];
+                    const visible = stripAttachmentsSuffix(
+                      initialUserMessage.content,
+                      attachmentList,
+                    );
+                    if (!visible) return null;
+                    return (
+                      <div className="max-w-[85%] px-4 py-3 bg-[#212121] text-white rounded-2xl">
+                        <p className="text-sm whitespace-pre-wrap leading-relaxed">{visible}</p>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
 
               {/* === DOCUMENT TRIAGE MODE === */}
               {/* Когда пользователь прислал документы, мы НЕ рисуем секции
@@ -1040,6 +1128,12 @@ function ChatResultPageContent() {
                     suggestedActions: response.suggestedActions || [],
                     missingInfo: response.missingInfo || [],
                     userQuestions: response.userQuestions || [],
+                    _quality:
+                      response._quality === 'ok' ||
+                      response._quality === 'low_ocr' ||
+                      response._quality === 'hallucination_detected'
+                        ? response._quality
+                        : undefined,
                   }}
                   chatId={chatId}
                   isBusy={isSending}
@@ -1385,13 +1479,13 @@ function ChatResultPageContent() {
                       </div>
                     )}
                     
-                    {chatMessages.length === 0 && !error && (
+                    {continuationMessages.length === 0 && !error && (
                       <div className="text-sm text-gray-400 italic">
                         Задайте вопрос для продолжения диалога
                       </div>
                     )}
                     
-                    {chatMessages.map((msg) => (
+                    {continuationMessages.map((msg) => (
                       <div key={msg.id}>
                         {msg.role === 'user' ? (
                           // User message - right aligned with dark background
@@ -1458,26 +1552,58 @@ function ChatResultPageContent() {
                                     <MarkdownRenderer content={msg.content} />
                                   </div>
                                   
-                                  {/* Документы для скачивания - сразу после основного текста */}
-                                  {msg.documents && msg.documents.length > 0 && (
-                                    <div className="flex flex-col gap-2">
-                                      {msg.documents.map((doc, idx) => (
-                                        <button
-                                          key={idx}
-                                          onClick={() => handleChatDocDownload(doc)}
-                                          className="w-full flex items-center justify-between px-4 py-3 border border-gray-200 rounded-xl bg-white hover:bg-gray-100 transition-colors"
-                                        >
-                                          <div className="flex flex-col items-start min-w-0 flex-1 mr-4">
-                                            <p className="text-sm font-medium text-foreground truncate w-full text-left">
-                                              {doc.title}
-                                            </p>
-                                            <p className="text-xs text-gray-400 uppercase">docx</p>
-                                          </div>
-                                          <DownloadIcon className="w-5 h-5 text-foreground shrink-0" strokeWidth="1.75" />
-                                        </button>
-                                      ))}
-                                    </div>
-                                  )}
+                                  {/* Документы для скачивания ИЛИ inline triage */}
+                                  {msg.documents && msg.documents.length > 0 && (() => {
+                                    // Если первый документ — triage-объект, отрисовываем
+                                    // его как DocumentTriageView (мини-триаж внутри чата).
+                                    // Так пользователь видит обновлённый разбор после того,
+                                    // как дослал дополнительные страницы.
+                                    const firstDoc = msg.documents[0];
+                                    if (firstDoc && firstDoc.type === 'triage') {
+                                      return (
+                                        <DocumentTriageView
+                                          triage={{
+                                            caseTitle: firstDoc.caseTitle,
+                                            summary: firstDoc.summary,
+                                            documentBreakdown: firstDoc.documentBreakdown,
+                                            documentType: firstDoc.documentType,
+                                            suggestedActions: firstDoc.suggestedActions,
+                                            missingInfo: firstDoc.missingInfo,
+                                            userQuestions: firstDoc.userQuestions,
+                                            _quality: firstDoc._quality,
+                                          }}
+                                          chatId={chatId}
+                                          isBusy={isSending}
+                                          onActionStart={async (action) => {
+                                            await handleSubmit(action.actionPrompt);
+                                          }}
+                                        />
+                                      );
+                                    }
+                                    // Обычные документы для скачивания
+                                    return (
+                                      <div className="flex flex-col gap-2">
+                                        {msg.documents.map((doc, idx) => {
+                                          if (doc.type === 'triage') return null;
+                                          return (
+                                            <button
+                                              key={idx}
+                                              onClick={() => handleChatDocDownload(doc)}
+                                              className="w-full flex items-center justify-between px-4 py-3 border border-gray-200 rounded-xl bg-white hover:bg-gray-100 transition-colors"
+                                            >
+                                              <div className="flex flex-col items-start min-w-0 flex-1 mr-4">
+                                                <p className="text-sm font-medium text-foreground truncate w-full text-left">
+                                                  {doc.title}
+                                                </p>
+                                                <p className="text-xs text-gray-400 uppercase">docx</p>
+                                              </div>
+                                              <DownloadIcon className="w-5 h-5 text-foreground shrink-0" strokeWidth="1.75" />
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    );
+                                  })()}
                                 </>
                               );
                             })()}

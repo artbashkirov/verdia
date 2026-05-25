@@ -79,7 +79,7 @@ systemctl restart verdia
 curl -X POST https://verdia-replicate-proxy.YOUR_SUBDOMAIN.workers.dev \
   -H "Content-Type: application/json" \
   -H "X-Worker-Secret: ваш_секрет" \
-  -d '{"model": "google/gemini-2.0-flash-001", "input": {"prompt": "Hello!", "max_tokens": 100}}'
+  -d '{"model": "google/gemini-3-flash", "input": {"prompt": "Hello!", "max_tokens": 100}}'
 ```
 
 ## Лимиты

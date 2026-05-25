@@ -33,6 +33,14 @@ export interface DocumentTriageData {
   missingInfo: string[];
   userQuestions: string[];
   _mode?: 'document-triage';
+  /**
+   * Метка качества triage-ответа от бэкенда:
+   * - `ok` — анализ выполнен, AI вернул осмысленный ответ;
+   * - `low_ocr` — все файлы — нечитаемые фото, AI вообще не вызывался;
+   * - `hallucination_detected` — AI выдумал имена/суммы, ответ заменён
+   *   на честный fallback. В UI показываем явное предупреждение.
+   */
+  _quality?: 'ok' | 'low_ocr' | 'hallucination_detected';
 }
 
 interface Props {
@@ -129,8 +137,33 @@ export function DocumentTriageView({
     }
   };
 
+  // Когда сервер сообщает, что качество анализа низкое — показываем явный
+  // honest-warning, чтобы пользователь не воспринял текст ниже как
+  // подтверждённый факт по делу. Это критично для юридического сервиса:
+  // лучше предупредить, чем убедительно соврать.
+  const qualityWarning =
+    triage._quality === 'low_ocr'
+      ? 'Не удалось распознать текст ни на одном из присланных фото. Выводов по делу нет — пришлите более чёткие копии.'
+      : triage._quality === 'hallucination_detected'
+        ? 'Я не уверен в надёжности этого анализа: фото плохого качества, и часть данных не удалось проверить. Лучше прислать более чёткие копии или PDF.'
+        : null;
+
   return (
     <>
+      {qualityWarning && (
+        <div className="p-4 rounded-xl bg-[#FFF4E5] border border-[#F2C58C] flex items-start gap-3">
+          <span
+            className="flex-shrink-0 w-5 h-5 rounded-full bg-[#E07A00] text-white text-xs font-bold flex items-center justify-center"
+            aria-hidden
+          >
+            !
+          </span>
+          <p className="text-[14px] text-[#5C3700] leading-[20px] break-words">
+            {qualityWarning}
+          </p>
+        </div>
+      )}
+
       {/* Краткий анализ */}
       <div className="flex flex-col gap-4">
         <p className={SECTION_LABEL_CLASS}>Анализ документов</p>

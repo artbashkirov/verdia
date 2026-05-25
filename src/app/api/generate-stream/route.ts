@@ -1,6 +1,10 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { generateLegalResponse, analyzeDocuments } from '@/lib/openai';
+import {
+  generateLegalResponse,
+  analyzeDocuments,
+  buildLowOcrTriageResult,
+} from '@/lib/openai';
 import { searchCourtCases } from '@/lib/court-search';
 import { getLawContext } from '@/lib/rag';
 import { exampleQueries } from '@/lib/example-queries';
@@ -470,49 +474,93 @@ export async function POST(request: NextRequest) {
             message: 'Анализирую документы (15–30 секунд)...',
           });
 
-          // На triage даём AI больше текста на файл (≈4 стр.), всё равно
-          // дел не ищем и общий промпт остаётся компактным.
-          const TRIAGE_CHARS_PER_DOC = 14000;
-          const attachmentContext = encodeAttachmentsForPrompt(
-            attachments,
-            TRIAGE_CHARS_PER_DOC,
-          );
+          // === PRE-CHECK: ВСЕ ФАЙЛЫ — НЕЧИТАЕМЫЕ ФОТО ===
+          // Если OCR ни в одном файле не смог извлечь реальный текст,
+          // вызывать AI бессмысленно: ему нечего анализировать, и любой
+          // ответ будет выдумкой. Юридический сервис обязан быть честным:
+          // лучше «не распознал, перешлите получше», чем красивая ложь.
+          const allOcrFailed = attachments.every((a) => {
+            const t = (a.extractedText ?? '').trim();
+            return !t || t.startsWith('[OCR-system:');
+          });
 
-          // Triage идёт через тот же AI-провайдер, что и весь остальной
-          // проект (определяется getAIProvider() в src/lib/openai.ts).
-          // Обычно это Gemini через Cloudflare Worker (GEMINI_MODEL env).
-          // Отдельный оверрайд намеренно убран: если пользователь хочет
-          // другую модель для документов — он меняет её для всего проекта.
-          const TRIAGE_TIMEOUT_MS = 120_000;
+          let triage: Awaited<ReturnType<typeof analyzeDocuments>>;
 
-          let triage;
-          try {
-            triage = await Promise.race([
-              analyzeDocuments(userQuery || '', attachmentContext),
-              new Promise<never>((_, reject) =>
-                setTimeout(
-                  () => reject(new Error('AI_TIMEOUT')),
-                  TRIAGE_TIMEOUT_MS,
-                ),
-              ),
-            ]);
-          } catch (err) {
-            console.error('[generate-stream/triage] FAILED', {
+          if (allOcrFailed) {
+            console.warn('[generate-stream/triage] ALL OCR FAILED — skipping AI call', {
               generationId,
-              error: err instanceof Error ? err.message : String(err),
-              stack: err instanceof Error ? err.stack : undefined,
+              attachments: attachments.map((a) => {
+                const t = (a.extractedText ?? '').trim();
+                return {
+                  fileName: a.fileName,
+                  textLen: t.length,
+                  isOcrPlaceholder: t.startsWith('[OCR-system:'),
+                  preview: t.slice(0, 200),
+                };
+              }),
             });
-            if (err instanceof Error && err.message === 'AI_TIMEOUT') {
-              console.error(
-                '[generate-stream/triage] timeout after',
-                TRIAGE_TIMEOUT_MS,
-                'ms',
-              );
-              throw new Error(
-                'Анализ документов занимает слишком много времени. Попробуйте отправить меньше документов.',
-              );
+            triage = buildLowOcrTriageResult(
+              attachments.map((a) => ({ fileName: a.fileName })),
+            );
+          } else {
+            // На triage даём AI больше текста на файл (≈4 стр.), всё равно
+            // дел не ищем и общий промпт остаётся компактным.
+            const TRIAGE_CHARS_PER_DOC = 14000;
+            const attachmentContext = encodeAttachmentsForPrompt(
+              attachments,
+              TRIAGE_CHARS_PER_DOC,
+            );
+
+            // Внутри analyzeDocuments() предпочитается
+            // gemini-3.1-pro — он на длинных промптах с несколькими
+            // документами заметно реже галлюцинирует, чем flash.
+            // Если воркер его не знает — автоматический fallback.
+            // Плюс post-validation детектор галлюцинаций: если AI
+            // упомянул имена/суммы, которых нет в исходных документах,
+            // ответ заменяется на honest fallback.
+            const TRIAGE_TIMEOUT_MS = 120_000;
+
+            try {
+              triage = await Promise.race([
+                analyzeDocuments(userQuery || '', attachmentContext),
+                new Promise<never>((_, reject) =>
+                  setTimeout(
+                    () => reject(new Error('AI_TIMEOUT')),
+                    TRIAGE_TIMEOUT_MS,
+                  ),
+                ),
+              ]);
+            } catch (err) {
+              console.error('[generate-stream/triage] FAILED', {
+                generationId,
+                error: err instanceof Error ? err.message : String(err),
+                stack: err instanceof Error ? err.stack : undefined,
+              });
+              if (err instanceof Error && err.message === 'AI_TIMEOUT') {
+                console.error(
+                  '[generate-stream/triage] timeout after',
+                  TRIAGE_TIMEOUT_MS,
+                  'ms',
+                );
+                throw new Error(
+                  'Анализ документов занимает слишком много времени. Попробуйте отправить меньше документов.',
+                );
+              }
+              // Криптовые ошибки воркера/провайдера типа «Worker proxy
+              // error: 404 - …» бесполезны пользователю. Заменяем на
+              // человеческое сообщение, оригинал остаётся в логах выше.
+              const rawMsg = err instanceof Error ? err.message : String(err);
+              const isInfrastructure =
+                /worker proxy|fetch failed|ECONN|network|timeout|status\s*:\s*5\d\d|status\s*:\s*404/i.test(
+                  rawMsg,
+                );
+              if (isInfrastructure) {
+                throw new Error(
+                  'AI-сервис временно недоступен. Попробуйте ещё раз через минуту — если не помогает, пришлите документы покрупнее или текстом.',
+                );
+              }
+              throw err;
             }
-            throw err;
           }
 
           console.log('[generate-stream/triage] SUCCESS', {
@@ -520,6 +568,7 @@ export async function POST(request: NextRequest) {
             caseTitle: triage.caseTitle,
             actionsCount: triage.suggestedActions.length,
             breakdownCount: triage.documentBreakdown.length,
+            quality: triage._quality,
           });
 
           // Заголовок чата теперь — это caseTitle от AI. Перезаписываем

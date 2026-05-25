@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { chatCompletion, getAIProvider } from '@/lib/openai';
+import {
+  chatCompletion,
+  getAIProvider,
+  analyzeDocuments,
+  buildLowOcrTriageResult,
+} from '@/lib/openai';
 import { getLawContext } from '@/lib/rag';
 import { DOCUMENT_GENERATION_PROMPT } from '@/lib/prompts';
 import {
@@ -257,6 +262,149 @@ ${Array.isArray(gen.response?.missingInfo) && gen.response.missingInfo.length > 
 
 Предполагаемый суд: ${gen.response?.courtPrediction?.predictedCourt?.name || 'определяется по месту регистрации ответчика'}
 `;
+
+    // Handle: пользователь прислал новые документы в triage-чат.
+    // Запускаем повторный triage с УЧЁТОМ ВСЕХ файлов (старые из истории
+    // + новые из текущего сообщения). Без этой ветки исходное сообщение
+    // «Проанализируй прикреплённые документы» матчилось на isDocumentRequest()
+    // (там есть слово «документ»), и система сразу выдавала шаблонные
+    // возражения, не перечитывая новые страницы. Это путало пользователя.
+    if (attachments.length > 0 && isTriageChat) {
+      // Собираем ВСЕ предыдущие attachments из чата (у них уже есть
+      // extractedText, OCR не нужен) + только что присланные.
+      const previousAttachments: ChatAttachment[] = [];
+      for (const m of prevMsgs) {
+        const parsed = parseAttachmentsFromMessage(m.content);
+        for (const att of parsed.attachments) {
+          if (att && att.extractedText) {
+            previousAttachments.push(att);
+          }
+        }
+      }
+
+      // Дедуп: пользователь часто прикладывает один и тот же файл повторно
+      // (например, тестируя). Ключ — `fileName + size`: уникален для
+      // реальных разных файлов, но устойчив к двойной отправке. Сохраняем
+      // ПЕРВОЕ вхождение (старое, у него уже есть валидный extractedText),
+      // дубль из новой пачки игнорируем.
+      const dedupedAttachments: ChatAttachment[] = [];
+      const seenKeys = new Set<string>();
+      for (const att of [...previousAttachments, ...attachments]) {
+        const key = `${att.fileName}__${att.size}`;
+        if (seenKeys.has(key)) continue;
+        seenKeys.add(key);
+        dedupedAttachments.push(att);
+      }
+      const allAttachments = dedupedAttachments;
+      const uniqueNewCount = attachments.filter((att) => {
+        const key = `${att.fileName}__${att.size}`;
+        // Если этот ключ есть среди previousAttachments — это дубль
+        return !previousAttachments.some(
+          (prev) => `${prev.fileName}__${prev.size}` === key,
+        );
+      }).length;
+
+      const allOcrFailed = allAttachments.every((a) => {
+        const t = (a.extractedText ?? '').trim();
+        return !t || t.startsWith('[OCR-system:');
+      });
+
+      type TriageResult = Awaited<ReturnType<typeof analyzeDocuments>>;
+      let triage: TriageResult;
+      if (allOcrFailed) {
+        triage = buildLowOcrTriageResult(
+          allAttachments.map((a) => ({ fileName: a.fileName })),
+        );
+      } else {
+        const TRIAGE_CHARS_PER_DOC = 14000;
+        const TRIAGE_TIMEOUT_MS = 120_000;
+        const attachmentContext = encodeAttachmentsForPrompt(
+          allAttachments,
+          TRIAGE_CHARS_PER_DOC,
+        );
+        try {
+          triage = await Promise.race([
+            analyzeDocuments(effectiveMessage, attachmentContext),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('AI_TIMEOUT')), TRIAGE_TIMEOUT_MS),
+            ),
+          ]);
+        } catch (err) {
+          console.error('[chat/triage] FAILED', {
+            generationId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+          // Сохраняем user message с файлами, но возвращаем понятную ошибку,
+          // чтобы клиент не зависал и не получил мусорный ответ.
+          await supabase.from('chat_messages').insert({
+            generation_id: generationId as string,
+            user_id: user.id,
+            role: 'user',
+            content: messageForStorage,
+            documents: [],
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any);
+          return NextResponse.json(
+            {
+              error:
+                err instanceof Error && err.message === 'AI_TIMEOUT'
+                  ? 'Анализ занял слишком много времени. Попробуйте прислать меньше документов сразу.'
+                  : 'Не удалось проанализировать документы. Попробуйте ещё раз.',
+            },
+            { status: 502 },
+          );
+        }
+      }
+
+      // Сохраняем user-сообщение с новыми attachments
+      await supabase.from('chat_messages').insert({
+        generation_id: generationId as string,
+        user_id: user.id,
+        role: 'user',
+        content: messageForStorage,
+        documents: [],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
+      // Готовим ассистент-ответ: короткий текст + triage-объект внутри
+      // documents с маркером type='triage'. Фронт распознаёт его и
+      // рендерит DocumentTriageView прямо в чате (mini-triage),
+      // оставляя исходный triage сверху без изменений.
+      //
+      // Текст ответа должен честно отражать, сколько НОВЫХ уникальных
+      // файлов добавилось (а не сколько было прислано — пользователь
+      // может повторно прикладывать одни и те же страницы).
+      let assistantText: string;
+      if (previousAttachments.length === 0) {
+        assistantText = 'Готов общий анализ присланных материалов.';
+      } else if (uniqueNewCount === 0) {
+        // Все присланные файлы уже были в чате
+        assistantText = `Эти файлы уже были в материалах — анализ обновлён по тем же ${allAttachments.length} документам.`;
+      } else {
+        const fileWord =
+          uniqueNewCount === 1 ? 'нового файла' : `новых файлов (${uniqueNewCount})`;
+        assistantText = `Обновил анализ с учётом ${fileWord}. Всего в материалах сейчас ${allAttachments.length}.`;
+      }
+
+      const triageDocPayload = {
+        type: 'triage',
+        ...triage,
+      };
+
+      await supabase.from('chat_messages').insert({
+        generation_id: generationId as string,
+        user_id: user.id,
+        role: 'assistant',
+        content: assistantText,
+        documents: [triageDocPayload],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
+      return NextResponse.json({
+        message: assistantText,
+        documents: [triageDocPayload],
+      });
+    }
 
     // Handle "что делать дальше" follow-up
     if (wantsNextSteps) {
