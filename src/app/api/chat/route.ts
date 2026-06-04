@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { generationId, message } = body;
+    const { generationId, message, displayMessage } = body;
 
     const attachments = normalizeAttachmentsFromBody(body);
 
@@ -201,7 +201,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const messageForStorage = encodeAttachmentsInMessage(effectiveMessage, attachments);
+    // В БД сохраняем «человеческое» сообщение пользователя (displayMessage),
+    // а в AI отправляем полный effectiveMessage с инструкциями. Это нужно
+    // для actionPrompt из triage: пользователь видит в чате «Подготовь
+    // возражения на иск», а AI получает развёрнутый алгоритм.
+    // Если displayMessage не передан — используем effectiveMessage как и раньше.
+    const trimmedDisplay =
+      typeof displayMessage === 'string' && displayMessage.trim()
+        ? displayMessage.trim()
+        : '';
+    const effectiveDisplay = trimmedDisplay
+      ? buildEffectiveMessageWithAttachments(trimmedDisplay, attachments)
+      : effectiveMessage;
+
+    const messageForStorage = encodeAttachmentsInMessage(effectiveDisplay, attachments);
     const messageForAi = attachments.length
       ? `${effectiveMessage}${encodeAttachmentsForPrompt(attachments)}`
       : effectiveMessage;
