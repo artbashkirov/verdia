@@ -6,7 +6,7 @@ import {
   analyzeDocuments,
   buildLowOcrTriageResult,
 } from '@/lib/openai';
-import { getLawContext } from '@/lib/rag';
+import { getLawContext, getTemplatesContext } from '@/lib/rag';
 import { DOCUMENT_GENERATION_PROMPT } from '@/lib/prompts';
 import {
   NEXT_STEPS_QUESTION_MARKER,
@@ -85,6 +85,37 @@ const CHAT_SYSTEM_PROMPT = `Ты - Verdia, юридический AI-ассис�
 - Разделяй абзацы пустой строкой
 
 Стиль: профессиональный, но дружелюбный и доступный.`;
+
+// Документы, для которых имеет смысл подтягивать образцы возражений
+// (key_arguments + prayer + legal_references из нашей базы шаблонов).
+// Для исков/претензий/договоров образцы не нужны — там логика другая.
+function isObjectionLikeDocument(
+  message: string,
+  documentType: string | undefined,
+): boolean {
+  const text = (message || '').toLowerCase();
+  const textPatterns = [
+    /возражени/i,
+    /отзыв/i,
+    /апелляц/i,
+    /кассац/i,
+    /\bжалоб/i,
+    /обжалов/i,
+    /против иска/i,
+    /отказать в иск/i,
+  ];
+  if (textPatterns.some((re) => re.test(text))) return true;
+
+  // По типу документа из triage: получили иск/решение/постановление — скорее всего
+  // следующее действие будет защитительным.
+  const objectionDocTypes = new Set([
+    'claim_against_user',
+    'court_decision',
+    'administrative_decision',
+    'pretension_received',
+  ]);
+  return !!documentType && objectionDocTypes.has(documentType);
+}
 
 // Check if message is a document generation request
 function isDocumentRequest(message: string): boolean {
@@ -527,6 +558,89 @@ ${lawContext}
             content: 'Документы получены. Опираюсь на них при подготовке ответа.',
           });
         }
+      }
+
+      // ── RAG: нормы права + образцы возражений ─────────────────────────
+      // Без этого AI цитирует статьи и реквизиты актов «по памяти» —
+      // получаются ошибки в формулах пени, периодах моратория и т.п.
+      // (См. замечания юриста по делу Жеребцова.)
+      //
+      // 1. getLawContext — ВСЕГДА: норм цитировать нужно в любом документе.
+      // 2. getTemplatesContext — только для возражений/жалоб/апелляций,
+      //    где у нас есть свои образцы с ключевыми доводами.
+      //
+      // Best-effort: если RAG упал/тайм-аут — генерируем без него, чтобы
+      // не блокировать пользователя.
+      try {
+        const ragStart = Date.now();
+        const ragQuery = [
+          isTriageChat ? gen.response?.caseTitle || '' : gen.query || '',
+          messageForAi || '',
+        ]
+          .filter(Boolean)
+          .join('. ')
+          .slice(0, 1000);
+
+        const docType = isTriageChat
+          ? (gen.response?.documentType as string | undefined)
+          : undefined;
+        const wantTemplates = isObjectionLikeDocument(messageForAi, docType);
+
+        // Параллельно. Таймаут 8 сек на каждый источник — иначе UX страдает.
+        const RAG_TIMEOUT_MS = 8000;
+        const withTimeout = <T>(p: Promise<T>, fallback: T): Promise<T> =>
+          Promise.race([
+            p,
+            new Promise<T>((resolve) =>
+              setTimeout(() => resolve(fallback), RAG_TIMEOUT_MS),
+            ),
+          ]);
+
+        const [lawResult, templatesResult] = await Promise.all([
+          withTimeout(
+            getLawContext(ragQuery, { matchCount: 5, matchThreshold: 0.3 }),
+            { context: '', articles: [] as Array<{ code_name: string; article_number: string }> },
+          ),
+          wantTemplates
+            ? withTimeout(
+                getTemplatesContext(ragQuery, { matchCount: 3, matchThreshold: 0.3 }),
+                { context: '', templates: [] },
+              )
+            : Promise.resolve({ context: '', templates: [] }),
+        ]);
+
+        const lawArticlesCount = lawResult.articles?.length || 0;
+        const templatesCount = (templatesResult as { templates?: unknown[] }).templates?.length || 0;
+        const elapsed = Date.now() - ragStart;
+
+        console.log(
+          `[docs/rag] law_articles=${lawArticlesCount} templates=${templatesCount} elapsed_ms=${elapsed} wantTemplates=${wantTemplates}`,
+        );
+
+        if (lawResult.context && lawResult.context.trim()) {
+          messages.push({
+            role: 'user',
+            content: `=== БАЗА НПА (релевантные статьи из нашей базы знаний) ===\n${lawResult.context.trim()}\n\nПравило: ссылаться на нормы можно ТОЛЬКО если они присутствуют в этом блоке. Если нужной статьи здесь нет — не цитируй её реквизиты, а либо обходи без точной ссылки, либо помечай как требующую проверки юристом.`,
+          });
+          messages.push({
+            role: 'assistant',
+            content: 'Принял нормы. Буду цитировать только перечисленные статьи.',
+          });
+        }
+
+        if (templatesResult.context && templatesResult.context.trim()) {
+          messages.push({
+            role: 'user',
+            content: `=== ОБРАЗЦЫ ВОЗРАЖЕНИЙ (для ориентира по структуре и доводам) ===\n${templatesResult.context.trim()}\n\nПравило: используй образцы как ориентир структуры и набора доводов. НЕ копируй формулировки дословно — это чужие дела с другими сторонами. Каждый довод адаптируй под факты из приложенных документов.`,
+          });
+          messages.push({
+            role: 'assistant',
+            content: 'Образцы понял, использую только как структурный ориентир.',
+          });
+        }
+      } catch (ragErr) {
+        // Best-effort: не валим генерацию документа из-за проблем с RAG.
+        console.error('[docs/rag] failed (non-fatal):', ragErr);
       }
 
       // Add previous chat context (visible-only). Полный текст документов
