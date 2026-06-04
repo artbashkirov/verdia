@@ -497,7 +497,11 @@ function ChatResultPageContent() {
     return 'Печатает...';
   };
 
-  const handleSubmit = async (message: string, attachments?: ChatAttachment[]) => {
+  const handleSubmit = async (
+    message: string,
+    attachments?: ChatAttachment[],
+    options?: { displayMessage?: string },
+  ) => {
     const list = attachments ?? [];
     const effectiveMessage = buildEffectiveMessageWithAttachments(message, list);
     if (!effectiveMessage) {
@@ -516,11 +520,19 @@ function ChatResultPageContent() {
     setIsSending(true);
     setLastUserMessage(effectiveMessage);
 
+    // displayMessage используется в UI чата (короткая фраза для пользователя),
+    // а в API уходит полный effectiveMessage (с инструкциями для AI).
+    // Это нужно для actionPrompt из triage: AI получает развёрнутый алгоритм,
+    // а пользователь видит «Подготовь возражения на исковое заявление».
+    const effectiveDisplay = options?.displayMessage
+      ? buildEffectiveMessageWithAttachments(options.displayMessage, list)
+      : effectiveMessage;
+
     const attachmentMeta = toAttachmentMetaList(list);
     const userMessage: ChatMessage = {
       id: `temp-${Date.now()}`,
       role: 'user',
-      content: effectiveMessage,
+      content: effectiveDisplay,
       created_at: new Date().toISOString(),
       attachments: attachmentMeta,
       attachment: attachmentMeta[0] ?? null,
@@ -539,6 +551,7 @@ function ChatResultPageContent() {
         body: JSON.stringify({
           generationId: chatId,
           message: effectiveMessage,
+          displayMessage: options?.displayMessage,
           attachments: list,
         }),
       });
@@ -1138,10 +1151,14 @@ function ChatResultPageContent() {
                   chatId={chatId}
                   isBusy={isSending}
                   onActionStart={async (action) => {
-                    // Действие — это просто обычное сообщение пользователю
-                    // в чат, с заранее подготовленным промптом. Полный
-                    // анализ под action делает /api/chat.
-                    await handleSubmit(action.actionPrompt);
+                    // В чат показываем короткое человеческое сообщение
+                    // (action.label с префиксом). В AI отправляем полный
+                    // actionPrompt со всем алгоритмом. Это нужно, чтобы
+                    // пользователь не видел гигантский технический промпт
+                    // в чате как «своё сообщение».
+                    await handleSubmit(action.actionPrompt, undefined, {
+                      displayMessage: `Подготовь: ${action.label}`,
+                    });
                   }}
                 />
               ) : null}
@@ -1575,7 +1592,9 @@ function ChatResultPageContent() {
                                           chatId={chatId}
                                           isBusy={isSending}
                                           onActionStart={async (action) => {
-                                            await handleSubmit(action.actionPrompt);
+                                            await handleSubmit(action.actionPrompt, undefined, {
+                                              displayMessage: `Подготовь: ${action.label}`,
+                                            });
                                           }}
                                         />
                                       );
