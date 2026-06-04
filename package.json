@@ -13,6 +13,7 @@
     "check-cloudflare": "node scripts/check-cloudflare-env.js",
     "fix-cloudflare-env": "node scripts/fix-cloudflare-env.js",
     "find-all-env": "node scripts/find-all-env.js",
+    "seed-objections": "npx tsx scripts/seed-objection-templates.ts",
     "kill-port": "lsof -ti:3000 | xargs kill -9 2>/dev/null || echo 'Порт 3000 свободен'",
     "reinstall": "rm -rf node_modules package-lock.json && npm install"
   },
